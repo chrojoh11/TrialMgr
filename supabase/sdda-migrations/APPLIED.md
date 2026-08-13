@@ -47,6 +47,15 @@ No legacy C-WAGS migration was applied.
 - Permission verification: authenticated execution allowed; anonymous execution denied
 - Data impact: existing runs were backfilled from their entry stream; subsequent imports reuse entries and upsert runs
 
+## `20260813_0011_formal_alerts.sql`
+
+- Applied: 2026-08-13 (America/Edmonton)
+- Project: `SDDA-Trialdesk`
+- Project reference: `hsxwwtvzfulxdqimkgcc`
+- Execution result: success, no rows returned
+- Verification: `sdda_entries.formal_alerts` exists and the authenticated importer accepts `entry_formal_alerts`
+- Data impact: additive nullable field; existing values are populated on idempotent CSV re-import
+
 ## `20260813_0008_delete_draft_trial.sql`
 
 - Applied: 2026-08-13 (America/Edmonton)

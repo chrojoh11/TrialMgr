@@ -32,6 +32,11 @@ const unifiedEntryRunsMigration = readFileSync(
   'utf8',
 ).toLowerCase();
 
+const formalAlertsMigration = readFileSync(
+  new URL('../supabase/sdda-migrations/20260813_0011_formal_alerts.sql', import.meta.url),
+  'utf8',
+).toLowerCase();
+
 const runningOrderMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260813_0006_atomic_running_order.sql', import.meta.url),
   'utf8',
@@ -185,6 +190,14 @@ test('reuses one entry while importing component-specific runs idempotently', ()
   assert.match(unifiedEntryRunsMigration, /excluded\.stream/);
   assert.match(unifiedEntryRunsMigration, /revoke all on function public\.sdda_import_entry.*from anon/s);
   assert.doesNotMatch(unifiedEntryRunsMigration, /service_role|security definer|cwags|c-wags/);
+});
+
+test('stores formal alerts and keeps their import authenticated and audited', () => {
+  assert.match(formalAlertsMigration, /alter table public\.sdda_entries add column if not exists formal_alerts text/);
+  assert.match(formalAlertsMigration, /entry_formal_alerts text/);
+  assert.match(formalAlertsMigration, /'formal_alerts',entry_formal_alerts/);
+  assert.match(formalAlertsMigration, /revoke all.*from anon/s);
+  assert.doesNotMatch(formalAlertsMigration, /service_role|security definer|cwags|c-wags/);
 });
 
 test('saves complete SDDA running orders atomically with an audit record', () => {

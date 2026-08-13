@@ -106,7 +106,7 @@ export async function saveSddaTrialOfferings(
 
 export async function listSddaEntries(client: SupabaseClient, trialId: string) {
   const { data, error } = await client.from('sdda_entries')
-    .select('id,handler_name,handler_email,handler_phone,stream,entry_status,source,created_at,sdda_dogs(id,call_name,registered_name,sdda_registration_number,registration_pending,breed),sdda_runs(id,trial_day_id,level,component,stream,run_group,running_position)')
+    .select('id,handler_name,handler_email,handler_phone,stream,formal_alerts,entry_status,source,created_at,sdda_dogs(id,call_name,registered_name,sdda_registration_number,registration_pending,breed),sdda_runs(id,trial_day_id,level,component,stream,run_group,running_position)')
     .eq('trial_id', trialId).order('created_at');
   if (error) throw new Error(error.message);
   return data || [];
@@ -123,7 +123,7 @@ export async function importSddaCsvEntries(client: SupabaseClient, trial: SddaTr
       dog_registration_number: entry.registrationNumber, dog_registration_pending: entry.registrationPending,
       dog_breed: entry.breed, entry_handler_name: entry.handlerName, entry_handler_email: entry.handlerEmail,
       entry_handler_phone: entry.handlerPhone, entry_stream: entry.stream, entry_level: entry.level,
-      entry_components: entry.components, import_source: 'google_form', import_source_row: String(entry.rowNumber),
+      entry_components: entry.components, import_source: 'google_form', import_source_row: String(entry.rowNumber), entry_formal_alerts: entry.formalAlerts,
     });
     if (error) results.errors.push(`Row ${entry.rowNumber}: ${error.message}`); else results.imported++;
   }
@@ -132,7 +132,7 @@ export async function importSddaCsvEntries(client: SupabaseClient, trial: SddaTr
 
 export async function listSddaRunningOrderRuns(client: SupabaseClient, trialId: string) {
   const { data, error } = await client.from('sdda_runs')
-    .select('id,trial_day_id,level,component,stream,run_group,running_position,created_at,sdda_trial_days(day_number,trial_date),sdda_entries(id,handler_name,dog_id,sdda_dogs(call_name,registered_name,breed,sdda_registration_number))')
+    .select('id,trial_day_id,level,component,stream,run_group,running_position,created_at,sdda_trial_days(day_number,trial_date),sdda_entries(id,handler_name,dog_id,formal_alerts,sdda_dogs(call_name,registered_name,breed,sdda_registration_number))')
     .eq('trial_id', trialId).order('created_at');
   if (error) throw new Error(error.message);
   return data || [];

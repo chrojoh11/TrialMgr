@@ -4,7 +4,7 @@ export interface SddaCsvEntry {
   rowNumber: number; handlerName: string; handlerEmail: string; handlerPhone: string;
   dogCallName: string; dogRegisteredName: string; registrationNumber: string;
   registrationPending: boolean; breed: string; stream: SddaStream; level: SddaLevel;
-  components: SddaComponent[]; trialDay: number;
+  components: SddaComponent[]; trialDay: number; formalAlerts: string;
 }
 
 function parseCsvRows(text: string) {
@@ -30,6 +30,7 @@ const aliases: Record<string, string[]> = {
   registrationNumber: ['sdda_registration_number', 'registration_number', 'sdda_number', 'dog_registered_number'],
   registrationPending: ['registration_pending', 'sdda_registration_pending'], breed: ['breed'], stream: ['stream', 'division', 'amateur_or_working_stream'],
   level: ['level'], components: ['components', 'component'], trialDay: ['trial_day', 'day', 'day_number'],
+  formalAlerts: ['formal_alerts', 'formal_alert_s_started_teams_leave_blank'],
 };
 
 const levelNames = SDDA_LEVELS.map((level) => level.toLowerCase());
@@ -83,7 +84,7 @@ function parseGoogleFormEntries(rows: string[][], headers: string[]) {
         const registration = get(row, 'registrationNumber');
         entries.push({ rowNumber, handlerName: handler, handlerEmail: get(row, 'handlerEmail'), handlerPhone: get(row, 'handlerPhone'), dogCallName: dog,
           dogRegisteredName: get(row, 'dogRegisteredName'), registrationNumber: registration, registrationPending: !registration, breed: get(row, 'breed'),
-          stream, level, components, trialDay: weekdays.indexOf(weekday) + 1 });
+          stream, level, components, trialDay: weekdays.indexOf(weekday) + 1, formalAlerts: get(row, 'formalAlerts') });
       } catch (error) { errors.push(`Row ${rowNumber}: ${error instanceof Error ? error.message : 'invalid row'}`); }
     }
   });
@@ -115,7 +116,7 @@ export function parseSddaEntryCsv(text: string) {
       if (!pending && !registration) throw new Error('registration number required unless pending');
       const trialDay = Number(get(row, 'trialDay')); if (!Number.isInteger(trialDay) || trialDay < 1 || trialDay > 4) throw new Error('trial_day must be 1 through 4');
       entries.push({ rowNumber, handlerName: handler, handlerEmail: get(row, 'handlerEmail'), handlerPhone: get(row, 'handlerPhone'), dogCallName: dog,
-        dogRegisteredName: get(row, 'dogRegisteredName'), registrationNumber: registration, registrationPending: pending, breed: get(row, 'breed'), stream, level, components, trialDay });
+        dogRegisteredName: get(row, 'dogRegisteredName'), registrationNumber: registration, registrationPending: pending, breed: get(row, 'breed'), stream, level, components, trialDay, formalAlerts: get(row, 'formalAlerts') });
     } catch (error) { errors.push(`Row ${rowNumber}: ${error instanceof Error ? error.message : 'invalid row'}`); }
   });
   return { entries, errors };

@@ -39,7 +39,7 @@ export default function SddaScoreSheetsPage() {
           trialDate: day.trial_date,
           level: record.level, component: record.component, stream: record.stream,
           dogName: dog?.registered_name || dog?.call_name || '', breed: dog?.breed || '',
-          dogNumber: dog?.sdda_registration_number || 'Pending', alerts: '',
+          dogNumber: dog?.sdda_registration_number || 'Pending', alerts: entry?.formal_alerts || '',
           order: record.running_position || Number.MAX_SAFE_INTEGER,
         } as SddaScoreSheetRun;
       }).sort((a, b) => a.dayNumber - b.dayNumber || a.level.localeCompare(b.level) || a.component.localeCompare(b.component) || a.order - b.order);
