@@ -22,6 +22,11 @@ const offeringsMigration = readFileSync(
   'utf8',
 ).toLowerCase();
 
+const entryImportMigration = readFileSync(
+  new URL('../supabase/sdda-migrations/20260813_0005_atomic_entry_import.sql', import.meta.url),
+  'utf8',
+).toLowerCase();
+
 const requiredTables = [
   'sdda_profiles', 'sdda_trials', 'sdda_trial_days', 'sdda_trial_members', 'sdda_dogs',
   'sdda_entries', 'sdda_runs', 'sdda_scores', 'sdda_financial_transactions',
@@ -107,4 +112,16 @@ test('defines RLS-protected SDDA day offerings for levels, components, and strea
   assert.match(offeringsMigration, /create trigger sdda_trial_offering_audit/);
   assert.match(offeringsMigration, /insert into public\.sdda_audit_records/);
   assert.doesNotMatch(offeringsMigration, /service_role|cwags|c-wags/);
+});
+
+test('imports SDDA entries atomically only into configured offerings', () => {
+  assert.match(entryImportMigration, /function public\.sdda_import_entry/);
+  assert.match(entryImportMigration, /security invoker/);
+  assert.match(entryImportMigration, /sdda_can_manage_trial\(target_trial_id\)/);
+  assert.match(entryImportMigration, /from public\.sdda_trial_offerings/);
+  for (const table of ['sdda_dogs', 'sdda_entries', 'sdda_runs', 'sdda_audit_records']) {
+    assert.match(entryImportMigration, new RegExp(`insert into public\\.${table}`));
+  }
+  assert.match(entryImportMigration, /revoke all on function public\.sdda_import_entry.*from anon/s);
+  assert.doesNotMatch(entryImportMigration, /service_role|security definer|cwags|c-wags/);
 });

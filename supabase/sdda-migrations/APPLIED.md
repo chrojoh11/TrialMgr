@@ -48,3 +48,14 @@ No legacy C-WAGS migration was applied.
 - Initial state verification: 0 offering rows
 - Audit verification: offering insert/update/delete trigger installed
 - Data impact: additive table, policies, and audit trigger; no existing rows changed
+
+## `20260813_0005_atomic_entry_import.sql`
+
+- Applied: 2026-08-13 (America/Edmonton)
+- Project: `SDDA-Trialdesk`
+- Project reference: `hsxwwtvzfulxdqimkgcc`
+- Database branch: `main` / Production
+- Execution result: success, no rows returned
+- Verification: `sdda_import_entry` exists as `SECURITY INVOKER`
+- Permission verification: authenticated execution allowed; anonymous execution denied
+- Data impact: additive function only; no existing rows changed

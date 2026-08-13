@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { validateSddaTrialSetup, type SddaTrialSetupInput, type SddaTrialStatus } from './trialSetup';
 import { offeringKey, parseOfferingKey, type SddaLevel, type SddaComponent, type SddaStream } from './offerings';
+import type { SddaCsvEntry } from './entryCsv';
 
 export interface SddaTrialSummary {
   id: string;
@@ -94,4 +95,30 @@ export async function saveSddaTrialOfferings(
     })));
     if (error) throw new Error(error.message);
   }
+}
+
+export async function listSddaEntries(client: SupabaseClient, trialId: string) {
+  const { data, error } = await client.from('sdda_entries')
+    .select('id,handler_name,handler_email,handler_phone,stream,entry_status,source,created_at,sdda_dogs(id,call_name,registered_name,sdda_registration_number,registration_pending,breed),sdda_runs(id,trial_day_id,level,component,run_group,running_position)')
+    .eq('trial_id', trialId).order('created_at');
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function importSddaCsvEntries(client: SupabaseClient, trial: SddaTrialWorkspace, entries: SddaCsvEntry[]) {
+  const results = { imported: 0, errors: [] as string[] };
+  for (const entry of entries) {
+    const day = trial.sdda_trial_days.find((candidate) => candidate.day_number === entry.trialDay);
+    if (!day) { results.errors.push(`Row ${entry.rowNumber}: trial day ${entry.trialDay} does not exist.`); continue; }
+    const { error } = await client.rpc('sdda_import_entry', {
+      target_trial_id: trial.id, target_trial_day_id: day.id,
+      dog_call_name: entry.dogCallName, dog_registered_name: entry.dogRegisteredName,
+      dog_registration_number: entry.registrationNumber, dog_registration_pending: entry.registrationPending,
+      dog_breed: entry.breed, entry_handler_name: entry.handlerName, entry_handler_email: entry.handlerEmail,
+      entry_handler_phone: entry.handlerPhone, entry_stream: entry.stream, entry_level: entry.level,
+      entry_components: entry.components, import_source: 'google_form', import_source_row: String(entry.rowNumber),
+    });
+    if (error) results.errors.push(`Row ${entry.rowNumber}: ${error.message}`); else results.imported++;
+  }
+  return results;
 }
