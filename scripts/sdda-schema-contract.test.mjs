@@ -17,6 +17,11 @@ const atomicTrialMigration = readFileSync(
   'utf8',
 ).toLowerCase();
 
+const offeringsMigration = readFileSync(
+  new URL('../supabase/sdda-migrations/20260813_0004_trial_offerings.sql', import.meta.url),
+  'utf8',
+).toLowerCase();
+
 const requiredTables = [
   'sdda_profiles', 'sdda_trials', 'sdda_trial_days', 'sdda_trial_members', 'sdda_dogs',
   'sdda_entries', 'sdda_runs', 'sdda_scores', 'sdda_financial_transactions',
@@ -88,4 +93,18 @@ test('creates SDDA trials and one-to-four days atomically as the signed-in user'
   assert.match(atomicTrialMigration, /insert into public\.sdda_audit_records/);
   assert.match(atomicTrialMigration, /revoke all on function public\.sdda_create_trial\(text, text, text, date\[\]\) from anon/);
   assert.doesNotMatch(atomicTrialMigration, /service_role|security definer|cwags|c-wags/);
+});
+
+test('defines RLS-protected SDDA day offerings for levels, components, and streams', () => {
+  assert.match(offeringsMigration, /create table public\.sdda_trial_offerings/);
+  for (const value of ['started', 'advanced', 'excellent', 'elite', 'container', 'interior', 'exterior', 'amateur', 'working']) {
+    assert.match(offeringsMigration, new RegExp(`'${value}'`));
+  }
+  assert.match(offeringsMigration, /unique \(trial_day_id, level, component, stream\)/);
+  assert.match(offeringsMigration, /enable row level security/);
+  assert.match(offeringsMigration, /sdda_can_manage_trial\(trial_id\)/);
+  assert.match(offeringsMigration, /revoke all on table public\.sdda_trial_offerings from anon/);
+  assert.match(offeringsMigration, /create trigger sdda_trial_offering_audit/);
+  assert.match(offeringsMigration, /insert into public\.sdda_audit_records/);
+  assert.doesNotMatch(offeringsMigration, /service_role|cwags|c-wags/);
 });

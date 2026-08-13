@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { validateSddaTrialSetup, type SddaTrialSetupInput, type SddaTrialStatus } from './trialSetup';
+import { offeringKey, parseOfferingKey, type SddaLevel, type SddaComponent, type SddaStream } from './offerings';
 
 export interface SddaTrialSummary {
   id: string;
@@ -9,6 +10,28 @@ export interface SddaTrialSummary {
   status: SddaTrialStatus;
   created_at: string;
   sdda_trial_days: Array<{ day_number: number; trial_date: string }>;
+}
+
+export interface SddaTrialOffering {
+  id: string;
+  trial_day_id: string;
+  level: SddaLevel;
+  component: SddaComponent;
+  stream: SddaStream;
+  judge_name: string | null;
+  capacity: number | null;
+}
+
+export interface SddaTrialWorkspace extends SddaTrialSummary {
+  timezone: string;
+  sdda_trial_days: Array<{
+    id: string;
+    day_number: number;
+    trial_date: string;
+    sdda_trial_number: string | null;
+    judge_name: string | null;
+  }>;
+  sdda_trial_offerings: SddaTrialOffering[];
 }
 
 export async function listSddaTrials(client: SupabaseClient): Promise<SddaTrialSummary[]> {
@@ -30,4 +53,45 @@ export async function createSddaTrial(client: SupabaseClient, input: SddaTrialSe
   });
   if (error || !data) throw new Error(error?.message || 'Unable to create the SDDA trial.');
   return data as string;
+}
+
+export async function getSddaTrialWorkspace(client: SupabaseClient, trialId: string) {
+  const { data, error } = await client
+    .from('sdda_trials')
+    .select('id,name,host_club,venue,timezone,status,created_at,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,judge_name,capacity)')
+    .eq('id', trialId)
+    .single();
+  if (error || !data) throw new Error(error?.message || 'SDDA trial not found.');
+  return data as SddaTrialWorkspace;
+}
+
+export async function saveSddaTrialOfferings(
+  client: SupabaseClient,
+  trialId: string,
+  current: SddaTrialOffering[],
+  selectedKeys: Set<string>,
+) {
+  const currentKeys = new Map(current.map((offering) => [offeringKey({
+    trialDayId: offering.trial_day_id,
+    level: offering.level,
+    component: offering.component,
+    stream: offering.stream,
+  }), offering]));
+  const removeIds = [...currentKeys].filter(([key]) => !selectedKeys.has(key)).map(([, value]) => value.id);
+  const additions = [...selectedKeys].filter((key) => !currentKeys.has(key)).map(parseOfferingKey);
+
+  if (removeIds.length) {
+    const { error } = await client.from('sdda_trial_offerings').delete().eq('trial_id', trialId).in('id', removeIds);
+    if (error) throw new Error(error.message);
+  }
+  if (additions.length) {
+    const { error } = await client.from('sdda_trial_offerings').insert(additions.map((item) => ({
+      trial_id: trialId,
+      trial_day_id: item.trialDayId,
+      level: item.level,
+      component: item.component,
+      stream: item.stream,
+    })));
+    if (error) throw new Error(error.message);
+  }
 }

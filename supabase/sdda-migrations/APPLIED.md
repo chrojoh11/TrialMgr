@@ -35,3 +35,16 @@ No legacy C-WAGS migration was applied.
 - Verification: `sdda_create_trial` exists as `SECURITY INVOKER`
 - Permission verification: `authenticated` can execute; `anon` cannot execute
 - Data impact: additive function only; no existing rows changed
+
+## `20260813_0004_trial_offerings.sql`
+
+- Applied: 2026-08-13 (America/Edmonton)
+- Project: `SDDA-Trialdesk`
+- Project reference: `hsxwwtvzfulxdqimkgcc`
+- Database branch: `main` / Production
+- Execution result: success, no rows returned
+- Verification: `sdda_trial_offerings` exists with RLS and two policies
+- Permission verification: authenticated read/write allowed; anonymous read denied
+- Initial state verification: 0 offering rows
+- Audit verification: offering insert/update/delete trigger installed
+- Data impact: additive table, policies, and audit trigger; no existing rows changed
