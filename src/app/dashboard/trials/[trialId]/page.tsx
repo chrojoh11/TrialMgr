@@ -53,6 +53,26 @@ export default function SddaTrialWorkspacePage() {
     });
   };
 
+  const allOfferingKeys = useMemo(() => new Set(
+    (trial?.sdda_trial_days || []).flatMap((day) =>
+      SDDA_LEVELS.flatMap((level) =>
+        SDDA_COMPONENTS.flatMap((component) =>
+          SDDA_STREAMS.map((stream) => offeringKey({ trialDayId: day.id, level, component, stream })),
+        ),
+      ),
+    ),
+  ), [trial]);
+
+  const selectAllOfferings = () => {
+    setSaved(false);
+    setSelected(new Set(allOfferingKeys));
+  };
+
+  const clearAllOfferings = () => {
+    setSaved(false);
+    setSelected(new Set());
+  };
+
   const save = async () => {
     if (!trial) return;
     try {
@@ -76,7 +96,7 @@ export default function SddaTrialWorkspacePage() {
         </div>
         {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
         {saved && <Alert><Check className="h-4 w-4" /><AlertDescription>SDDA offerings saved.</AlertDescription></Alert>}
-        <Card><CardHeader><CardTitle>Trial offering setup</CardTitle><CardDescription>Select every level, component, and stream offered on each trial day.</CardDescription></CardHeader></Card>
+        <Card><CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle>Trial offering setup</CardTitle><CardDescription>Select every level, component, and stream offered on each trial day.</CardDescription></div><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={selectAllOfferings} disabled={selected.size === allOfferingKeys.size}>Select all</Button><Button type="button" variant="outline" onClick={clearAllOfferings} disabled={selected.size === 0}>Clear all</Button></div></CardHeader></Card>
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/entries`)}><Users className="mr-2 h-4 w-4" />Entries & CSV import</Button>
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/running-order`)}><ListOrdered className="mr-2 h-4 w-4" />Running orders</Button>
