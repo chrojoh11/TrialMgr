@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useMemo, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 
 function ResetPasswordForm() {
-  const supabase = getSupabaseBrowser();
+  const supabase = useMemo(() => getSupabaseBrowser(), []);
   const router = useRouter();
 
   const [password, setPassword] = useState('');
@@ -21,13 +21,29 @@ function ResetPasswordForm() {
 
       const accessToken = hashParams.get('access_token');
       const refreshToken = hashParams.get('refresh_token');
-      const type = searchParams.get('type');
+      const code = searchParams.get('code');
+      const type = searchParams.get('type') ?? hashParams.get('type');
 
       console.log('Recovery flow check:', {
         type,
         hasAccessToken: !!accessToken,
         hasRefreshToken: !!refreshToken,
+        hasCode: !!code,
       });
+
+      // Supabase SSR uses PKCE and returns a one-time code in the query string.
+      // Exchange it for the recovery session before displaying the password form.
+      if (code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+        if (data.session && !error) {
+          setReady(true);
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } else {
+          setMessage('Invalid or expired reset link. Please request a new one.');
+        }
+        return;
+      }
 
       // If we have access token in hash, manually set the session
       if (accessToken && refreshToken) {
@@ -62,6 +78,8 @@ function ResetPasswordForm() {
         setReady(true);
       } else if (type === 'recovery') {
         setMessage('Reset link processing... If this persists, request a new link.');
+      } else if (!session) {
+        setMessage('Invalid or expired reset link. Please request a new one.');
       }
     };
 
@@ -129,7 +147,16 @@ function ResetPasswordForm() {
   if (!ready) {
     return (
       <div className="p-6 text-center">
-        <p>Verifying reset link...</p>
+        <p>{message || 'Verifying reset link...'}</p>
+        {message && (
+          <button
+            type="button"
+            onClick={() => router.replace('/login')}
+            className="mt-4 text-orange-600 underline hover:text-orange-700"
+          >
+            Return to sign in
+          </button>
+        )}
       </div>
     );
   }

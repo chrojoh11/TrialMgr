@@ -6,7 +6,6 @@ import { Menu, LogOut, User as UserIcon } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import type { User } from '@/types/auth';
 import { Button } from '@/components/ui/button';
-import Image from 'next/image';
 
 import {
   DropdownMenu,
@@ -83,19 +82,15 @@ export const Header: React.FC<HeaderProps> = ({ user, onMenuClick }) => {
             <Menu className="h-5 w-5" />
           </Button>
 
-          {/* Logo */}
+          {/* SDDA identity */}
           <Link href="/dashboard" className="flex items-center space-x-2 sm:space-x-5">
-            <Image
-              src="/cwags-logo.png"
-              alt="C-WAGS Logo"
-              width={50}
-              height={50}
-              className="w-[50px] h-[50px] sm:w-[70px] sm:h-[70px] rounded-lg object-contain"
-            />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-600 text-sm font-bold text-white sm:h-12 sm:w-12">
+              SDDA
+            </div>
 
             <div className="hidden sm:block">
-              <h1 className="text-lg sm:text-xl font-bold text-gray-900">C-WAGS</h1>
-              <p className="text-xs text-gray-500 -mt-1">Trial Management</p>
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900">SDDA TrialDesk</h1>
+              <p className="text-xs text-gray-500 -mt-1">Secretary workspace</p>
             </div>
           </Link>
         </div>

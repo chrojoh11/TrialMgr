@@ -33,6 +33,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+/.codex-next-*.log
+/.local-server*.log
+/.windows-next*.log
+/.windows-next*.pid
 
 # env files (can opt-in for committing if needed)
 .env*

@@ -36,6 +36,16 @@ No legacy C-WAGS migration was applied.
 - Permission verification: `authenticated` can execute; `anon` cannot execute
 - Data impact: additive function only; no existing rows changed
 
+## `20260813_0007_secure_trial_creation.sql`
+
+- Applied: 2026-08-13 (America/Edmonton)
+- Project: `SDDA-Trialdesk`
+- Project reference: `hsxwwtvzfulxdqimkgcc`
+- Database branch: `main` / Production
+- Execution result: success, no rows returned
+- Security: function requires `auth.uid()`, assigns ownership to that user, and remains executable only by `authenticated`
+- Data impact: function execution mode changed from invoker to definer; no existing rows changed
+
 ## `20260813_0006_atomic_running_order.sql`
 
 - Applied: 2026-08-13 (America/Edmonton)
