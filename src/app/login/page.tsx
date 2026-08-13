@@ -28,7 +28,6 @@ export default function LoginPage() {
     }
 
     if (data?.user) {
-      localStorage.setItem('cwags_user', JSON.stringify(data.user));
       router.push('/dashboard');
     }
   };
@@ -59,7 +58,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 sm:px-6 lg:px-8">
       <div className="max-w-sm w-full space-y-8">
         <div className="bg-white p-6 sm:p-8 border rounded-lg shadow-lg">
-          <h1 className="text-xl sm:text-2xl font-bold mb-4 text-center">Login</h1>
+          <h1 className="text-xl sm:text-2xl font-bold mb-1 text-center">SDDA TrialDesk</h1>
+          <p className="mb-4 text-center text-sm text-gray-600">Secretary sign in</p>
 
           {error && (
             <p className="mb-3 text-red-600 text-sm border border-red-300 p-3 rounded bg-red-50">

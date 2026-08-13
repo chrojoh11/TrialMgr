@@ -49,8 +49,7 @@ export default function RegisterPage() {
         options: {
           emailRedirectTo: `${window.location.origin}/login`,
           data: {
-            first_name: first.trim(),
-            last_name: last.trim(),
+            full_name: `${first.trim()} ${last.trim()}`,
           },
         },
       });
@@ -93,7 +92,7 @@ export default function RegisterPage() {
             Create your account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Register for C-WAGS Trial Management
+            Register for SDDA TrialDesk
           </p>
         </div>
 

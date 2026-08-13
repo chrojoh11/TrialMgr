@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import type { User } from '@/types/auth';
 
 export function useAuth() {
-  const supabase = getSupabaseBrowser();
+  const supabase = useMemo(() => getSupabaseBrowser(), []);
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,9 +68,9 @@ export function useAuth() {
 
         // 🔥 Load full user profile from users table
         const { data: profile, error: profileError } = await supabase
-          .from('users')
+          .from('sdda_profiles')
           .select('*')
-          .eq('id', authUser.id)
+          .eq('user_id', authUser.id)
           .single();
 
         if (profileError) {
@@ -97,14 +97,15 @@ export function useAuth() {
         // Set the complete user object
         if (isMounted) {
           setUser({
-            id: profile.id,
-            email: profile.email,
-            first_name: profile.first_name || '',
-            last_name: profile.last_name || '',
-            role: profile.role,
-            club_name: profile.club_name || null,
-            phone: profile.phone || null,
-            is_active: profile.is_active ?? true,
+            id: profile.user_id,
+            email: profile.email || authUser.email || '',
+            display_name: profile.display_name || authUser.email || 'SDDA Secretary',
+            first_name: profile.display_name || authUser.email || 'SDDA Secretary',
+            last_name: '',
+            role: 'trial_secretary',
+            club_name: null,
+            phone: null,
+            is_active: true,
             created_at: profile.created_at,
             updated_at: profile.updated_at,
           });
@@ -140,19 +141,19 @@ export function useAuth() {
 
   const getFullName = () => {
     if (!user) return '';
-    return `${user.first_name} ${user.last_name}`.trim();
+    return user.display_name;
   };
 
   const getDisplayInfo = () => {
     if (!user) return null;
     return {
-      first_name: user.first_name,
-      last_name: user.last_name,
-      fullName: `${user.first_name} ${user.last_name}`,
+      first_name: user.display_name,
+      last_name: '',
+      fullName: user.display_name,
       role: user.role,
-      club_name: user.club_name,
+      club_name: null,
       email: user.email,
-      is_active: user.is_active,
+      is_active: true,
     };
   };
 
