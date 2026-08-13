@@ -7,6 +7,11 @@ const migration = readFileSync(
   'utf8',
 ).toLowerCase();
 
+const authMigration = readFileSync(
+  new URL('../supabase/sdda-migrations/20260813_0002_auth_profile_bootstrap.sql', import.meta.url),
+  'utf8',
+).toLowerCase();
+
 const requiredTables = [
   'sdda_profiles', 'sdda_trials', 'sdda_trial_days', 'sdda_trial_members', 'sdda_dogs',
   'sdda_entries', 'sdda_runs', 'sdda_scores', 'sdda_financial_transactions',
@@ -54,4 +59,18 @@ test('keeps assistants and viewers out of financial records', () => {
   assert.match(financeFunction, /m\.role in \('owner', 'secretary'\)/);
   assert.doesNotMatch(financeFunction, /assistant|viewer/);
   assert.match(migration, /sdda_financial_read[\s\S]*sdda_can_manage_finances\(trial_id\)/);
+});
+
+test('bootstraps an SDDA profile for every authenticated user', () => {
+  assert.match(authMigration, /create or replace function public\.sdda_handle_new_auth_user\(\)/);
+  assert.match(authMigration, /security definer/);
+  assert.match(authMigration, /set search_path = public/);
+  assert.match(authMigration, /create trigger sdda_auth_user_profile/);
+  assert.match(authMigration, /after insert or update of email, raw_user_meta_data on auth\.users/);
+  assert.match(authMigration, /on conflict \(user_id\) do update/);
+});
+
+test('backfills existing Auth users without copying legacy application data', () => {
+  assert.match(authMigration, /from auth\.users u/);
+  assert.doesNotMatch(authMigration, /from public\.users|cwags|c-wags|service_role/);
 });
