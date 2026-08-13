@@ -38,7 +38,7 @@ export default function HomePage() {
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-8 mx-auto mb-4 bg-orange-600 rounded-lg flex items-center justify-center text-white font-bold">
-            C-WAGS
+            SDDA
           </div>
           <p className="text-gray-600">Loading...</p>
         </div>
@@ -58,9 +58,9 @@ export default function HomePage() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
               <div className="w-10 h-10 bg-orange-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                C-WAGS
+                SDDA
               </div>
-              <h1 className="ml-3 text-xl font-bold">C-WAGS Trial Management</h1>
+              <h1 className="ml-3 text-xl font-bold">SDDA TrialDesk</h1>
             </div>
             <Link href="/login">
               <Button variant="secondary" className="bg-white text-orange-600 hover:bg-gray-50">
@@ -78,11 +78,11 @@ export default function HomePage() {
             Professional Trial Management
           </Badge>
           <h2 className="text-4xl font-bold text-gray-900 mb-6">
-            Streamline Your C-WAGS Competitions
+            Run Your SDDA Trial With Confidence
           </h2>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Complete trial management solution designed specifically for C-WAGS competitions. Handle
-            entries, running orders, scoring, and reporting all in one place.
+            Local-first secretary software for SDDA entries, running orders, scoring, official forms,
+            finances, audit records, and trial reporting.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/login">
@@ -116,7 +116,7 @@ export default function HomePage() {
               <CardTitle>Entry Processing</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">Streamlined entry management with C-WAGS validation</p>
+              <p className="text-gray-600">Import Google Form or CSV responses with SDDA validation</p>
             </CardContent>
           </Card>
 
@@ -135,8 +135,7 @@ export default function HomePage() {
         <div className="bg-white rounded-lg p-8 text-center shadow-sm border border-gray-200">
           <h3 className="text-2xl font-bold text-gray-900 mb-4">Ready to Get Started?</h3>
           <p className="text-gray-600 mb-6">
-            Join trial secretaries across North America who trust C-WAGS Trial Management for their
-            competitions.
+            Prepare, operate, and report SDDA trials even when venue internet is unreliable.
           </p>
           <Link href="/login">
             <Button size="lg" className="bg-orange-600 hover:bg-orange-700">

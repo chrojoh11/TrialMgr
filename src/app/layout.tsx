@@ -3,8 +3,8 @@ import './globals.css';
 import ResetHandler from './reset-handler';
 
 export const metadata: Metadata = {
-  title: 'C-WAGS Trial Management System',
-  description: 'Modern trial management system for C-WAGS competitions across North America',
+  title: 'SDDA TrialDesk',
+  description: 'Local-first secretary software for SDDA scent detection trials',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

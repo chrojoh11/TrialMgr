@@ -1,5 +1,5 @@
 {
-  "name": "trialmgr",
+  "name": "sdda-trialdesk",
   "type": "module",
   "version": "0.1.0",
   "private": true,
@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "test:sdda": "tsx --test src/lib/sdda/*.test.ts",
     "test:judge-selector": "tsx --test src/lib/judgeSelector.test.ts",
     "test:trial-application": "tsx --test src/lib/trialApplication/trialApplication.test.ts",
     "test:trial-permissions": "tsx --test src/lib/trialPermissions.test.ts",
