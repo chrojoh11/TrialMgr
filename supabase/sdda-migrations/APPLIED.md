@@ -47,6 +47,17 @@ No legacy C-WAGS migration was applied.
 - Audit: deletion metadata is retained independently of the deleted trial
 - Data impact: additive function only; no existing trials were deleted during migration
 
+## `20260813_0009_fix_draft_delete_audit.sql`
+
+- Applied: 2026-08-13 (America/Edmonton)
+- Project: `SDDA-Trialdesk`
+- Project reference: `hsxwwtvzfulxdqimkgcc`
+- Database branch: `main` / Production
+- Execution result: success, no rows returned
+- Fix: cascading offering deletion no longer creates audit rows referencing the parent trial being deleted
+- Audit: normal offering changes remain audited; the independent `trial.deleted` record remains durable
+- Data impact: function definitions only; no trials were deleted during migration
+
 ## `20260813_0007_secure_trial_creation.sql`
 
 - Applied: 2026-08-13 (America/Edmonton)

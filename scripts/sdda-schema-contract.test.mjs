@@ -42,6 +42,11 @@ const deleteDraftTrialMigration = readFileSync(
   'utf8',
 ).toLowerCase();
 
+const fixDraftDeleteAuditMigration = readFileSync(
+  new URL('../supabase/sdda-migrations/20260813_0009_fix_draft_delete_audit.sql', import.meta.url),
+  'utf8',
+).toLowerCase();
+
 const requiredTables = [
   'sdda_profiles', 'sdda_trials', 'sdda_trial_days', 'sdda_trial_members', 'sdda_dogs',
   'sdda_entries', 'sdda_runs', 'sdda_scores', 'sdda_financial_transactions',
@@ -130,6 +135,14 @@ test('deletes only the signed-in owner’s draft and retains an audit record', (
   assert.match(deleteDraftTrialMigration, /'trial\.deleted'/);
   assert.match(deleteDraftTrialMigration, /revoke all.*from anon/s);
   assert.doesNotMatch(deleteDraftTrialMigration, /service_role|cwags|c-wags/);
+});
+
+test('suppresses child offering audits only during an audited parent deletion', () => {
+  assert.match(fixDraftDeleteAuditMigration, /set_config\('sdda\.deleting_trial'/);
+  assert.match(fixDraftDeleteAuditMigration, /current_setting\('sdda\.deleting_trial', true\)/);
+  assert.match(fixDraftDeleteAuditMigration, /'trial\.deleted'/);
+  assert.match(fixDraftDeleteAuditMigration, /owner_id = auth\.uid\(\)/);
+  assert.doesNotMatch(fixDraftDeleteAuditMigration, /service_role|cwags|c-wags/);
 });
 
 test('defines RLS-protected SDDA day offerings for levels, components, and streams', () => {
