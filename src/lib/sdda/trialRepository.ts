@@ -56,6 +56,13 @@ export async function createSddaTrial(client: SupabaseClient, input: SddaTrialSe
   return data as string;
 }
 
+export async function deleteSddaDraftTrial(client: SupabaseClient, trialId: string) {
+  const { error } = await client.rpc('sdda_delete_draft_trial', {
+    target_trial_id: trialId,
+  });
+  if (error) throw new Error(error.message);
+}
+
 export async function getSddaTrialWorkspace(client: SupabaseClient, trialId: string) {
   const { data, error } = await client
     .from('sdda_trials')

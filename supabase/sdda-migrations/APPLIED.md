@@ -36,6 +36,17 @@ No legacy C-WAGS migration was applied.
 - Permission verification: `authenticated` can execute; `anon` cannot execute
 - Data impact: additive function only; no existing rows changed
 
+## `20260813_0008_delete_draft_trial.sql`
+
+- Applied: 2026-08-13 (America/Edmonton)
+- Project: `SDDA-Trialdesk`
+- Project reference: `hsxwwtvzfulxdqimkgcc`
+- Database branch: `main` / Production
+- Execution result: success, no rows returned
+- Security: only the authenticated owner can delete a trial whose status is `draft`; anonymous execution is denied
+- Audit: deletion metadata is retained independently of the deleted trial
+- Data impact: additive function only; no existing trials were deleted during migration
+
 ## `20260813_0007_secure_trial_creation.sql`
 
 - Applied: 2026-08-13 (America/Edmonton)

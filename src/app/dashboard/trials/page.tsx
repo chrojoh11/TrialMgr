@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Calendar, Loader2, MapPin, Plus, Search } from 'lucide-react';
+import { Calendar, Loader2, MapPin, Plus, Search, Trash2 } from 'lucide-react';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
-import { listSddaTrials, type SddaTrialSummary } from '@/lib/sdda/trialRepository';
+import { deleteSddaDraftTrial, listSddaTrials, type SddaTrialSummary } from '@/lib/sdda/trialRepository';
 import { formatSddaTrialStatus } from '@/lib/sdda/trialSetup';
 
 export default function TrialsPage() {
@@ -18,6 +18,7 @@ export default function TrialsPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -32,6 +33,20 @@ export default function TrialsPage() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  const removeDraft = async (trial: SddaTrialSummary) => {
+    if (!window.confirm(`Delete the draft trial “${trial.name}”? This cannot be undone.`)) return;
+    try {
+      setDeletingId(trial.id);
+      setError(null);
+      await deleteSddaDraftTrial(getSupabaseBrowser(), trial.id);
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to delete the draft trial.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -79,6 +94,14 @@ export default function TrialsPage() {
                     {trial.venue && <p className="flex items-center text-gray-600"><MapPin className="mr-2 h-4 w-4" />{trial.venue}</p>}
                     <p className="flex items-center text-gray-600"><Calendar className="mr-2 h-4 w-4" />{days.map((day) => day.trial_date).join(', ')}</p>
                     <p>{days.length} trial {days.length === 1 ? 'day' : 'days'}</p>
+                    <div className="flex gap-2 pt-2">
+                      <Link href={`/dashboard/trials/${trial.id}`}><Button size="sm">Open trial</Button></Link>
+                      {trial.status === 'draft' && (
+                        <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={deletingId === trial.id} onClick={() => void removeDraft(trial)}>
+                          {deletingId === trial.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}Delete draft
+                        </Button>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               );

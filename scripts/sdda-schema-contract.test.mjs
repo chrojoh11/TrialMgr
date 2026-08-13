@@ -32,6 +32,16 @@ const runningOrderMigration = readFileSync(
   'utf8',
 ).toLowerCase();
 
+const secureTrialCreationMigration = readFileSync(
+  new URL('../supabase/sdda-migrations/20260813_0007_secure_trial_creation.sql', import.meta.url),
+  'utf8',
+).toLowerCase();
+
+const deleteDraftTrialMigration = readFileSync(
+  new URL('../supabase/sdda-migrations/20260813_0008_delete_draft_trial.sql', import.meta.url),
+  'utf8',
+).toLowerCase();
+
 const requiredTables = [
   'sdda_profiles', 'sdda_trials', 'sdda_trial_days', 'sdda_trial_members', 'sdda_dogs',
   'sdda_entries', 'sdda_runs', 'sdda_scores', 'sdda_financial_transactions',
@@ -103,6 +113,23 @@ test('creates SDDA trials and one-to-four days atomically as the signed-in user'
   assert.match(atomicTrialMigration, /insert into public\.sdda_audit_records/);
   assert.match(atomicTrialMigration, /revoke all on function public\.sdda_create_trial\(text, text, text, date\[\]\) from anon/);
   assert.doesNotMatch(atomicTrialMigration, /service_role|security definer|cwags|c-wags/);
+});
+
+test('secures atomic trial creation without exposing anonymous execution', () => {
+  assert.match(secureTrialCreationMigration, /alter function public\.sdda_create_trial.*security definer/s);
+  assert.match(secureTrialCreationMigration, /set search_path = public/);
+  assert.match(secureTrialCreationMigration, /from anon/);
+  assert.match(secureTrialCreationMigration, /to authenticated/);
+  assert.doesNotMatch(secureTrialCreationMigration, /service_role|cwags|c-wags/);
+});
+
+test('deletes only the signed-in owner’s draft and retains an audit record', () => {
+  assert.match(deleteDraftTrialMigration, /function public\.sdda_delete_draft_trial/);
+  assert.match(deleteDraftTrialMigration, /owner_id = auth\.uid\(\)/);
+  assert.match(deleteDraftTrialMigration, /status = 'draft'/);
+  assert.match(deleteDraftTrialMigration, /'trial\.deleted'/);
+  assert.match(deleteDraftTrialMigration, /revoke all.*from anon/s);
+  assert.doesNotMatch(deleteDraftTrialMigration, /service_role|cwags|c-wags/);
 });
 
 test('defines RLS-protected SDDA day offerings for levels, components, and streams', () => {

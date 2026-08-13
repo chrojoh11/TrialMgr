@@ -26,8 +26,8 @@ export default function CreateTrialPage() {
     try {
       setSaving(true);
       setError(null);
-      await createSddaTrial(getSupabaseBrowser(), { name, hostClub, venue, dates });
-      router.push('/dashboard/trials');
+      const trialId = await createSddaTrial(getSupabaseBrowser(), { name, hostClub, venue, dates });
+      router.push(`/dashboard/trials/${trialId}`);
       router.refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to create the SDDA trial.');
