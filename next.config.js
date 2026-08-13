@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+import './scripts/assert-no-supabase-env.js';
+
 const nextConfig = {
   turbopack: {
     root: process.cwd(),
@@ -8,7 +10,6 @@ const nextConfig = {
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
-  serverExternalPackages: ['@supabase/supabase-js'],
 };
 
 export default nextConfig;

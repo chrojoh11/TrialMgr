@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "test:environment-safety": "node --test scripts/assert-no-supabase-env.test.mjs",
     "test:sdda": "tsx --test src/lib/sdda/*.test.ts",
     "test:judge-selector": "tsx --test src/lib/judgeSelector.test.ts",
     "test:trial-application": "tsx --test src/lib/trialApplication/trialApplication.test.ts",

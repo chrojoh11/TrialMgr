@@ -6,7 +6,12 @@
 - Do not write to `E:` or use it as a build, test, or migration source.
 - Do not push. Local commits are recovery points only.
 - Do not alter the external Vercel project. The user will disconnect it.
+- The eventual deployment target is the user's `chrojoh11` Vercel account.
 - Preserve `stash@{0}` (`Pre-SDDA conversion snapshot 2026-08-13`).
+
+K must not contain or accept Supabase URLs, anonymous keys, service-role keys,
+or other Supabase credentials. The application intentionally fails at startup
+and build time if a Supabase environment variable is configured.
 
 ## Architecture decision
 
