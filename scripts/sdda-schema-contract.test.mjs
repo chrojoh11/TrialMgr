@@ -37,6 +37,7 @@ const formalAlertsMigration = readFileSync(
   'utf8',
 ).toLowerCase();
 const componentMoveUpMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0012_component_move_up.sql', import.meta.url), 'utf8').toLowerCase();
+const multilevelRunsMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0013_multilevel_component_runs.sql', import.meta.url), 'utf8').toLowerCase();
 
 const runningOrderMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260813_0006_atomic_running_order.sql', import.meta.url),
@@ -208,6 +209,12 @@ test('supports audited component move-ups on any offered trial day', () => {
   assert.match(componentMoveUpMigration, /run\.move_up_approved/);
   assert.match(componentMoveUpMigration, /run\.move_up_undone/);
   assert.doesNotMatch(componentMoveUpMigration, /day_number\s*<=\s*1|service_role|security definer|cwags|c-wags/);
+});
+test('preserves multiple levels for the same dog, day, and component', () => {
+  assert.match(multilevelRunsMigration, /unique\(entry_id,trial_day_id,level,component\)/);
+  assert.match(multilevelRunsMigration, /on conflict\(entry_id,trial_day_id,level,component\)/);
+  assert.doesNotMatch(multilevelRunsMigration, /on conflict\(entry_id,trial_day_id,component\)/);
+  assert.doesNotMatch(multilevelRunsMigration, /service_role|security definer|cwags|c-wags/);
 });
 
 test('saves complete SDDA running orders atomically with an audit record', () => {

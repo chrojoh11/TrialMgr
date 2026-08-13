@@ -64,6 +64,13 @@ No legacy C-WAGS migration was applied.
 - Rules: available on any day; secretary confirms qualification and host approval; offering, stream, capacity, and duplicate checks enforced
 - Audit: approvals and undo actions retained in `sdda_audit_records`
 
+## `20260813_0013_multilevel_component_runs.sql`
+
+- Applied: 2026-08-13 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Verification: run uniqueness and import upsert now include level
+- Data impact: preserves legitimate Advanced and Excellent runs for the same dog/day/component; missing runs are restored by idempotent CSV re-import
+
 ## `20260813_0008_delete_draft_trial.sql`
 
 - Applied: 2026-08-13 (America/Edmonton)
