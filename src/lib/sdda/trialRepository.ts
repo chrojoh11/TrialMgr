@@ -132,7 +132,7 @@ export async function importSddaCsvEntries(client: SupabaseClient, trial: SddaTr
 
 export async function listSddaRunningOrderRuns(client: SupabaseClient, trialId: string) {
   const { data, error } = await client.from('sdda_runs')
-    .select('id,trial_day_id,level,component,stream,run_group,running_position,created_at,sdda_trial_days(day_number,trial_date),sdda_entries(id,handler_name,dog_id,sdda_dogs(call_name,sdda_registration_number))')
+    .select('id,trial_day_id,level,component,stream,run_group,running_position,created_at,sdda_trial_days(day_number,trial_date),sdda_entries(id,handler_name,dog_id,sdda_dogs(call_name,registered_name,breed,sdda_registration_number))')
     .eq('trial_id', trialId).order('created_at');
   if (error) throw new Error(error.message);
   return data || [];

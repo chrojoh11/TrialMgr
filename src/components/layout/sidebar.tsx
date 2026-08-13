@@ -196,6 +196,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       permission: 'manage_entries',
     },
     {
+      label: 'Official Score Sheets',
+      href: `/dashboard/trials/${trial.id}/score-sheets`,
+      icon: ClipboardCheck,
+      permission: 'generate_reports',
+    },
+    {
       label: 'Copy Entry Link',
       onClick: () => copyEntryLink(trial.id),
       icon: Copy,
