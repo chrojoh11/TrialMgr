@@ -55,8 +55,9 @@ function parseGoogleFormEntries(rows: string[][], headers: string[]) {
 
   rows.slice(1).forEach((row, offset) => {
     const rowNumber = offset + 2;
+    const rawStreamSelection = get(row, 'stream');
     const streamSelections = new Map<SddaLevel, SddaStream>();
-    for (const match of get(row, 'stream').matchAll(/(Started|Advanced|Excellent|Elite)\s*-\s*(Amateur|Working)/gi)) {
+    for (const match of rawStreamSelection.matchAll(/(Started|Advanced|Excellent|Elite)\s*-\s*(Amateur|Working)/gi)) {
       const level = SDDA_LEVELS.find((value) => value.toLowerCase() === match[1].toLowerCase());
       const stream = SDDA_STREAMS.find((value) => value.toLowerCase() === match[2].toLowerCase());
       if (level && stream) streamSelections.set(level, stream);
@@ -68,14 +69,16 @@ function parseGoogleFormEntries(rows: string[][], headers: string[]) {
       const [weekday, rawLevel] = header.split('_');
       const levelIndex = levelNames.indexOf(rawLevel);
       const level = SDDA_LEVELS[levelIndex];
-      const stream = streamSelections.get(level);
+      // Match the established TrialDesk behavior: prefer the stream explicitly
+      // selected for this level; otherwise Working anywhere makes the fallback
+      // Working, and a blank/non-Working response defaults to Amateur.
+      const stream = streamSelections.get(level) ?? (/working/i.test(rawStreamSelection) ? 'Working' : 'Amateur');
       const components = /all_?3_components?/i.test(normalize(selection))
         ? [...SDDA_COMPONENTS]
         : selection.split(/[,;|]/).map((value) => componentNames[normalize(value)]).filter(Boolean);
       try {
         const handler = get(row, 'handlerName'); const dog = get(row, 'dogCallName');
         if (!handler || !dog) throw new Error('handler name and dog call name are required');
-        if (!stream) throw new Error(`${level} stream must be Amateur or Working`);
         if (!components.length) throw new Error(`invalid components for ${header.replace('_', ' ')}`);
         const registration = get(row, 'registrationNumber');
         entries.push({ rowNumber, handlerName: handler, handlerEmail: get(row, 'handlerEmail'), handlerPhone: get(row, 'handlerPhone'), dogCallName: dog,

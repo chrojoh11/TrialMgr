@@ -26,3 +26,19 @@ test('parses the official multi-day SDDA Google Form response layout', () => {
     { trialDay: 2, level: 'Started', stream: 'Amateur', components: ['Container'] },
   ]);
 });
+
+test('uses the original TrialDesk stream fallback when a level-specific choice is missing', () => {
+  const header = 'Email Address,Name,Dog Call Name,Amateur or Working Stream? (Instructors and Professionals must choose working) - Check only those that apply to your entries,Sunday - Advanced,Sunday - Excellent\n';
+  const csv = header +
+    'one@example.ca,One,Finn,,All 3 Components,All 3 Components\n' +
+    'two@example.ca,Two,Scout,Excellent - Amateur,All 3 Components,\n' +
+    'three@example.ca,Three,River,Excellent - Working,All 3 Components,';
+  const result = parseSddaEntryCsv(csv);
+  assert.equal(result.errors.length, 0);
+  assert.deepEqual(result.entries.map(({ handlerName, level, stream }) => ({ handlerName, level, stream })), [
+    { handlerName: 'One', level: 'Advanced', stream: 'Amateur' },
+    { handlerName: 'One', level: 'Excellent', stream: 'Amateur' },
+    { handlerName: 'Two', level: 'Advanced', stream: 'Amateur' },
+    { handlerName: 'Three', level: 'Advanced', stream: 'Working' },
+  ]);
+});
