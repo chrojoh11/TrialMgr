@@ -31,7 +31,8 @@ create table public.sdda_trial_days (
   sdda_trial_number text,
   judge_name text,
   unique (trial_id, day_number),
-  unique (trial_id, trial_date)
+  unique (trial_id, trial_date),
+  unique (id, trial_id)
 );
 
 create table public.sdda_trial_members (
@@ -49,6 +50,7 @@ create table public.sdda_dogs (
   sdda_registration_number text,
   registration_pending boolean not null default false,
   breed text,
+  created_by uuid not null references public.sdda_profiles(user_id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (registration_pending or nullif(trim(sdda_registration_number), '') is not null)
@@ -75,13 +77,15 @@ create table public.sdda_entries (
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (trial_id, dog_id, handler_name)
+  unique (trial_id, dog_id, handler_name),
+  unique (id, trial_id)
 );
 
 create table public.sdda_runs (
   id uuid primary key default gen_random_uuid(),
-  entry_id uuid not null references public.sdda_entries(id) on delete cascade,
-  trial_day_id uuid not null references public.sdda_trial_days(id) on delete cascade,
+  trial_id uuid not null references public.sdda_trials(id) on delete cascade,
+  entry_id uuid not null,
+  trial_day_id uuid not null,
   level text not null check (level in ('Started', 'Advanced', 'Excellent', 'Elite')),
   component text not null check (component in ('Container', 'Interior', 'Exterior')),
   run_group text not null default 'Regular'
@@ -93,6 +97,10 @@ create table public.sdda_runs (
   move_up_approved_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  foreign key (entry_id, trial_id)
+    references public.sdda_entries(id, trial_id) on delete cascade,
+  foreign key (trial_day_id, trial_id)
+    references public.sdda_trial_days(id, trial_id) on delete cascade,
   unique (entry_id, trial_day_id, component)
 );
 
@@ -183,10 +191,31 @@ as $$
   );
 $$;
 
+create or replace function public.sdda_can_manage_finances(target_trial_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+set row_security = off
+as $$
+  select exists (
+    select 1 from public.sdda_trials t
+    where t.id = target_trial_id
+      and (t.owner_id = auth.uid() or exists (
+        select 1 from public.sdda_trial_members m
+        where m.trial_id = t.id and m.user_id = auth.uid()
+          and m.role in ('owner', 'secretary')
+      ))
+  );
+$$;
+
 revoke all on function public.sdda_can_access_trial(uuid) from public;
 revoke all on function public.sdda_can_manage_trial(uuid) from public;
+revoke all on function public.sdda_can_manage_finances(uuid) from public;
 grant execute on function public.sdda_can_access_trial(uuid) to authenticated;
 grant execute on function public.sdda_can_manage_trial(uuid) to authenticated;
+grant execute on function public.sdda_can_manage_finances(uuid) to authenticated;
 
 alter table public.sdda_profiles enable row level security;
 alter table public.sdda_trials enable row level security;
@@ -231,13 +260,24 @@ create policy sdda_trial_members_write on public.sdda_trial_members
 
 create policy sdda_dogs_read on public.sdda_dogs
   for select to authenticated using (
-    exists (select 1 from public.sdda_entries e where e.dog_id = id and public.sdda_can_access_trial(e.trial_id))
+    created_by = auth.uid() or exists (
+      select 1 from public.sdda_entries e
+      where e.dog_id = id and public.sdda_can_access_trial(e.trial_id)
+    )
   );
 create policy sdda_dogs_insert on public.sdda_dogs
-  for insert to authenticated with check (true);
+  for insert to authenticated with check (created_by = auth.uid());
 create policy sdda_dogs_update on public.sdda_dogs
   for update to authenticated using (
-    exists (select 1 from public.sdda_entries e where e.dog_id = id and public.sdda_can_manage_trial(e.trial_id))
+    created_by = auth.uid() or exists (
+      select 1 from public.sdda_entries e
+      where e.dog_id = id and public.sdda_can_manage_trial(e.trial_id)
+    )
+  ) with check (
+    created_by = auth.uid() or exists (
+      select 1 from public.sdda_entries e
+      where e.dog_id = id and public.sdda_can_manage_trial(e.trial_id)
+    )
   );
 
 create policy sdda_entries_read on public.sdda_entries
@@ -247,15 +287,10 @@ create policy sdda_entries_write on public.sdda_entries
   with check (public.sdda_can_manage_trial(trial_id));
 
 create policy sdda_runs_read on public.sdda_runs
-  for select to authenticated using (
-    exists (select 1 from public.sdda_entries e where e.id = entry_id and public.sdda_can_access_trial(e.trial_id))
-  );
+  for select to authenticated using (public.sdda_can_access_trial(trial_id));
 create policy sdda_runs_write on public.sdda_runs
-  for all to authenticated using (
-    exists (select 1 from public.sdda_entries e where e.id = entry_id and public.sdda_can_manage_trial(e.trial_id))
-  ) with check (
-    exists (select 1 from public.sdda_entries e where e.id = entry_id and public.sdda_can_manage_trial(e.trial_id))
-  );
+  for all to authenticated using (public.sdda_can_manage_trial(trial_id))
+  with check (public.sdda_can_manage_trial(trial_id));
 
 create policy sdda_scores_read on public.sdda_scores
   for select to authenticated using (
@@ -271,6 +306,7 @@ create policy sdda_scores_write on public.sdda_scores
       where r.id = run_id and public.sdda_can_manage_trial(e.trial_id)
     )
   ) with check (
+    recorded_by = auth.uid() and
     exists (
       select 1 from public.sdda_runs r join public.sdda_entries e on e.id = r.entry_id
       where r.id = run_id and public.sdda_can_manage_trial(e.trial_id)
@@ -278,10 +314,10 @@ create policy sdda_scores_write on public.sdda_scores
   );
 
 create policy sdda_financial_read on public.sdda_financial_transactions
-  for select to authenticated using (public.sdda_can_access_trial(trial_id));
+  for select to authenticated using (public.sdda_can_manage_finances(trial_id));
 create policy sdda_financial_write on public.sdda_financial_transactions
-  for all to authenticated using (public.sdda_can_manage_trial(trial_id))
-  with check (public.sdda_can_manage_trial(trial_id));
+  for all to authenticated using (public.sdda_can_manage_finances(trial_id))
+  with check (created_by = auth.uid() and public.sdda_can_manage_finances(trial_id));
 
 create policy sdda_audit_read on public.sdda_audit_records
   for select to authenticated using (trial_id is not null and public.sdda_can_access_trial(trial_id));

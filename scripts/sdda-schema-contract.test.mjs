@@ -39,3 +39,19 @@ test('does not contain legacy C-WAGS project vocabulary', () => {
     assert.doesNotMatch(migration, new RegExp(value));
   }
 });
+
+test('prevents cross-trial runs and binds sensitive writes to the caller', () => {
+  assert.match(migration, /foreign key \(entry_id, trial_id\)[\s\S]*references public\.sdda_entries\(id, trial_id\)/);
+  assert.match(migration, /foreign key \(trial_day_id, trial_id\)[\s\S]*references public\.sdda_trial_days\(id, trial_id\)/);
+  assert.match(migration, /recorded_by = auth\.uid\(\)/);
+  assert.match(migration, /created_by = auth\.uid\(\) and public\.sdda_can_manage_finances/);
+});
+
+test('keeps assistants and viewers out of financial records', () => {
+  const functionStart = migration.indexOf('create or replace function public.sdda_can_manage_finances');
+  const functionEnd = migration.indexOf('$$;', functionStart);
+  const financeFunction = migration.slice(functionStart, functionEnd);
+  assert.match(financeFunction, /m\.role in \('owner', 'secretary'\)/);
+  assert.doesNotMatch(financeFunction, /assistant|viewer/);
+  assert.match(migration, /sdda_financial_read[\s\S]*sdda_can_manage_finances\(trial_id\)/);
+});

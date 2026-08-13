@@ -1,10 +1,12 @@
 // src/lib/supabaseBrowser.ts
 import { createBrowserClient } from '@supabase/ssr';
+import { getSddaPublicSupabaseConfig } from '@/lib/sdda/supabaseProject';
 
 export function getSupabaseBrowser() {
+  const { url, publishableKey } = getSddaPublicSupabaseConfig();
   return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    publishableKey,
     {
       auth: {
         autoRefreshToken: true,
