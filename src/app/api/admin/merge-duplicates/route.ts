@@ -3,8 +3,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthorizationError, getSupabaseAdmin, requireAdministrator } from '@/lib/server/authorization';
 
-const supabaseAdmin = getSupabaseAdmin();
-
 interface DuplicateEntry {
   handler_name: string;
   dog_call_name: string;
@@ -50,6 +48,10 @@ export async function POST(request: NextRequest) {
 }
 
 async function mergeDuplicateEntries(duplicates: DuplicateEntry[]) {
+  // Resolve privileged credentials only when this legacy endpoint is called.
+  // This keeps builds credential-free while the endpoint is removed or
+  // converted to SDDA row-level-security operations.
+  const supabaseAdmin = getSupabaseAdmin();
   const stats = {
     totalGroups: 0,
     mergedEntries: 0,

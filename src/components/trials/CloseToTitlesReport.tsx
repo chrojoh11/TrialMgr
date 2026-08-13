@@ -670,7 +670,7 @@ export default function CloseToTitlesReport({ trialId, trialName }: CloseToTitle
       </div>
 
       {/* Print Styles for PDF Export */}
-      <style jsx global>{`
+      <style>{`
         @media print {
           @page {
             size: letter;

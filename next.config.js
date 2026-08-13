@@ -2,6 +2,7 @@
 import './scripts/assert-no-supabase-env.js';
 
 const nextConfig = {
+  agentRules: false,
   turbopack: {
     root: process.cwd(),
   },
