@@ -10,8 +10,11 @@ import type {
   RingsideState,
 } from './types';
 const cookieName = (ringId: string) => `ringside_secretary_${ringId}`;
-const secret = () =>
-  process.env.RINGSIDE_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const secret = () => {
+  const value = process.env.RINGSIDE_SESSION_SECRET;
+  if (!value) throw new Error('RINGSIDE_SESSION_SECRET is required for ringside sessions.');
+  return value;
+};
 const sign = (value: string) =>
   crypto.createHmac('sha256', secret()).update(value).digest('base64url');
 export async function createSecretarySession(showId: string, ringId: string, version: number) {

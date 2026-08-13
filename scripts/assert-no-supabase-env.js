@@ -4,12 +4,19 @@ const SDDA_SUPABASE_HOST = `${SDDA_SUPABASE_PROJECT_REF}.supabase.co`;
 const SUPABASE_VARIABLES = [
   'NEXT_PUBLIC_SUPABASE_URL',
   'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-  'SUPABASE_SERVICE_ROLE_KEY',
   'SUPABASE_URL',
   'SUPABASE_ANON_KEY',
 ];
 
+const FORBIDDEN_PRIVILEGED_VARIABLE = 'SUPABASE_SERVICE_ROLE_KEY';
+
 export function assertApprovedSupabaseEnvironment(environment = process.env) {
+  if (typeof environment[FORBIDDEN_PRIVILEGED_VARIABLE] === 'string' &&
+      environment[FORBIDDEN_PRIVILEGED_VARIABLE].trim().length > 0) {
+    throw new Error(
+      'SDDA TrialDesk forbids SUPABASE_SERVICE_ROLE_KEY. Use the publishable key with RLS.',
+    );
+  }
   const configured = SUPABASE_VARIABLES.filter((name) => {
     const value = environment[name];
     return typeof value === 'string' && value.trim().length > 0;

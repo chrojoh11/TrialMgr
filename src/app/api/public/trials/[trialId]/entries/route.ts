@@ -12,7 +12,8 @@ const MAX_VERIFY_FAILURES = 5;
 
 const verificationKey = (request: NextRequest, trialId: string, cwagsNumber: string) => {
   const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '';
-  const pepper = process.env.SUPABASE_SERVICE_ROLE_KEY || 'local-development';
+  const pepper = process.env.ENTRY_LOOKUP_PEPPER;
+  if (!pepper) throw new Error('ENTRY_LOOKUP_PEPPER is required for public entry lookup tokens.');
   return createHash('sha256')
     .update(`${pepper}|${forwarded}|${trialId}|${cwagsNumber.toLowerCase()}`)
     .digest('hex');

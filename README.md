@@ -248,7 +248,6 @@ Create a `.env.local` file in the project root:
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # NextAuth
 NEXTAUTH_URL=http://localhost:3000
@@ -258,7 +257,7 @@ NEXTAUTH_SECRET=your-random-secret
 NEXT_PUBLIC_SITE_URL=https://your-production-domain.com
 ```
 
-> `SUPABASE_SERVICE_ROLE_KEY` is server-only and never exposed to the browser. It is used by API routes and data import scripts.
+> SDDA TrialDesk must not be configured with a Supabase service-role key. Runtime database access uses the dedicated SDDA project's publishable key, authenticated sessions, and row-level security.
 
 ---
 

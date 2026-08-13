@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import { NextRequest, NextResponse } from 'next/server';
 import {
@@ -56,11 +56,9 @@ export async function requireAdministrator(request: NextRequest): Promise<Admini
   return { authorized: true, userId: user.id };
 }
 
-export function getServiceRoleClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
+export function getServiceRoleClient(): SupabaseClient {
+  throw new Error(
+    'Legacy privileged database access is disabled in SDDA TrialDesk. Convert this endpoint to authenticated RLS access.'
   );
 }
 
