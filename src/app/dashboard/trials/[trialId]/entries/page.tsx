@@ -11,7 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { parseSddaEntryCsv, type SddaCsvEntry } from '@/lib/sdda/entryCsv';
-import { getSddaTrialWorkspace, importSddaCsvEntries, listSddaEntries, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
+import { getSddaTrialWorkspace, importSddaCsvEntries, listSddaEntries, saveSddaTrialOfferings, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
+import { offeringKey } from '@/lib/sdda/offerings';
 
 type RosterEntry = Awaited<ReturnType<typeof listSddaEntries>>[number];
 
@@ -44,9 +45,24 @@ export default function SddaEntriesPage() {
   const runImport = async () => {
     if (!trial || !preview.length) return;
     setImporting(true); setError(null);
-    const imported = await importSddaCsvEntries(getSupabaseBrowser(), trial, preview);
-    setResult(`${imported.imported} entr${imported.imported === 1 ? 'y' : 'ies'} imported.`);
-    setFileErrors(imported.errors); setPreview([]); await load(); setImporting(false);
+    try {
+      const client = getSupabaseBrowser();
+      const selected = new Set(trial.sdda_trial_offerings.map((offering) => offeringKey({
+        trialDayId: offering.trial_day_id, level: offering.level, component: offering.component, stream: offering.stream,
+      })));
+      for (const entry of preview) {
+        const day = trial.sdda_trial_days.find((candidate) => candidate.day_number === entry.trialDay);
+        if (!day) continue;
+        entry.components.forEach((component) => selected.add(offeringKey({ trialDayId: day.id, level: entry.level, component, stream: entry.stream })));
+      }
+      await saveSddaTrialOfferings(client, trial.id, trial.sdda_trial_offerings, selected);
+      const updatedTrial = await getSddaTrialWorkspace(client, trial.id);
+      const imported = await importSddaCsvEntries(client, updatedTrial, preview);
+      setResult(`${imported.imported} entr${imported.imported === 1 ? 'y' : 'ies'} imported. Offerings found in the CSV were added to the trial setup.`);
+      setFileErrors(imported.errors); setPreview([]); await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to import SDDA entries.');
+    } finally { setImporting(false); }
   };
   const filtered = useMemo(() => entries.filter((entry: any) => {
     const dog = Array.isArray(entry.sdda_dogs) ? entry.sdda_dogs[0] : entry.sdda_dogs;
@@ -58,7 +74,7 @@ export default function SddaEntriesPage() {
       <div><h1 className="text-3xl font-bold">SDDA Entry Roster</h1><p className="text-gray-600">{trial?.name}</p></div>
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
       {result && <Alert><AlertDescription>{result}</AlertDescription></Alert>}
-      <Card><CardHeader><CardTitle className="flex items-center"><FileUp className="mr-2 h-5 w-5" />Import Google Form CSV</CardTitle><CardDescription>Required columns: handler_name, dog_call_name, sdda_registration_number, registration_pending, stream, level, components, trial_day. Separate multiple components with semicolons.</CardDescription></CardHeader>
+      <Card><CardHeader><CardTitle className="flex items-center"><FileUp className="mr-2 h-5 w-5" />Import Google Form CSV</CardTitle><CardDescription>Upload the same Google Form response CSV used by the original SDDA TrialDesk. Day, level, component, and stream offerings found in the file are added to this trial automatically.</CardDescription></CardHeader>
         <CardContent className="space-y-4"><Input type="file" accept=".csv,text/csv" onChange={chooseFile} />
           {preview.length > 0 && <div className="flex items-center justify-between"><p>{preview.length} valid rows ready to import.</p><Button onClick={runImport} disabled={importing}>{importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}Import entries</Button></div>}
           {fileErrors.length > 0 && <Alert variant="destructive"><AlertDescription><ul className="list-disc pl-5">{fileErrors.map((message) => <li key={message}>{message}</li>)}</ul></AlertDescription></Alert>}
