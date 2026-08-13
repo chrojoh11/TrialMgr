@@ -56,6 +56,14 @@ No legacy C-WAGS migration was applied.
 - Verification: `sdda_entries.formal_alerts` exists and the authenticated importer accepts `entry_formal_alerts`
 - Data impact: additive nullable field; existing values are populated on idempotent CSV re-import
 
+## `20260813_0012_component_move_up.sql`
+
+- Applied: 2026-08-13 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Verification: component move-up function and `move_up_from_level` column installed
+- Rules: available on any day; secretary confirms qualification and host approval; offering, stream, capacity, and duplicate checks enforced
+- Audit: approvals and undo actions retained in `sdda_audit_records`
+
 ## `20260813_0008_delete_draft_trial.sql`
 
 - Applied: 2026-08-13 (America/Edmonton)

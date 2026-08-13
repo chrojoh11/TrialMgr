@@ -132,7 +132,7 @@ export async function importSddaCsvEntries(client: SupabaseClient, trial: SddaTr
 
 export async function listSddaRunningOrderRuns(client: SupabaseClient, trialId: string) {
   const { data, error } = await client.from('sdda_runs')
-    .select('id,trial_day_id,level,component,stream,run_group,running_position,created_at,sdda_trial_days(day_number,trial_date),sdda_entries(id,handler_name,dog_id,formal_alerts,sdda_dogs(call_name,registered_name,breed,sdda_registration_number))')
+    .select('id,trial_day_id,level,component,stream,run_group,running_position,move_up_from_run_id,move_up_from_level,move_up_approved_at,created_at,sdda_trial_days(day_number,trial_date),sdda_entries(id,handler_name,dog_id,formal_alerts,sdda_dogs(call_name,registered_name,breed,sdda_registration_number))')
     .eq('trial_id', trialId).order('created_at');
   if (error) throw new Error(error.message);
   return data || [];
@@ -144,6 +144,14 @@ export async function saveSddaRunningOrder(client: SupabaseClient, input: {
   const { error } = await client.rpc('sdda_save_running_order', {
     target_trial_id: input.trialId, target_trial_day_id: input.trialDayId,
     target_level: input.level, target_component: input.component, ordered_run_ids: input.runIds,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function setSddaRunMoveUp(client: SupabaseClient, runId: string, approve: boolean) {
+  const { error } = await client.rpc('sdda_set_run_move_up', {
+    target_run_id: runId, approve_move_up: approve,
+    qualification_confirmed: approve, host_approved: approve,
   });
   if (error) throw new Error(error.message);
 }

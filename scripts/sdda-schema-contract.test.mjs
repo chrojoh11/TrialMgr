@@ -36,6 +36,7 @@ const formalAlertsMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260813_0011_formal_alerts.sql', import.meta.url),
   'utf8',
 ).toLowerCase();
+const componentMoveUpMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0012_component_move_up.sql', import.meta.url), 'utf8').toLowerCase();
 
 const runningOrderMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260813_0006_atomic_running_order.sql', import.meta.url),
@@ -198,6 +199,15 @@ test('stores formal alerts and keeps their import authenticated and audited', ()
   assert.match(formalAlertsMigration, /'formal_alerts',entry_formal_alerts/);
   assert.match(formalAlertsMigration, /revoke all.*from anon/s);
   assert.doesNotMatch(formalAlertsMigration, /service_role|security definer|cwags|c-wags/);
+});
+test('supports audited component move-ups on any offered trial day', () => {
+  assert.match(componentMoveUpMigration, /function public\.sdda_set_run_move_up/);
+  assert.match(componentMoveUpMigration, /move_up_from_level/);
+  assert.match(componentMoveUpMigration, /qualification_confirmed/);
+  assert.match(componentMoveUpMigration, /host_approved/);
+  assert.match(componentMoveUpMigration, /run\.move_up_approved/);
+  assert.match(componentMoveUpMigration, /run\.move_up_undone/);
+  assert.doesNotMatch(componentMoveUpMigration, /day_number\s*<=\s*1|service_role|security definer|cwags|c-wags/);
 });
 
 test('saves complete SDDA running orders atomically with an audit record', () => {
