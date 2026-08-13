@@ -249,7 +249,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <nav
         className={`
           fixed lg:relative inset-y-0 left-0 z-50 lg:z-auto
-          w-64 bg-white border-r border-gray-200 overflow-y-auto
+          w-64 bg-[#fffdf7] border-r border-[#d9d8cf] overflow-y-auto
           transform transition-transform duration-300 ease-in-out
           ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           ${className}
@@ -272,7 +272,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             href="/dashboard"
             className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors mb-2 ${
               isActivePage('/dashboard')
-                ? 'bg-orange-100 text-orange-900 border-l-4 border-orange-500'
+                ? 'border-l-4 border-[#b98935] bg-[#dfeadf] text-[#174733]'
                 : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
@@ -303,7 +303,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onClick={() => toggleTrial(trial.id)}
                         className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                           isActive
-                            ? 'bg-orange-50 text-orange-900'
+                            ? 'bg-[#edf4ed] text-[#174733]'
                             : 'text-gray-700 hover:bg-gray-100'
                         }`}
                       >
@@ -355,7 +355,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                   href={item.href!}
                                   className={`flex items-center space-x-2 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
                                     isItemActive
-                                      ? 'bg-orange-100 text-orange-900'
+                                      ? 'bg-[#dfeadf] text-[#174733]'
                                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                                   }`}
                                 >
@@ -373,7 +373,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {/* Create New Trial Button */}
                 <Link
                   href="/dashboard/trials/create"
-                  className="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium text-orange-600 hover:bg-orange-50 transition-colors border-2 border-dashed border-orange-300 hover:border-orange-400 mt-3"
+                  className="mt-3 flex items-center space-x-2 rounded-lg border-2 border-dashed border-[#b9ceb9] px-3 py-2 text-sm font-medium text-[#225f45] transition-colors hover:border-[#225f45] hover:bg-[#edf4ed]"
                 >
                   <Plus className="h-4 w-4" />
                   <span>Create New Trial</span>
@@ -395,7 +395,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Active Trials</span>
-                  <span className="font-medium text-orange-600">
+                  <span className="font-medium text-[#225f45]">
                     {trials.filter((t) => t.trial_status === 'active').length}
                   </span>
                 </div>

@@ -76,7 +76,7 @@ function MainLayout({ children, title, breadcrumbItems, fullWidth = false }: Mai
 
   // At this point, user is guaranteed to exist
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-[#f3f0e8] text-[#18231d]">
       {/* ✅ SIDEBAR - Responsive with mobile slide-out */}
       <Sidebar isMobileOpen={isMobileMenuOpen} onCloseMobile={() => setIsMobileMenuOpen(false)} />
 
@@ -89,14 +89,14 @@ function MainLayout({ children, title, breadcrumbItems, fullWidth = false }: Mai
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Breadcrumbs */}
           {breadcrumbItems && breadcrumbItems.length > 0 && (
-            <div className="bg-white border-b border-gray-200 px-4 py-3">
+            <div className="border-b border-[#d9d8cf] bg-[#fffdf7] px-4 py-3">
               <Breadcrumbs items={breadcrumbItems} />
             </div>
           )}
 
           {/* Page Header */}
           {title && (
-            <div className="bg-white border-b border-gray-200 px-4 py-4 lg:px-6">
+            <div className="border-b border-[#d9d8cf] bg-[#fffdf7] px-4 py-4 lg:px-6">
               <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
             </div>
           )}

@@ -68,7 +68,7 @@ export const Header: React.FC<HeaderProps> = ({ user, onMenuClick }) => {
   };
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 z-30">
+    <header className="z-30 border-b border-[#174733] bg-[#225f45] text-white shadow-sm">
       <div className="flex items-center justify-between h-14 sm:h-16 px-2 sm:px-4 lg:px-6">
         {/* Left Section */}
         <div className="flex items-center space-x-2 sm:space-x-4">
@@ -84,20 +84,20 @@ export const Header: React.FC<HeaderProps> = ({ user, onMenuClick }) => {
 
           {/* SDDA identity */}
           <Link href="/dashboard" className="flex items-center space-x-2 sm:space-x-5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-600 text-sm font-bold text-white sm:h-12 sm:w-12">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#b98935] text-sm font-bold text-white sm:h-12 sm:w-12">
               SDDA
             </div>
 
             <div className="hidden sm:block">
-              <h1 className="text-lg sm:text-xl font-bold text-gray-900">SDDA TrialDesk</h1>
-              <p className="text-xs text-gray-500 -mt-1">Secretary workspace</p>
+              <h1 className="text-lg font-bold text-white sm:text-xl">SDDA TrialDesk</h1>
+              <p className="-mt-1 text-xs text-[#deebe2]">Secretary workspace</p>
             </div>
           </Link>
         </div>
 
         {/* Center Section - Clock - Hidden on mobile */}
         <div className="hidden md:flex items-center justify-center">
-          <div className="text-sm font-medium text-gray-700">{currentTime}</div>
+          <div className="text-sm font-medium text-[#deebe2]">{currentTime}</div>
         </div>
 
         {/* Right Section - User Menu */}
@@ -105,15 +105,15 @@ export const Header: React.FC<HeaderProps> = ({ user, onMenuClick }) => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center space-x-2 min-h-[44px] p-2">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-orange-600 flex items-center justify-center text-white font-semibold">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#b98935] font-semibold text-white sm:h-10 sm:w-10">
                   {user.first_name[0]}
                   {user.last_name[0]}
                 </div>
                 <div className="hidden sm:block text-left">
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-medium text-white">
                     {user.first_name} {user.last_name}
                   </p>
-                  <p className="text-xs text-gray-500">{formatRoleName(user.role)}</p>
+                  <p className="text-xs text-[#deebe2]">{formatRoleName(user.role)}</p>
                 </div>
               </Button>
             </DropdownMenuTrigger>

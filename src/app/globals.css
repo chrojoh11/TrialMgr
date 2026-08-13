@@ -53,6 +53,8 @@
   /* Ensure minimum font size for readability */
   body {
     font-size: 16px; /* Prevents auto-zoom on iOS */
+    background: #f3f0e8;
+    color: #18231d;
   }
 }
 
@@ -80,6 +82,13 @@
   textarea,
   select {
     font-size: 16px; /* Prevents zoom on focus for iOS */
+    background-color: #fff;
+    color: #18231d;
+  }
+
+  select option {
+    background-color: #fff;
+    color: #18231d;
   }
   
   /* Responsive table wrapper */
@@ -95,7 +104,7 @@
   input:focus-visible,
   select:focus-visible,
   textarea:focus-visible {
-    outline: 2px solid #fb923c; /* Orange-400 */
+    outline: 2px solid #225f45;
     outline-offset: 2px;
   }
 }
