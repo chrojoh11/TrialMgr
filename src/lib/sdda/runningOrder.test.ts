@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { findSddaScheduleConflicts, orderSddaRuns, type SddaScheduledRun } from './runningOrder';
+import { findSddaScheduleConflicts, moveSddaRun, orderSddaRuns, type SddaScheduledRun } from './runningOrder';
 
 const run = (overrides: Partial<SddaScheduledRun>): SddaScheduledRun => ({
   id: 'run', dayIndex: 0, level: 'Started', component: 'Container', handlerId: 'handler',
@@ -23,4 +23,8 @@ test('finds same-day duplicate dogs and adjacent handler runs', () => {
     run({ id: 'three', dogId: 'dog-3', handlerId: 'handler-1', component: 'Interior', order: 2 }),
   ]);
   assert.deepEqual(conflicts.map(({ kind }) => kind).sort(), ['duplicate-dog', 'handler-overlap']);
+});
+
+test('moves a run without losing entries', () => {
+  assert.deepEqual(moveSddaRun(['a', 'b', 'c'], 2, 0), ['c', 'a', 'b']);
 });

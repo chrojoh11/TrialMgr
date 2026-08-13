@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Calendar, Check, Loader2, MapPin, Save } from 'lucide-react';
+import { Calendar, Check, ListOrdered, Loader2, MapPin, Save, Users } from 'lucide-react';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -77,6 +77,10 @@ export default function SddaTrialWorkspacePage() {
         {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
         {saved && <Alert><Check className="h-4 w-4" /><AlertDescription>SDDA offerings saved.</AlertDescription></Alert>}
         <Card><CardHeader><CardTitle>Trial offering setup</CardTitle><CardDescription>Select every level, component, and stream offered on each trial day.</CardDescription></CardHeader></Card>
+        <div className="flex flex-wrap gap-3">
+          <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/entries`)}><Users className="mr-2 h-4 w-4" />Entries & CSV import</Button>
+          <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/running-order`)}><ListOrdered className="mr-2 h-4 w-4" />Running orders</Button>
+        </div>
         {trial.sdda_trial_days.map((day) => (
           <Card key={day.id}>
             <CardHeader><CardTitle className="flex items-center"><Calendar className="mr-2 h-5 w-5" />Day {day.day_number}: {day.trial_date}</CardTitle><CardDescription>{day.sdda_trial_number ? `SDDA trial ${day.sdda_trial_number}` : 'SDDA trial number pending'}{day.judge_name ? ` • Judge: ${day.judge_name}` : ''}</CardDescription></CardHeader>

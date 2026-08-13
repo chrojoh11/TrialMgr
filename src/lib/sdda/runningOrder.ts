@@ -28,6 +28,14 @@ export function orderSddaRuns<T extends SddaScheduledRun>(runs: readonly T[]): T
   );
 }
 
+export function moveSddaRun<T>(runs: readonly T[], fromIndex: number, toIndex: number): T[] {
+  if (fromIndex < 0 || fromIndex >= runs.length || toIndex < 0 || toIndex >= runs.length) return [...runs];
+  const next = [...runs];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+  return next;
+}
+
 export interface SddaScheduleConflict {
   kind: 'handler-overlap' | 'duplicate-dog';
   runIds: [string, string];

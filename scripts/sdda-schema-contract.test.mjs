@@ -27,6 +27,11 @@ const entryImportMigration = readFileSync(
   'utf8',
 ).toLowerCase();
 
+const runningOrderMigration = readFileSync(
+  new URL('../supabase/sdda-migrations/20260813_0006_atomic_running_order.sql', import.meta.url),
+  'utf8',
+).toLowerCase();
+
 const requiredTables = [
   'sdda_profiles', 'sdda_trials', 'sdda_trial_days', 'sdda_trial_members', 'sdda_dogs',
   'sdda_entries', 'sdda_runs', 'sdda_scores', 'sdda_financial_transactions',
@@ -124,4 +129,14 @@ test('imports SDDA entries atomically only into configured offerings', () => {
   }
   assert.match(entryImportMigration, /revoke all on function public\.sdda_import_entry.*from anon/s);
   assert.doesNotMatch(entryImportMigration, /service_role|security definer|cwags|c-wags/);
+});
+
+test('saves complete SDDA running orders atomically with an audit record', () => {
+  assert.match(runningOrderMigration, /function public\.sdda_save_running_order/);
+  assert.match(runningOrderMigration, /security invoker/);
+  assert.match(runningOrderMigration, /running order must contain every run exactly once/);
+  assert.match(runningOrderMigration, /set running_position=null/);
+  assert.match(runningOrderMigration, /'running_order\.saved'/);
+  assert.match(runningOrderMigration, /from anon/);
+  assert.doesNotMatch(runningOrderMigration, /service_role|security definer|cwags|c-wags/);
 });
