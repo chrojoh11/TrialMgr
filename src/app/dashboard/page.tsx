@@ -1,365 +1,73 @@
-// src/app/dashboard/page.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import MainLayout from '@/components/layout/mainLayout';
-import { useAuth } from '@/hooks/useAuth';
-import { simpleTrialOperations } from '@/lib/trialOperationsSimple';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
-import AdminDashboard from '@/components/dashboard/AdminDashboard';
-import SecretaryDashboard from '@/components/dashboard/SecretaryDashboard';
-import { AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import PendingTrialInvitations from '@/components/dashboard/PendingTrialInvitations';
-import { compareDateOnly, dateOnlyValue, localDateOnly, parseDateOnly } from '@/lib/dateOnly';
+import { listSddaTrials, type SddaTrialSummary } from '@/lib/sdda/trialRepository';
 
-interface Trial {
-  id: string;
-  trial_name: string;
-  start_date: string;
-  end_date: string;
-  trial_status: string;
-  club_name: string;
-  location: string;
-  entries_close_date?: string; // ADDED: For trial closing alerts
-  entry_status?: string; // ADDED: For filtering which trials show alerts
-}
-
-// ADDED: Enhanced alert interface with trial navigation support
-interface EnhancedAlert {
-  type: 'warning' | 'info';
-  message: string;
-  trialId?: string;
-  trialName?: string;
-  closingDate?: string;
-}
+const workflow = [
+  ['Running orders', 'Arrange officials, regular teams, second dogs, FEO and BIS.', 'running-order'],
+  ['Entries', 'Review built-in form entries or import Google Form responses.', 'entries'],
+  ['Score sheets', 'Generate the correct official component-specific PDFs.', 'score-sheets'],
+  ['Title watch', 'Review component move-ups and dogs approaching titles.', 'title-watch'],
+  ['Official workbook', 'Prepare the SDDA Trial Workbook submission.', 'workbook'],
+  ['Finances', 'Track fees, payments, waivers and trial expenses.', 'financials'],
+] as const;
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const supabase = getSupabaseBrowser();
-  const { user, getDisplayInfo } = useAuth();
-  const userInfo = getDisplayInfo();
-
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Admin stats
-  const [adminStats, setAdminStats] = useState({
-    totalTrials: 0,
-    activeTrials: 0,
-    upcomingTrials: 0,
-    totalUsers: 0,
-    totalRegistryEntries: 0,
-  });
-  const [recentTrials, setRecentTrials] = useState<Trial[]>([]);
-  const [allTrials, setAllTrials] = useState<Trial[]>([]);
-  const [adminAlerts, setAdminAlerts] = useState<EnhancedAlert[]>([]); // CHANGED: Now uses EnhancedAlert type
-
-  // Secretary data
-  const [userTrials, setUserTrials] = useState<Trial[]>([]);
-
-  useEffect(() => {
-    if (user) {
-      loadDashboardData();
-    }
-  }, [user]);
-
-  const loadDashboardData = async () => {
+  const [trials, setTrials] = useState<SddaTrialSummary[]>([]);
+  const [activeId, setActiveId] = useState('');
+  const [error, setError] = useState('');
+  const load = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
+      const loaded = await listSddaTrials(getSupabaseBrowser());
+      setTrials(loaded);
+      setActiveId((current) => current || loaded[0]?.id || '');
+    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to load SDDA trials.'); }
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+  const active = useMemo(() => trials.find((trial) => trial.id === activeId), [trials, activeId]);
+  const activeHref = (suffix = '') => active ? `/dashboard/trials/${active.id}${suffix ? `/${suffix}` : ''}` : '/dashboard/trials/create';
 
-      if (user?.role === 'administrator') {
-        await loadAdminData();
-      } else if (user?.role === 'trial_secretary') {
-        await loadSecretaryData();
-      }
-    } catch (err) {
-      console.error('Error loading dashboard data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
-    } finally {
-      setLoading(false);
-    }
-  };
+  return <MainLayout fullWidth>
+    <div className="min-h-full bg-[#f3f0e8] p-4 text-[#18231d] lg:p-8">
+      <div className="mx-auto max-w-[1440px]">
+        <header className="flex flex-col justify-between gap-6 rounded-t-[24px] rounded-b-md bg-[#225f45] px-8 py-8 text-white shadow-xl md:flex-row md:items-end">
+          <div><span className="text-[11px] font-extrabold uppercase tracking-[.15em]">SDDA trial operations</span><h1 className="my-2 font-serif text-5xl leading-none md:text-6xl">TrialDesk</h1><p className="text-[#deebe2]">From entry forms and Google responses to running orders, judge packets and the official SDDA workbook.</p></div>
+          <div className="grid gap-1 rounded-2xl border border-white/30 bg-white/5 px-5 py-4"><strong>Rules authority</strong><span className="font-serif text-xl">Master Rule Book v5.1</span><small className="text-[#d5e4d9]">Effective July 1, 2026</small></div>
+        </header>
 
-  const loadAdminData = async () => {
-    // Get all trials
-    const trialsResult = await simpleTrialOperations.getAllTrials();
-    if (!trialsResult.success) {
-      throw new Error('Failed to load trials data');
-    }
+        {error && <div className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-red-800">{error}</div>}
 
-    const trials = trialsResult.data || [];
-    const todayStr = localDateOnly();
-
-    // Calculate trial stats
-    const totalTrials = trials.length;
-    const activeTrials = trials.filter((trial: Trial) => trial.trial_status === 'active').length;
-    const upcomingTrials = trials.filter(
-      (trial: Trial) =>
-        trial.start_date > todayStr && ['draft', 'published'].includes(trial.trial_status)
-    ).length;
-
-    // Get total users count
-    const { count: totalUsers } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true });
-
-    // Get total registry entries count
-    const { count: totalRegistryEntries } = await supabase
-      .from('cwags_registry')
-      .select('*', { count: 'exact', head: true });
-
-    setAdminStats({
-      totalTrials,
-      activeTrials,
-      upcomingTrials,
-      totalUsers: totalUsers || 0,
-      totalRegistryEntries: totalRegistryEntries || 0,
-    });
-
-    // Get recent trials (last 5)
-    const recent = trials
-      .sort(
-        (a: Trial, b: Trial) => compareDateOnly(b.start_date, a.start_date)
-      )
-      .slice(0, 5);
-
-    setRecentTrials(recent);
-
-    // Store all trials for judge compensation dropdown
-    const allTrialsSorted = [...trials].sort(
-      (a: Trial, b: Trial) => compareDateOnly(b.start_date, a.start_date)
-    );
-    setAllTrials(allTrialsSorted);
-
-    // === ENHANCED: Generate admin alerts with trial details ===
-    const alerts: EnhancedAlert[] = [];
-
-    // Check for trials without secretary assignments
-    const { data: trialsWithoutSecretary } = await supabase
-      .from('trials')
-      .select('id')
-      .is('trial_secretary', null);
-
-    if (trialsWithoutSecretary && trialsWithoutSecretary.length > 0) {
-      alerts.push({
-        type: 'warning',
-        message: `${trialsWithoutSecretary.length} ${trialsWithoutSecretary.length === 1 ? 'trial needs' : 'trials need'} secretary assignment`,
-      });
-    }
-
-    // NEW: Enhanced check for trials closing entries soon
-    const oneWeekFromNow = new Date();
-    oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
-
-    // Find trials with entries_close_date set and within the next 7 days
-    const closingSoon = trials.filter((t: Trial) => {
-      if (!t.entries_close_date || t.entry_status !== 'open') {
-        return false;
-      }
-
-      const closeDate = parseDateOnly(dateOnlyValue(t.entries_close_date));
-      const todayDate = new Date();
-      todayDate.setHours(0, 0, 0, 0);
-      closeDate.setHours(0, 0, 0, 0);
-
-      // Check if closing date is in the future and within 7 days
-      return closeDate >= todayDate && closeDate <= oneWeekFromNow;
-    });
-
-    // Sort by closing date (soonest first)
-    closingSoon.sort((a: Trial, b: Trial) => {
-      const dateA = parseDateOnly(dateOnlyValue(a.entries_close_date)).getTime();
-      const dateB = parseDateOnly(dateOnlyValue(b.entries_close_date)).getTime();
-      return dateA - dateB;
-    });
-
-    // Create individual alerts for each trial closing soon
-    closingSoon.forEach((trial: Trial) => {
-      const closeDate = parseDateOnly(dateOnlyValue(trial.entries_close_date));
-      const todayDate = new Date();
-      todayDate.setHours(0, 0, 0, 0);
-      closeDate.setHours(0, 0, 0, 0);
-
-      const daysUntil = Math.ceil(
-        (closeDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24)
-      );
-
-      let timeText = '';
-      if (daysUntil === 0) timeText = 'today';
-      else if (daysUntil === 1) timeText = 'tomorrow';
-      else timeText = `in ${daysUntil} days`;
-
-      alerts.push({
-        type: daysUntil <= 1 ? 'warning' : 'info',
-        message: `${trial.trial_name} closes entries ${timeText}`,
-        trialId: trial.id,
-        trialName: trial.trial_name,
-        closingDate: trial.entries_close_date,
-      });
-    });
-
-    setAdminAlerts(alerts);
-  };
-
-  const loadSecretaryData = async () => {
-    // Get trials where user is the creator
-    const { data: createdTrials } = await supabase
-      .from('trials')
-      .select('*')
-      .eq('created_by', user?.id)
-      .order('start_date', { ascending: false });
-
-    // Check trial_secretaries table for assigned trials
-    const { data: assignedFromSecretaries } = await supabase
-      .from('trial_secretaries')
-      .select(
-        `
-        trial_id,
-        trials (*)
-      `
-      )
-      .eq('user_id', user?.id);
-
-    // Check trial_assignments table for assigned trials
-    const { data: assignedFromAssignments } = await supabase
-      .from('trial_assignments')
-      .select(
-        `
-        trial_id,
-        trials (*)
-      `
-      )
-      .eq('user_id', user?.id);
-
-    const { data: acceptedCollaborations, error: collaborationError } = await supabase
-      .from('trial_collaborators')
-      .select('role, trial_id')
-      .eq('user_id', user?.id)
-      .eq('invitation_status', 'accepted')
-      .is('revoked_at', null);
-
-    if (collaborationError) {
-      console.error('Error loading accepted trial collaborations:', collaborationError);
-    }
-
-    const collaborationIds = (acceptedCollaborations || [])
-      .map((collaboration: any) => collaboration.trial_id)
-      .filter(Boolean);
-    let collaboratedTrials: any[] = [];
-    if (collaborationIds.length > 0) {
-      const { data, error } = await supabase.from('trials').select('*').in('id', collaborationIds);
-      if (error) console.error('Error loading collaborated trials:', error);
-      else {
-        const roles = new Map(
-          (acceptedCollaborations || []).map((collaboration: any) => [
-            collaboration.trial_id,
-            collaboration.role,
-          ])
-        );
-        collaboratedTrials = (data || []).map((trial: any) => ({
-          ...trial,
-          shared_role: roles.get(trial.id),
-        }));
-      }
-    }
-
-    // Combine all sources of trials
-    const allSecretaryTrials = [
-      ...(assignedFromSecretaries?.map((at: any) => at.trials).filter(Boolean) || []),
-      ...(assignedFromAssignments?.map((at: any) => at.trials).filter(Boolean) || []),
-      ...collaboratedTrials,
-      ...(createdTrials || []).map((trial: any) => ({ ...trial, ownership: 'owned' as const })),
-    ];
-
-    // Remove duplicates by trial id and sort by start date
-    const uniqueTrials = Array.from(
-      new Map(allSecretaryTrials.map((t) => [t.id, t])).values()
-    ).sort((a, b) => compareDateOnly(b.start_date, a.start_date));
-
-    setUserTrials(uniqueTrials);
-  };
-
-  if (loading) {
-    return (
-      <MainLayout title="Dashboard">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <div className="w-8 h-8 border-2 border-orange-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading dashboard...</p>
+        <section className="mt-4 grid gap-6 rounded-2xl border border-[#d9d8cf] bg-[#fffdf7] p-5 shadow-sm lg:grid-cols-[.7fr_1.3fr]">
+          <div className="space-y-3">
+            <span className="text-[11px] font-extrabold uppercase tracking-[.15em] text-[#225f45]">Trial setup</span>
+            <h2 className="font-serif text-3xl">Choose your trial</h2>
+            <select className="w-full rounded-lg border border-[#cfd3cc] bg-white p-3" value={activeId} onChange={(event) => setActiveId(event.target.value)}><option value="">Select a trial</option>{trials.map((trial) => <option key={trial.id} value={trial.id}>{trial.name}</option>)}</select>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Link className="rounded-lg bg-[#225f45] px-4 py-3 text-center font-bold text-white" href="/dashboard/trials/create">Create trial</Link>
+              <Link className="rounded-lg border border-[#bac5bd] bg-white px-4 py-3 text-center font-bold text-[#225f45]" href={activeHref()}>Open setup</Link>
             </div>
+            <Link className="block rounded-lg border border-[#bac5bd] bg-white px-4 py-3 text-center font-bold text-[#225f45]" href="/dashboard/trials">All trials</Link>
           </div>
-        </div>
-      </MainLayout>
-    );
-  }
-
-  return (
-    <MainLayout title="Dashboard">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Welcome Section */}
-        <div className="bg-gradient-to-r from-orange-600 to-orange-800 rounded-lg shadow-lg text-white p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold mb-2">
-                Welcome back, {userInfo?.first_name || 'User'}!
-              </h1>
-              <p className="text-orange-100 text-lg">
-                {userInfo?.role === 'administrator' ? 'Administrator' : 'Trial Secretary'}
-              </p>
-              {userInfo?.club_name && (
-                <p className="text-orange-200 text-sm mt-1">{userInfo.club_name}</p>
-              )}
-            </div>
-            <div className="text-right">
-              <p className="text-orange-100 text-sm">
-                {new Date().toLocaleDateString('en-CA', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </p>
-            </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Link href={activeHref('entries')} className="rounded-xl border border-[#d9d8cf] bg-[#f7f8f4] p-4 hover:border-[#225f45]"><strong className="font-serif text-xl text-[#225f45]">Built-in entry form</strong><p className="mt-2 text-sm text-[#68736c]">Open, preview and share the trial’s SDDA entry form.</p></Link>
+            <Link href={activeHref('entries')} className="rounded-xl border border-[#d9d8cf] bg-[#f7f8f4] p-4 hover:border-[#225f45]"><strong className="font-serif text-xl text-[#225f45]">Google Form CSV</strong><p className="mt-2 text-sm text-[#68736c]">Import the familiar SDDA Google response file.</p></Link>
+            <Link href={activeHref('entries')} className="rounded-xl border border-[#d9d8cf] bg-[#f7f8f4] p-4 hover:border-[#225f45]"><strong className="font-serif text-xl text-[#225f45]">Entry roster</strong><p className="mt-2 text-sm text-[#68736c]">Use entries from either source in one roster.</p></Link>
+            <div className="rounded-xl border border-[#d9d8cf] bg-white p-4 sm:col-span-2 lg:col-span-3"><span className="text-xs font-bold uppercase tracking-wider text-[#68736c]">Current trial</span><h3 className="mt-1 font-serif text-2xl">{active?.name || 'Create or select a trial'}</h3><p className="mt-1 text-sm text-[#68736c]">{active ? `${active.host_club}${active.venue ? ` • ${active.venue}` : ''}` : 'Trial-specific links activate after a trial is selected.'}</p></div>
           </div>
-        </div>
+        </section>
 
-        {/* Error Display */}
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="flex items-center justify-between">
-              <span>{error}</span>
-              <Button variant="outline" size="sm" onClick={loadDashboardData} className="ml-4">
-                Retry
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
+        <div className="flex flex-wrap justify-between gap-3 px-1 py-4 text-sm text-[#68736c]"><span><b className="text-[#225f45]">{trials.length}</b> trials available</span><span>Secure SDDA-only secretary workspace</span></div>
 
-        <PendingTrialInvitations onAccepted={loadDashboardData} />
+        <nav className="mb-5 flex gap-1 overflow-auto border-b border-[#cfd3cc]">{['Trial setup','Entries','Running orders','Scores','Titles','Export'].map((item, index) => <Link key={item} href={index === 0 ? activeHref() : index === 1 ? activeHref('entries') : index === 2 ? activeHref('running-order') : '#'} className={`whitespace-nowrap border-b-4 px-5 py-4 font-bold ${index === 0 ? 'border-[#b98935] text-[#225f45]' : 'border-transparent text-[#68736c]'}`}>{item}</Link>)}</nav>
 
-        {/* Role-Based Dashboard */}
-        {user?.role === 'administrator' ? (
-          <AdminDashboard
-            stats={adminStats}
-            recentTrials={recentTrials}
-            allTrials={allTrials}
-            alerts={adminAlerts}
-          />
-        ) : user?.role === 'trial_secretary' ? (
-          <SecretaryDashboard userTrials={userTrials} userId={user.id} />
-        ) : (
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>Unknown user role. Please contact support.</AlertDescription>
-          </Alert>
-        )}
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{workflow.map(([title, description, suffix]) => <Link key={title} href={activeHref(suffix)} className="rounded-2xl border border-[#d9d8cf] bg-[#fffdf7] p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-[#225f45]"><span className="text-[11px] font-extrabold uppercase tracking-[.15em] text-[#b98935]">Operations</span><h2 className="my-2 font-serif text-3xl">{title}</h2><p className="leading-6 text-[#68736c]">{description}</p></Link>)}</section>
+
+        <section className="mt-4 rounded-2xl border border-[#b9ceb9] bg-[#dfeadf] p-6"><h3 className="font-serif text-2xl text-[#225f45]">2026 rules workflow</h3><ul className="mt-3 grid gap-2 text-sm md:grid-cols-2 lg:grid-cols-3"><li>Officials before duties</li><li>Second dogs after first dogs</li><li>FEO after regular entries</li><li>Bitches in season last</li><li>Component-specific move-ups</li><li>Official SDDA score-sheet templates</li></ul></section>
+        <footer className="py-8 text-center text-xs text-[#68736c]">SDDA TrialDesk • Local-first secretary operations</footer>
       </div>
-    </MainLayout>
-  );
+    </div>
+  </MainLayout>;
 }
