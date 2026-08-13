@@ -12,6 +12,11 @@ const authMigration = readFileSync(
   'utf8',
 ).toLowerCase();
 
+const atomicTrialMigration = readFileSync(
+  new URL('../supabase/sdda-migrations/20260813_0003_atomic_trial_creation.sql', import.meta.url),
+  'utf8',
+).toLowerCase();
+
 const requiredTables = [
   'sdda_profiles', 'sdda_trials', 'sdda_trial_days', 'sdda_trial_members', 'sdda_dogs',
   'sdda_entries', 'sdda_runs', 'sdda_scores', 'sdda_financial_transactions',
@@ -73,4 +78,14 @@ test('bootstraps an SDDA profile for every authenticated user', () => {
 test('backfills existing Auth users without copying legacy application data', () => {
   assert.match(authMigration, /from auth\.users u/);
   assert.doesNotMatch(authMigration, /from public\.users|cwags|c-wags|service_role/);
+});
+
+test('creates SDDA trials and one-to-four days atomically as the signed-in user', () => {
+  assert.match(atomicTrialMigration, /function public\.sdda_create_trial/);
+  assert.match(atomicTrialMigration, /security invoker/);
+  assert.match(atomicTrialMigration, /auth\.uid\(\)/);
+  assert.match(atomicTrialMigration, /cardinality\(trial_dates\).*between 1 and 4/s);
+  assert.match(atomicTrialMigration, /insert into public\.sdda_audit_records/);
+  assert.match(atomicTrialMigration, /revoke all on function public\.sdda_create_trial\(text, text, text, date\[\]\) from anon/);
+  assert.doesNotMatch(atomicTrialMigration, /service_role|security definer|cwags|c-wags/);
 });

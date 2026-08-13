@@ -24,3 +24,14 @@ No legacy C-WAGS migration was applied.
 - Verification: `sdda_handle_new_auth_user` function exists
 - Verification: `sdda_auth_user_profile` trigger exists on `auth.users`
 - Backfill verification: 0 Auth users and 0 SDDA profiles before account setup
+
+## `20260813_0003_atomic_trial_creation.sql`
+
+- Applied: 2026-08-13 (America/Edmonton)
+- Project: `SDDA-Trialdesk`
+- Project reference: `hsxwwtvzfulxdqimkgcc`
+- Database branch: `main` / Production
+- Execution result: success, no rows returned
+- Verification: `sdda_create_trial` exists as `SECURITY INVOKER`
+- Permission verification: `authenticated` can execute; `anon` cannot execute
+- Data impact: additive function only; no existing rows changed
