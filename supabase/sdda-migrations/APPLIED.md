@@ -36,6 +36,17 @@ No legacy C-WAGS migration was applied.
 - Permission verification: `authenticated` can execute; `anon` cannot execute
 - Data impact: additive function only; no existing rows changed
 
+## `20260813_0010_unified_entry_runs.sql`
+
+- Applied: 2026-08-13 (America/Edmonton)
+- Project: `SDDA-Trialdesk`
+- Project reference: `hsxwwtvzfulxdqimkgcc`
+- Database branch: `main` / Production
+- Execution result: success, no rows returned
+- Verification: `sdda_runs.stream` exists and the import function contains unified-entry reuse logic
+- Permission verification: authenticated execution allowed; anonymous execution denied
+- Data impact: existing runs were backfilled from their entry stream; subsequent imports reuse entries and upsert runs
+
 ## `20260813_0008_delete_draft_trial.sql`
 
 - Applied: 2026-08-13 (America/Edmonton)

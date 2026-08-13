@@ -106,7 +106,7 @@ export async function saveSddaTrialOfferings(
 
 export async function listSddaEntries(client: SupabaseClient, trialId: string) {
   const { data, error } = await client.from('sdda_entries')
-    .select('id,handler_name,handler_email,handler_phone,stream,entry_status,source,created_at,sdda_dogs(id,call_name,registered_name,sdda_registration_number,registration_pending,breed),sdda_runs(id,trial_day_id,level,component,run_group,running_position)')
+    .select('id,handler_name,handler_email,handler_phone,stream,entry_status,source,created_at,sdda_dogs(id,call_name,registered_name,sdda_registration_number,registration_pending,breed),sdda_runs(id,trial_day_id,level,component,stream,run_group,running_position)')
     .eq('trial_id', trialId).order('created_at');
   if (error) throw new Error(error.message);
   return data || [];
@@ -132,7 +132,7 @@ export async function importSddaCsvEntries(client: SupabaseClient, trial: SddaTr
 
 export async function listSddaRunningOrderRuns(client: SupabaseClient, trialId: string) {
   const { data, error } = await client.from('sdda_runs')
-    .select('id,trial_day_id,level,component,run_group,running_position,created_at,sdda_trial_days(day_number,trial_date),sdda_entries(id,handler_name,dog_id,sdda_dogs(call_name,sdda_registration_number))')
+    .select('id,trial_day_id,level,component,stream,run_group,running_position,created_at,sdda_trial_days(day_number,trial_date),sdda_entries(id,handler_name,dog_id,sdda_dogs(call_name,sdda_registration_number))')
     .eq('trial_id', trialId).order('created_at');
   if (error) throw new Error(error.message);
   return data || [];

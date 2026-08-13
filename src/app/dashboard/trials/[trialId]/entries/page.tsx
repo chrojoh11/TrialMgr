@@ -58,7 +58,7 @@ export default function SddaEntriesPage() {
       await saveSddaTrialOfferings(client, trial.id, trial.sdda_trial_offerings, selected);
       const updatedTrial = await getSddaTrialWorkspace(client, trial.id);
       const imported = await importSddaCsvEntries(client, updatedTrial, preview);
-      setResult(`${imported.imported} entr${imported.imported === 1 ? 'y' : 'ies'} imported. Offerings found in the CSV were added to the trial setup.`);
+      setResult(`${imported.imported} day/level selection${imported.imported === 1 ? '' : 's'} processed. Repeated dogs were combined into one entry, and offerings found in the CSV were added to the trial setup.`);
       setFileErrors(imported.errors); setPreview([]); await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to import SDDA entries.');
@@ -81,7 +81,7 @@ export default function SddaEntriesPage() {
         </CardContent></Card>
       <div className="relative max-w-md"><Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" /><Input className="pl-10" placeholder="Search handler, dog, or SDDA number" value={search} onChange={(event) => setSearch(event.target.value)} /></div>
       {loading ? <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div> : filtered.length === 0 ? <Card><CardContent className="py-14 text-center">No SDDA entries yet.</CardContent></Card> :
-        <div className="grid gap-4">{filtered.map((entry: any) => { const dog = Array.isArray(entry.sdda_dogs) ? entry.sdda_dogs[0] : entry.sdda_dogs; return <Card key={entry.id}><CardHeader><div className="flex justify-between"><CardTitle className="flex items-center"><Dog className="mr-2 h-5 w-5" />{dog?.call_name}</CardTitle><Badge>{entry.stream}</Badge></div><CardDescription>{entry.handler_name} • {dog?.registration_pending ? 'SDDA registration pending' : dog?.sdda_registration_number}</CardDescription></CardHeader><CardContent><div className="flex flex-wrap gap-2">{(entry.sdda_runs || []).map((run: any) => <Badge key={run.id} variant="outline">{run.level} {run.component}</Badge>)}</div></CardContent></Card>; })}</div>}
+        <div className="grid gap-4">{filtered.map((entry: any) => { const dog = Array.isArray(entry.sdda_dogs) ? entry.sdda_dogs[0] : entry.sdda_dogs; return <Card key={entry.id}><CardHeader><div className="flex justify-between"><CardTitle className="flex items-center"><Dog className="mr-2 h-5 w-5" />{dog?.call_name}</CardTitle><Badge>{entry.entry_status}</Badge></div><CardDescription>{entry.handler_name} • {dog?.registration_pending ? 'SDDA registration pending' : dog?.sdda_registration_number}</CardDescription></CardHeader><CardContent><div className="flex flex-wrap gap-2">{(entry.sdda_runs || []).map((run: any) => <Badge key={run.id} variant="outline">{run.level} {run.component} • {run.stream}</Badge>)}</div></CardContent></Card>; })}</div>}
     </div>
   </MainLayout>;
 }

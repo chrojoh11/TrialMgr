@@ -27,6 +27,11 @@ const entryImportMigration = readFileSync(
   'utf8',
 ).toLowerCase();
 
+const unifiedEntryRunsMigration = readFileSync(
+  new URL('../supabase/sdda-migrations/20260813_0010_unified_entry_runs.sql', import.meta.url),
+  'utf8',
+).toLowerCase();
+
 const runningOrderMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260813_0006_atomic_running_order.sql', import.meta.url),
   'utf8',
@@ -169,6 +174,17 @@ test('imports SDDA entries atomically only into configured offerings', () => {
   }
   assert.match(entryImportMigration, /revoke all on function public\.sdda_import_entry.*from anon/s);
   assert.doesNotMatch(entryImportMigration, /service_role|security definer|cwags|c-wags/);
+});
+
+test('reuses one entry while importing component-specific runs idempotently', () => {
+  assert.match(unifiedEntryRunsMigration, /alter table public\.sdda_runs\s+add column if not exists stream/);
+  assert.match(unifiedEntryRunsMigration, /update public\.sdda_runs r\s+set stream\s*=\s*e\.stream/s);
+  assert.match(unifiedEntryRunsMigration, /target_entry_id/);
+  assert.match(unifiedEntryRunsMigration, /from public\.sdda_entries/);
+  assert.match(unifiedEntryRunsMigration, /on conflict\s*\(entry_id,\s*trial_day_id,\s*component\)\s*do update/);
+  assert.match(unifiedEntryRunsMigration, /excluded\.stream/);
+  assert.match(unifiedEntryRunsMigration, /revoke all on function public\.sdda_import_entry.*from anon/s);
+  assert.doesNotMatch(unifiedEntryRunsMigration, /service_role|security definer|cwags|c-wags/);
 });
 
 test('saves complete SDDA running orders atomically with an audit record', () => {
