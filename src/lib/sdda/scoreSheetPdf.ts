@@ -47,7 +47,11 @@ export const SDDA_SCORE_SHEET_FIELDS: Record<SddaLevel, Record<SddaComponent, Sh
     Exterior: { trial: [330, 110, 94], date: [500, 110, 76], dog: [102, 138, 290], breed: [438, 138, 130], dogNumber: [143, 165, 57], alerts: [[276, 165, 142], [430, 165, 145]], stream: { y: 193, amateurX: 467, workingX: 520 }, footerY: 781 },
     Interior: { trial: [330, 109, 94], date: [500, 109, 76], dog: [102, 130, 290], breed: [438, 130, 130], dogNumber: [143, 151, 57], alerts: [[276, 151, 142], [430, 151, 145]], stream: { y: 172, amateurX: 475, workingX: 529 }, footerY: 781 },
   },
-  Elite: { Container: baseFields.Elite, Interior: baseFields.Elite, Exterior: baseFields.Elite },
+  Elite: {
+    Container: baseFields.Elite,
+    Exterior: { trial: [397, 110, 35], date: [503, 110, 78], dog: [102, 137, 292], breed: [438, 137, 137], dogNumber: [143, 165, 57], alerts: [[276, 165, 137], [430, 165, 145]], footerY: 660 },
+    Interior: { trial: [397, 97, 35], date: [503, 97, 78], dog: [102, 124, 292], breed: [438, 124, 137], dogNumber: [143, 151, 57], alerts: [[276, 151, 137], [430, 151, 145]], footerY: 660 },
+  },
 };
 
 export const scoreSheetTemplatePath = (level: SddaLevel, component: SddaComponent) =>

@@ -11,4 +11,7 @@ test('defines a dedicated official template mapping for all 12 SDDA score sheets
   assert.notDeepEqual(SDDA_SCORE_SHEET_FIELDS.Started.Container, SDDA_SCORE_SHEET_FIELDS.Started.Interior);
   assert.notDeepEqual(SDDA_SCORE_SHEET_FIELDS.Advanced.Container, SDDA_SCORE_SHEET_FIELDS.Advanced.Exterior);
   assert.notDeepEqual(SDDA_SCORE_SHEET_FIELDS.Excellent.Container, SDDA_SCORE_SHEET_FIELDS.Excellent.Interior);
+  assert.notDeepEqual(SDDA_SCORE_SHEET_FIELDS.Elite.Container, SDDA_SCORE_SHEET_FIELDS.Elite.Exterior);
+  assert.notDeepEqual(SDDA_SCORE_SHEET_FIELDS.Elite.Container, SDDA_SCORE_SHEET_FIELDS.Elite.Interior);
+  assert.notDeepEqual(SDDA_SCORE_SHEET_FIELDS.Elite.Exterior, SDDA_SCORE_SHEET_FIELDS.Elite.Interior);
 });
