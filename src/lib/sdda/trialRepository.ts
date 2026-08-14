@@ -134,12 +134,17 @@ export async function listSddaEntries(client: SupabaseClient, trialId: string) {
   const { data, error } = await client
     .from('sdda_entries')
     .select(
-      'id,handler_name,handler_email,handler_phone,stream,formal_alerts,entry_status,source,created_at,sdda_dogs(id,call_name,registered_name,sdda_registration_number,registration_pending,breed),sdda_runs(id,trial_day_id,level,component,stream,run_group,running_position)'
+      'id,handler_name,handler_email,handler_phone,stream,formal_alerts,entry_status,confirmation_status,confirmation_code,submitted_at,source,created_at,sdda_dogs(id,call_name,registered_name,sdda_registration_number,registration_pending,breed),sdda_runs(id,trial_day_id,level,component,stream,run_group,running_position)'
     )
     .eq('trial_id', trialId)
     .order('created_at');
   if (error) throw new Error(error.message);
   return data || [];
+}
+
+export async function listSddaEntryFinancials(client: SupabaseClient, trialId:string) {
+  const {data,error}=await client.from('sdda_financial_transactions').select('entry_id,transaction_type,amount_cents').eq('trial_id',trialId).not('entry_id','is',null);
+  if(error) throw new Error(error.message); return data||[];
 }
 
 export async function importSddaCsvEntries(
