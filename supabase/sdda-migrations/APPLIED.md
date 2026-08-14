@@ -165,3 +165,14 @@ No legacy C-WAGS migration was applied.
 - Verification: `sdda_import_entry` exists as `SECURITY INVOKER`
 - Permission verification: authenticated execution allowed; anonymous execution denied
 - Data impact: additive function only; no existing rows changed
+
+## `20260813_0017_per_run_entry_streams.sql`
+
+- Applied: 2026-08-13 (America/Edmonton)
+- Project: `SDDA-Trialdesk`
+- Project reference: `hsxwwtvzfulxdqimkgcc`
+- Database branch: `main` / Production
+- Execution result: success, no rows returned
+- Verification: public entry submission derives each run stream from its selected trial offering
+- Compatibility: entry-level stream may be `Mixed`; Started, Advanced, and Excellent runs remain individually Amateur or Working; Elite is presented without a stream
+- Data impact: constraint and submission function replaced transactionally; no existing rows rewritten

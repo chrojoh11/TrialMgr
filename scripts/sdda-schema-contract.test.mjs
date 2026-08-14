@@ -41,6 +41,7 @@ const multilevelRunsMigration = readFileSync(new URL('../supabase/sdda-migration
 const publicEntryMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0014_public_entry_confirmations.sql', import.meta.url), 'utf8').toLowerCase();
 const publicEntryRandomMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0015_public_entry_random_bytes.sql', import.meta.url), 'utf8').toLowerCase();
 const publicEntryGroupsMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0016_public_entry_run_group_requests.sql', import.meta.url), 'utf8').toLowerCase();
+const perRunStreamsMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0017_per_run_entry_streams.sql', import.meta.url), 'utf8').toLowerCase();
 
 const runningOrderMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260813_0006_atomic_running_order.sql', import.meta.url),
@@ -245,6 +246,16 @@ test('accepts validated competitor running-group requests while keeping table ac
   assert.match(publicEntryGroupsMigration,/revoke all on function public\.sdda_submit_public_entry_core.*from public, anon, authenticated/);
   assert.match(publicEntryGroupsMigration,/entry\.public_run_groups_requested/);
   assert.doesNotMatch(publicEntryGroupsMigration,/grant .*table|service_role|cwags|c-wags/);
+});
+
+test('accepts per-run Amateur and Working choices without treating Elite as streamed', () => {
+  assert.match(perRunStreamsMigration,/stream in \('amateur','working','mixed'\)/);
+  assert.match(perRunStreamsMigration,/count\(distinct o\.stream\)/);
+  assert.match(perRunStreamsMigration,/o\.level <> 'elite'/);
+  assert.match(perRunStreamsMigration,/o\.id=\(run_request->>'offering_id'\)::uuid/);
+  assert.match(perRunStreamsMigration,/o\.stream,requested_group/);
+  assert.doesNotMatch(perRunStreamsMigration,/submission->>'stream'/);
+  assert.doesNotMatch(perRunStreamsMigration,/grant .*table|service_role|cwags|c-wags/);
 });
 
 test('saves complete SDDA running orders atomically with an audit record', () => {
