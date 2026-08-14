@@ -1,11 +1,12 @@
 'use client';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
 import { useParams } from 'next/navigation';
 import {
   AlertTriangle,
   ArrowDown,
   ArrowUp,
   Download,
+  GripVertical,
   ListOrdered,
   Loader2,
   Save,
@@ -56,6 +57,7 @@ export default function RunningOrderPage() {
   const [saving, setSaving] = useState(false);
   const [movingRunId, setMovingRunId] = useState<string | null>(null);
   const [changingGroupRunId, setChangingGroupRunId] = useState<string | null>(null);
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(async () => {
     try {
@@ -179,6 +181,19 @@ export default function RunningOrderPage() {
       setChangingGroupRunId(null);
     }
   };
+  const startDrag = (event: DragEvent, index: number) => {
+    setDraggingIndex(index);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(index));
+  };
+  const dropRun = (event: DragEvent, targetIndex: number) => {
+    event.preventDefault();
+    const sourceIndex = draggingIndex ?? Number(event.dataTransfer.getData('text/plain'));
+    if (Number.isInteger(sourceIndex) && sourceIndex !== targetIndex) {
+      setOrdered((current) => moveSddaRun(current, sourceIndex, targetIndex));
+    }
+    setDraggingIndex(null);
+  };
   return (
     <MainLayout
       title="SDDA Running Orders"
@@ -300,8 +315,25 @@ export default function RunningOrderPage() {
                 return (
                   <div
                     key={run.id}
-                    className="flex flex-wrap items-center gap-3 rounded-md border bg-white p-3"
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = 'move';
+                    }}
+                    onDrop={(event) => dropRun(event, index)}
+                    className={`flex flex-wrap items-center gap-3 rounded-md border bg-white p-3 transition ${
+                      draggingIndex === index ? 'opacity-50 ring-2 ring-[#225f45]' : ''
+                    }`}
                   >
+                    <span
+                      draggable
+                      onDragStart={(event) => startDrag(event, index)}
+                      onDragEnd={() => setDraggingIndex(null)}
+                      className="cursor-grab touch-none rounded p-1 text-gray-500 hover:bg-gray-100 active:cursor-grabbing"
+                      title="Drag to reorder"
+                      aria-label={`Drag ${dog?.call_name} to reorder`}
+                    >
+                      <GripVertical className="h-5 w-5" />
+                    </span>
                     <span className="w-8 text-center font-bold">{index + 1}</span>
                     <div className="min-w-48 flex-1">
                       <p className="font-medium">
