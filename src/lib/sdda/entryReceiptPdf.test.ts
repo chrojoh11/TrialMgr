@@ -1,0 +1,2 @@
+import assert from 'node:assert/strict';import test from 'node:test';import {PDFDocument} from 'pdf-lib';import {createEntryReceiptPdf} from './entryReceiptPdf';
+test('creates a one-page printable SDDA receipt',async()=>{const bytes=await createEntryReceiptPdf({confirmationCode:'SDDA-TEST-1',trialName:'Test Trial',handlerName:'A Handler',dogName:'Scout',runCount:1,selections:['Day 1 - Started - Container - Amateur']});const pdf=await PDFDocument.load(bytes);assert.equal(pdf.getPageCount(),1);assert.ok(bytes.length>800);});
