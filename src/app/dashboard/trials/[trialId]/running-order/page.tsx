@@ -33,12 +33,14 @@ import {
   type SddaLevel,
 } from '@/lib/sdda/offerings';
 import { findSddaScheduleConflicts, moveSddaRun, orderSddaRuns } from '@/lib/sdda/runningOrder';
+import { SDDA_RUN_GROUPS, type SddaRunGroup } from '@/lib/sdda/domain';
 import { buildSddaRunningOrderWorkbook } from '@/lib/sdda/runningOrderWorkbook';
 import {
   getSddaTrialWorkspace,
   listSddaRunningOrderRuns,
   saveSddaRunningOrder,
   setSddaRunMoveUp,
+  setSddaRunGroup,
   type SddaTrialWorkspace,
 } from '@/lib/sdda/trialRepository';
 type Run = Awaited<ReturnType<typeof listSddaRunningOrderRuns>>[number];
@@ -53,6 +55,7 @@ export default function RunningOrderPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [movingRunId, setMovingRunId] = useState<string | null>(null);
+  const [changingGroupRunId, setChangingGroupRunId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(async () => {
     try {
@@ -160,6 +163,20 @@ export default function RunningOrderPage() {
       setError(c instanceof Error ? c.message : 'Unable to update move-up.');
     } finally {
       setMovingRunId(null);
+    }
+  };
+  const changeRunGroup = async (runId: string, runGroup: SddaRunGroup) => {
+    try {
+      setChangingGroupRunId(runId);
+      setError(null);
+      await setSddaRunGroup(getSupabaseBrowser(), runId, runGroup);
+      await load();
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : 'Unable to change the running-order group.'
+      );
+    } finally {
+      setChangingGroupRunId(null);
     }
   };
   return (
@@ -295,7 +312,25 @@ export default function RunningOrderPage() {
                       </p>
                     </div>
                     {run.move_up_approved_at && <Badge>Moved up</Badge>}
-                    <Badge variant="outline">{run.run_group}</Badge>
+                    <Select
+                      value={run.run_group}
+                      onValueChange={(value) => void changeRunGroup(run.id, value as SddaRunGroup)}
+                      disabled={changingGroupRunId === run.id}
+                    >
+                      <SelectTrigger
+                        className="w-36 bg-white"
+                        aria-label={`Running-order group for ${dog?.call_name}`}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SDDA_RUN_GROUPS.map((groupName) => (
+                          <SelectItem key={groupName} value={groupName}>
+                            {groupName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     {canMove && (
                       <Button
                         size="sm"

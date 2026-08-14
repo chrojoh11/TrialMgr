@@ -1,7 +1,18 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { validateSddaTrialSetup, type SddaTrialSetupInput, type SddaTrialStatus } from './trialSetup';
-import { offeringKey, parseOfferingKey, type SddaLevel, type SddaComponent, type SddaStream } from './offerings';
+import {
+  validateSddaTrialSetup,
+  type SddaTrialSetupInput,
+  type SddaTrialStatus,
+} from './trialSetup';
+import {
+  offeringKey,
+  parseOfferingKey,
+  type SddaLevel,
+  type SddaComponent,
+  type SddaStream,
+} from './offerings';
 import type { SddaCsvEntry } from './entryCsv';
+import type { SddaRunGroup } from './domain';
 
 export interface SddaTrialSummary {
   id: string;
@@ -66,7 +77,9 @@ export async function deleteSddaDraftTrial(client: SupabaseClient, trialId: stri
 export async function getSddaTrialWorkspace(client: SupabaseClient, trialId: string) {
   const { data, error } = await client
     .from('sdda_trials')
-    .select('id,name,host_club,venue,timezone,status,created_at,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,judge_name,capacity)')
+    .select(
+      'id,name,host_club,venue,timezone,status,created_at,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,judge_name,capacity)'
+    )
     .eq('id', trialId)
     .single();
   if (error || !data) throw new Error(error?.message || 'SDDA trial not found.');
@@ -77,81 +90,165 @@ export async function saveSddaTrialOfferings(
   client: SupabaseClient,
   trialId: string,
   current: SddaTrialOffering[],
-  selectedKeys: Set<string>,
+  selectedKeys: Set<string>
 ) {
-  const currentKeys = new Map(current.map((offering) => [offeringKey({
-    trialDayId: offering.trial_day_id,
-    level: offering.level,
-    component: offering.component,
-    stream: offering.stream,
-  }), offering]));
-  const removeIds = [...currentKeys].filter(([key]) => !selectedKeys.has(key)).map(([, value]) => value.id);
+  const currentKeys = new Map(
+    current.map((offering) => [
+      offeringKey({
+        trialDayId: offering.trial_day_id,
+        level: offering.level,
+        component: offering.component,
+        stream: offering.stream,
+      }),
+      offering,
+    ])
+  );
+  const removeIds = [...currentKeys]
+    .filter(([key]) => !selectedKeys.has(key))
+    .map(([, value]) => value.id);
   const additions = [...selectedKeys].filter((key) => !currentKeys.has(key)).map(parseOfferingKey);
 
   if (removeIds.length) {
-    const { error } = await client.from('sdda_trial_offerings').delete().eq('trial_id', trialId).in('id', removeIds);
+    const { error } = await client
+      .from('sdda_trial_offerings')
+      .delete()
+      .eq('trial_id', trialId)
+      .in('id', removeIds);
     if (error) throw new Error(error.message);
   }
   if (additions.length) {
-    const { error } = await client.from('sdda_trial_offerings').insert(additions.map((item) => ({
-      trial_id: trialId,
-      trial_day_id: item.trialDayId,
-      level: item.level,
-      component: item.component,
-      stream: item.stream,
-    })));
+    const { error } = await client.from('sdda_trial_offerings').insert(
+      additions.map((item) => ({
+        trial_id: trialId,
+        trial_day_id: item.trialDayId,
+        level: item.level,
+        component: item.component,
+        stream: item.stream,
+      }))
+    );
     if (error) throw new Error(error.message);
   }
 }
 
 export async function listSddaEntries(client: SupabaseClient, trialId: string) {
-  const { data, error } = await client.from('sdda_entries')
-    .select('id,handler_name,handler_email,handler_phone,stream,formal_alerts,entry_status,source,created_at,sdda_dogs(id,call_name,registered_name,sdda_registration_number,registration_pending,breed),sdda_runs(id,trial_day_id,level,component,stream,run_group,running_position)')
-    .eq('trial_id', trialId).order('created_at');
+  const { data, error } = await client
+    .from('sdda_entries')
+    .select(
+      'id,handler_name,handler_email,handler_phone,stream,formal_alerts,entry_status,source,created_at,sdda_dogs(id,call_name,registered_name,sdda_registration_number,registration_pending,breed),sdda_runs(id,trial_day_id,level,component,stream,run_group,running_position)'
+    )
+    .eq('trial_id', trialId)
+    .order('created_at');
   if (error) throw new Error(error.message);
   return data || [];
 }
 
-export async function importSddaCsvEntries(client: SupabaseClient, trial: SddaTrialWorkspace, entries: SddaCsvEntry[]) {
+export async function importSddaCsvEntries(
+  client: SupabaseClient,
+  trial: SddaTrialWorkspace,
+  entries: SddaCsvEntry[]
+) {
   const results = { imported: 0, errors: [] as string[] };
   for (const entry of entries) {
     const day = trial.sdda_trial_days.find((candidate) => candidate.day_number === entry.trialDay);
-    if (!day) { results.errors.push(`Row ${entry.rowNumber}: trial day ${entry.trialDay} does not exist.`); continue; }
+    if (!day) {
+      results.errors.push(`Row ${entry.rowNumber}: trial day ${entry.trialDay} does not exist.`);
+      continue;
+    }
     const { error } = await client.rpc('sdda_import_entry', {
-      target_trial_id: trial.id, target_trial_day_id: day.id,
-      dog_call_name: entry.dogCallName, dog_registered_name: entry.dogRegisteredName,
-      dog_registration_number: entry.registrationNumber, dog_registration_pending: entry.registrationPending,
-      dog_breed: entry.breed, entry_handler_name: entry.handlerName, entry_handler_email: entry.handlerEmail,
-      entry_handler_phone: entry.handlerPhone, entry_stream: entry.stream, entry_level: entry.level,
-      entry_components: entry.components, import_source: 'google_form', import_source_row: String(entry.rowNumber), entry_formal_alerts: entry.formalAlerts,
+      target_trial_id: trial.id,
+      target_trial_day_id: day.id,
+      dog_call_name: entry.dogCallName,
+      dog_registered_name: entry.dogRegisteredName,
+      dog_registration_number: entry.registrationNumber,
+      dog_registration_pending: entry.registrationPending,
+      dog_breed: entry.breed,
+      entry_handler_name: entry.handlerName,
+      entry_handler_email: entry.handlerEmail,
+      entry_handler_phone: entry.handlerPhone,
+      entry_stream: entry.stream,
+      entry_level: entry.level,
+      entry_components: entry.components,
+      import_source: 'google_form',
+      import_source_row: String(entry.rowNumber),
+      entry_formal_alerts: entry.formalAlerts,
     });
-    if (error) results.errors.push(`Row ${entry.rowNumber}: ${error.message}`); else results.imported++;
+    if (error) results.errors.push(`Row ${entry.rowNumber}: ${error.message}`);
+    else results.imported++;
   }
   return results;
 }
 
 export async function listSddaRunningOrderRuns(client: SupabaseClient, trialId: string) {
-  const { data, error } = await client.from('sdda_runs')
-    .select('id,trial_day_id,level,component,stream,run_group,running_position,move_up_from_run_id,move_up_from_level,move_up_approved_at,created_at,sdda_trial_days(day_number,trial_date),sdda_entries(id,handler_name,dog_id,formal_alerts,sdda_dogs(call_name,registered_name,breed,sdda_registration_number))')
-    .eq('trial_id', trialId).order('created_at');
+  const { data, error } = await client
+    .from('sdda_runs')
+    .select(
+      'id,trial_day_id,level,component,stream,run_group,running_position,move_up_from_run_id,move_up_from_level,move_up_approved_at,created_at,sdda_trial_days(day_number,trial_date),sdda_entries(id,handler_name,dog_id,formal_alerts,sdda_dogs(call_name,registered_name,breed,sdda_registration_number))'
+    )
+    .eq('trial_id', trialId)
+    .order('created_at');
   if (error) throw new Error(error.message);
   return data || [];
 }
 
-export async function saveSddaRunningOrder(client: SupabaseClient, input: {
-  trialId: string; trialDayId: string; level: SddaLevel; component: SddaComponent; runIds: string[];
-}) {
+export async function saveSddaRunningOrder(
+  client: SupabaseClient,
+  input: {
+    trialId: string;
+    trialDayId: string;
+    level: SddaLevel;
+    component: SddaComponent;
+    runIds: string[];
+  }
+) {
   const { error } = await client.rpc('sdda_save_running_order', {
-    target_trial_id: input.trialId, target_trial_day_id: input.trialDayId,
-    target_level: input.level, target_component: input.component, ordered_run_ids: input.runIds,
+    target_trial_id: input.trialId,
+    target_trial_day_id: input.trialDayId,
+    target_level: input.level,
+    target_component: input.component,
+    ordered_run_ids: input.runIds,
   });
   if (error) throw new Error(error.message);
 }
 
 export async function setSddaRunMoveUp(client: SupabaseClient, runId: string, approve: boolean) {
   const { error } = await client.rpc('sdda_set_run_move_up', {
-    target_run_id: runId, approve_move_up: approve,
-    qualification_confirmed: approve, host_approved: approve,
+    target_run_id: runId,
+    approve_move_up: approve,
+    qualification_confirmed: approve,
+    host_approved: approve,
   });
   if (error) throw new Error(error.message);
+}
+
+export async function setSddaRunGroup(
+  client: SupabaseClient,
+  runId: string,
+  runGroup: SddaRunGroup
+) {
+  const { data: before, error: readError } = await client
+    .from('sdda_runs')
+    .select('trial_id,run_group')
+    .eq('id', runId)
+    .single();
+  if (readError) throw new Error(readError.message);
+  if (before.run_group === runGroup) return;
+  const { error: updateError } = await client
+    .from('sdda_runs')
+    .update({ run_group: runGroup })
+    .eq('id', runId);
+  if (updateError) throw new Error(updateError.message);
+  const { data: userData, error: userError } = await client.auth.getUser();
+  if (userError || !userData.user)
+    throw new Error(userError?.message || 'Signed-in user required.');
+  const { error: auditError } = await client.from('sdda_audit_records').insert({
+    trial_id: before.trial_id,
+    actor_id: userData.user.id,
+    action: 'run.group_changed',
+    entity_type: 'sdda_run',
+    entity_id: runId,
+    before_state: { run_group: before.run_group },
+    after_state: { run_group: runGroup },
+  });
+  if (auditError)
+    throw new Error(`Run group changed, but audit recording failed: ${auditError.message}`);
 }
