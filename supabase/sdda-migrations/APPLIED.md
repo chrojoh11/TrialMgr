@@ -1,5 +1,15 @@
 # Applied SDDA migrations
 
+## `20260813_0016_public_entry_run_group_requests.sql`
+
+- Applied: 2026-08-13 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Execution result: success, no rows returned
+- Entry behavior: competitors may request Regular, Official, Second dog, FEO, or BIS separately for each selected run
+- Secretary control: requests populate the existing run-group field and remain editable from Running Orders
+- Security: the original submission implementation is private; anonymous callers can execute only the validated wrapper
+- Data impact: function definitions only; no existing trial, entry, dog, or run rows changed
+
 ## `20260813_0015_public_entry_random_bytes.sql`
 
 - Applied: 2026-08-13 (America/Edmonton)

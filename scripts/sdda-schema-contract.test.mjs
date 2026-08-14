@@ -40,6 +40,7 @@ const componentMoveUpMigration = readFileSync(new URL('../supabase/sdda-migratio
 const multilevelRunsMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0013_multilevel_component_runs.sql', import.meta.url), 'utf8').toLowerCase();
 const publicEntryMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0014_public_entry_confirmations.sql', import.meta.url), 'utf8').toLowerCase();
 const publicEntryRandomMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0015_public_entry_random_bytes.sql', import.meta.url), 'utf8').toLowerCase();
+const publicEntryGroupsMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0016_public_entry_run_group_requests.sql', import.meta.url), 'utf8').toLowerCase();
 
 const runningOrderMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260813_0006_atomic_running_order.sql', import.meta.url),
@@ -236,6 +237,14 @@ test('resolves Supabase pgcrypto random bytes without broadening anonymous table
   assert.match(publicEntryRandomMigration, /alter function public\.sdda_submit_public_entry\(uuid,jsonb\)/);
   assert.match(publicEntryRandomMigration, /set search_path to public, extensions/);
   assert.doesNotMatch(publicEntryRandomMigration, /grant .*table|service_role|cwags|c-wags/);
+});
+
+test('accepts validated competitor running-group requests while keeping table access private', () => {
+  for (const value of ['official','regular','second dog','feo','bis']) assert.match(publicEntryGroupsMigration,new RegExp(`'${value}'`));
+  assert.match(publicEntryGroupsMigration,/sdda_submit_public_entry_core/);
+  assert.match(publicEntryGroupsMigration,/revoke all on function public\.sdda_submit_public_entry_core.*from public, anon, authenticated/);
+  assert.match(publicEntryGroupsMigration,/entry\.public_run_groups_requested/);
+  assert.doesNotMatch(publicEntryGroupsMigration,/grant .*table|service_role|cwags|c-wags/);
 });
 
 test('saves complete SDDA running orders atomically with an audit record', () => {
