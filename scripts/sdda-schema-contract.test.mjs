@@ -39,6 +39,7 @@ const formalAlertsMigration = readFileSync(
 const componentMoveUpMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0012_component_move_up.sql', import.meta.url), 'utf8').toLowerCase();
 const multilevelRunsMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0013_multilevel_component_runs.sql', import.meta.url), 'utf8').toLowerCase();
 const publicEntryMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0014_public_entry_confirmations.sql', import.meta.url), 'utf8').toLowerCase();
+const publicEntryRandomMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0015_public_entry_random_bytes.sql', import.meta.url), 'utf8').toLowerCase();
 
 const runningOrderMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260813_0006_atomic_running_order.sql', import.meta.url),
@@ -229,6 +230,12 @@ test('accepts public SDDA entries through narrow token-protected functions witho
   assert.match(publicEntryMigration, /'received'/);
   assert.doesNotMatch(publicEntryMigration, /grant (select|insert|update|delete).*to anon/);
   assert.doesNotMatch(publicEntryMigration, /service_role|cwags|c-wags/);
+});
+
+test('resolves Supabase pgcrypto random bytes without broadening anonymous table access', () => {
+  assert.match(publicEntryRandomMigration, /alter function public\.sdda_submit_public_entry\(uuid,jsonb\)/);
+  assert.match(publicEntryRandomMigration, /set search_path to public, extensions/);
+  assert.doesNotMatch(publicEntryRandomMigration, /grant .*table|service_role|cwags|c-wags/);
 });
 
 test('saves complete SDDA running orders atomically with an audit record', () => {

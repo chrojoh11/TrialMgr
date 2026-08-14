@@ -1,5 +1,14 @@
 # Applied SDDA migrations
 
+## `20260813_0015_public_entry_random_bytes.sql`
+
+- Applied: 2026-08-13 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Execution result: success, no rows returned
+- Fix: public entry receipt-token generation resolves Supabase `pgcrypto` from the trusted `extensions` schema
+- Verification: submission function configuration reports `search_path=public, extensions` with row security disabled only inside the validated security-definer function
+- Data impact: function configuration only; no trial, entry, dog, or run rows changed
+
 ## `20260813_0014_public_entry_confirmations.sql`
 
 - Applied: 2026-08-13 (America/Edmonton)
