@@ -187,7 +187,7 @@ export async function listSddaRunningOrderRuns(client: SupabaseClient, trialId: 
   const { data, error } = await client
     .from('sdda_runs')
     .select(
-      'id,trial_day_id,level,component,stream,run_group,running_position,move_up_from_run_id,move_up_from_level,move_up_approved_at,created_at,sdda_trial_days(day_number,trial_date),sdda_entries(id,handler_name,dog_id,formal_alerts,sdda_dogs(call_name,registered_name,breed,sdda_registration_number))'
+      'id,trial_day_id,level,component,stream,run_group,running_position,move_up_from_run_id,move_up_from_level,move_up_approved_at,created_at,sdda_trial_days(day_number,trial_date),sdda_entries(id,handler_name,dog_id,reactivity,sdda_dogs(call_name,registered_name,breed,sdda_registration_number))'
     )
     .eq('trial_id', trialId)
     .order('created_at');

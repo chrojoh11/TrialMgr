@@ -26,7 +26,7 @@ test('matches the original SDDA running-order workbook structure', () => {
     running_position: 1,
     sdda_entries: {
       handler_name: 'Handler',
-      formal_alerts: 'Dogs',
+      reactivity: 'Dogs',
       sdda_dogs: { call_name: 'Dog' },
     },
   };
@@ -39,7 +39,16 @@ test('matches the original SDDA running-order workbook structure', () => {
   assert.equal(sheet.A1.v, 'Saturday Runs');
   assert.equal(sheet.N1.v, 'DAY TOTAL\n1 RUNS');
   assert.equal(sheet.C7.v, 'A');
-  assert.equal(sheet.E7.v, '⚠ Dogs');
+  assert.equal(sheet.E6.v, 'Reactive');
+  assert.equal(sheet.E7.v, 'Dogs');
   assert.equal(sheet['!cols']?.length, 15);
   assert.equal(sheet['!merges']?.some((range) => XLSX.utils.encode_range(range) === 'A1:M2'), true);
+});
+
+test('leaves non-reactive dogs blank in the running-order export', () => {
+  const day = { id: 'day-1', day_number: 1, trial_date: '2026-06-06' };
+  const trial: any = { name: 'Test Trial', sdda_trial_days: [day] };
+  const run: any = { trial_day_id: day.id, level: 'Started', component: 'Container', stream: 'Working', run_group: 'Regular', sdda_entries: { handler_name: 'Handler', reactivity: 'None', sdda_dogs: { call_name: 'Dog' } } };
+  const workbook = XLSX.read(buildSddaRunningOrderWorkbook(trial, [run]), { type: 'array' });
+  assert.equal(workbook.Sheets['Saturday Runs'].E7.v, '');
 });

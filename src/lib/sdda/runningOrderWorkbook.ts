@@ -26,10 +26,10 @@ function streamCode(stream: unknown) {
     : 'W';
 }
 
-function formalAlert(run: any) {
+function reactiveValue(run: any) {
   const entry = Array.isArray(run.sdda_entries) ? run.sdda_entries[0] : run.sdda_entries;
-  const alert = String(entry?.formal_alerts || '').trim();
-  return alert ? `⚠ ${alert}` : '';
+  const reactive = String(entry?.reactivity || '').trim();
+  return !reactive || reactive.toLowerCase() === 'none' ? '' : reactive;
 }
 
 export function buildSddaRunningOrderWorkbook(trial: SddaTrialWorkspace, runs: any[]) {
@@ -103,6 +103,7 @@ export function buildSddaRunningOrderWorkbook(trial: SddaTrialWorkspace, runs: a
         const start = index * 5;
         rows[header][start] = component;
         rows[header][start + 3] = lists[index].length;
+        rows[header][start + 4] = 'Reactive';
         merges.push({ s: { r: header, c: start }, e: { r: header, c: start + 2 } });
       });
 
@@ -122,7 +123,7 @@ export function buildSddaRunningOrderWorkbook(trial: SddaTrialWorkspace, runs: a
           rows[rowIndex][start + 1] = `${dog?.call_name || ''}\n${entry?.handler_name || ''}`;
           rows[rowIndex][start + 2] = streamCode(run.stream);
           rows[rowIndex][start + 3] = run.run_group;
-          rows[rowIndex][start + 4] = formalAlert(run);
+          rows[rowIndex][start + 4] = reactiveValue(run);
         });
       }
 
