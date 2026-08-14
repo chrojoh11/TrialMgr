@@ -38,6 +38,7 @@ const formalAlertsMigration = readFileSync(
 ).toLowerCase();
 const componentMoveUpMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0012_component_move_up.sql', import.meta.url), 'utf8').toLowerCase();
 const multilevelRunsMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0013_multilevel_component_runs.sql', import.meta.url), 'utf8').toLowerCase();
+const publicEntryMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0014_public_entry_confirmations.sql', import.meta.url), 'utf8').toLowerCase();
 
 const runningOrderMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260813_0006_atomic_running_order.sql', import.meta.url),
@@ -215,6 +216,19 @@ test('preserves multiple levels for the same dog, day, and component', () => {
   assert.match(multilevelRunsMigration, /on conflict\(entry_id,trial_day_id,level,component\)/);
   assert.doesNotMatch(multilevelRunsMigration, /on conflict\(entry_id,trial_day_id,component\)/);
   assert.doesNotMatch(multilevelRunsMigration, /service_role|security definer|cwags|c-wags/);
+});
+
+test('accepts public SDDA entries through narrow token-protected functions without anonymous table access', () => {
+  assert.match(publicEntryMigration, /function public\.sdda_public_trial_entry_setup/);
+  assert.match(publicEntryMigration, /function public\.sdda_submit_public_entry/);
+  assert.match(publicEntryMigration, /function public\.sdda_public_entry_receipt/);
+  assert.match(publicEntryMigration, /receipt_token_hash/);
+  assert.match(publicEntryMigration, /digest\(receipt_token,'sha256'\)/);
+  assert.match(publicEntryMigration, /status='entries_open'/);
+  assert.match(publicEntryMigration, /from public\.sdda_trial_offerings/);
+  assert.match(publicEntryMigration, /'received'/);
+  assert.doesNotMatch(publicEntryMigration, /grant (select|insert|update|delete).*to anon/);
+  assert.doesNotMatch(publicEntryMigration, /service_role|cwags|c-wags/);
 });
 
 test('saves complete SDDA running orders atomically with an audit record', () => {

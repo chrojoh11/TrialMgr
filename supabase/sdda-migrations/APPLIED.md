@@ -1,5 +1,14 @@
 # Applied SDDA migrations
 
+## `20260813_0014_public_entry_confirmations.sql`
+
+- Applied: 2026-08-13 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Execution result: success, no rows returned
+- Architecture: anonymous table access remains denied; only setup, validated submission, and token-protected receipt functions are executable
+- Privacy: receipt tokens are stored only as SHA-256 hashes; confirmation status begins as `received`, separately from secretary acceptance
+- Data impact: additive columns, functions, and index only; existing entries and runs were not rewritten
+
 ## `20260813_0001_sdda_core.sql`
 
 - Applied: 2026-08-13 (America/Edmonton)
