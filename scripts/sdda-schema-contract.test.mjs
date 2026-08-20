@@ -44,6 +44,7 @@ const publicEntryGroupsMigration = readFileSync(new URL('../supabase/sdda-migrat
 const perRunStreamsMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0017_per_run_entry_streams.sql', import.meta.url), 'utf8').toLowerCase();
 const gamesMigration = readFileSync(new URL('../supabase/sdda-migrations/20260819_0018_trial_formats_and_games.sql', import.meta.url), 'utf8').toLowerCase();
 const publicGamesEntryMigration = readFileSync(new URL('../supabase/sdda-migrations/20260820_0019_public_games_entries.sql', import.meta.url), 'utf8').toLowerCase();
+const secureFormattedTrialMigration = readFileSync(new URL('../supabase/sdda-migrations/20260820_0020_secure_formatted_trial_creation.sql', import.meta.url), 'utf8').toLowerCase();
 
 const runningOrderMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260813_0006_atomic_running_order.sql', import.meta.url),
@@ -292,4 +293,12 @@ test('accepts public Games entries without anonymous table access', () => {
   assert.match(publicGamesEntryMigration, /game_type='team'.*team partner name is required/s);
   assert.match(publicGamesEntryMigration, /grant execute on function public\.sdda_submit_public_entry/);
   assert.doesNotMatch(publicGamesEntryMigration, /grant (select|insert|update|delete).*to anon|service_role|cwags|c-wags/);
+});
+
+test('creates formatted trials through the authenticated RLS boundary', () => {
+  assert.match(secureFormattedTrialMigration, /alter function public\.sdda_create_trial\(text,text,text,date\[\],text\)\s+security definer/);
+  assert.match(secureFormattedTrialMigration, /set search_path = public/);
+  assert.match(secureFormattedTrialMigration, /from public, anon/);
+  assert.match(secureFormattedTrialMigration, /to authenticated/);
+  assert.doesNotMatch(secureFormattedTrialMigration, /service_role|cwags|c-wags/);
 });
