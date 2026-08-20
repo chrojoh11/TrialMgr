@@ -813,6 +813,13 @@ export default function Page() {
                   </F>
                 </Grid>
               </Section>
+              <Section title="SDDA entry declaration">
+                <div className="space-y-3 rounded-xl border border-[#bfc8c1] bg-white p-5 text-sm leading-6 text-gray-800">
+                  <p>I certify that I am the owner or authorized agent of the actual owner of the dog entered in this SDDA sanctioned Sporting Detection Trial. I accept full responsibility for all statements made in this entry and for the dog’s participation in this trial. In consideration of the acceptance of this entry I agree to be bound by the rules and regulations of the Sporting Detection Dogs Association and any additional rules and regulations put forth regarding this specific event.</p>
+                  <p>I agree to hold harmless the SDDA, host club, and their agents and employees, for any loss, damage, or injury sustained by spectators or by exhibitors and handlers, or to any of their dogs or property. I agree to assume sole responsibility and agree to indemnify and hold harmless the SDDA, host club, and their agents and employees for loss, accidents or theft and I hold the SDDA, the host and any approved SDDA Judge harmless from any claims, actions or lawsuits resulting from my participation in this event.</p>
+                </div>
+                <p className="mt-3 text-xs text-gray-600">Declaration from the official SDDA Sample Trial Entry Form. The trial’s premium list and current SDDA rules also apply. <a className="font-semibold text-[#225f45] underline" href="https://www.sdda.ca/sdda-forms/" target="_blank" rel="noreferrer">View official SDDA forms</a>.</p>
+              </Section>
               <Section title="Payment and cancellation">
                 <p className="whitespace-pre-wrap">
                   {setup.payment_instructions ||
@@ -828,7 +835,7 @@ export default function Page() {
                     checked={form.waiver_accepted}
                     onChange={(e) => set('waiver_accepted', e.target.checked)}
                   />
-                  I reviewed my entry and agree to the payment and cancellation terms. *
+                  <span><b>I have read and agree to the SDDA entry declaration displayed above.</b> I also reviewed my entry and agree to this trial’s payment and cancellation terms. *</span>
                 </label>
               </Section>
             </div>
