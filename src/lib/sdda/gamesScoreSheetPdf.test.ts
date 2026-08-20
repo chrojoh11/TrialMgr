@@ -13,6 +13,7 @@ import { SDDA_GAME_TYPES } from './trialRepository';
 test('defines four independent official Games sheet mappings', () => {
   for (const game of SDDA_GAME_TYPES) {
     assert.ok(SDDA_GAME_SCORE_SHEET_FIELDS[game]);
+    assert.ok(SDDA_GAME_SCORE_SHEET_FIELDS[game].feo);
     assert.equal(
       gameScoreSheetBackgroundPath(game),
       `/templates/sdda-score-sheets-compressed/games-${game.toLowerCase()}.jpg`

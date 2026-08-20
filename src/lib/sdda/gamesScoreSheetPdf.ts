@@ -13,6 +13,7 @@ type GameFields = {
   partnerNumber?: Field;
   aerialHigh?: Field;
   aerialHighfly?: Field;
+  feo: Field;
   judge: Field;
   footer: Field;
 };
@@ -44,6 +45,7 @@ export const SDDA_GAME_SCORE_SHEET_FIELDS: Record<SddaGameType, GameFields> = {
     dogNumber: [525, 184, 52],
     aerialHigh: [194, 241, 12],
     aerialHighfly: [255, 241, 12],
+    feo: [522, 75, 54],
     judge: [180, 665, 130],
     footer: [36, 768, 310],
   },
@@ -53,6 +55,7 @@ export const SDDA_GAME_SCORE_SHEET_FIELDS: Record<SddaGameType, GameFields> = {
     dog: [102, 184, 165],
     breed: [316, 184, 126],
     dogNumber: [525, 184, 52],
+    feo: [522, 75, 54],
     judge: [180, 680, 130],
     footer: [36, 768, 310],
   },
@@ -62,6 +65,7 @@ export const SDDA_GAME_SCORE_SHEET_FIELDS: Record<SddaGameType, GameFields> = {
     dog: [102, 184, 165],
     breed: [316, 184, 126],
     dogNumber: [525, 184, 52],
+    feo: [522, 75, 54],
     judge: [180, 645, 130],
     footer: [36, 768, 310],
   },
@@ -74,6 +78,7 @@ export const SDDA_GAME_SCORE_SHEET_FIELDS: Record<SddaGameType, GameFields> = {
     partnerDog: [102, 234, 165],
     partnerBreed: [316, 234, 126],
     partnerNumber: [525, 234, 52],
+    feo: [522, 75, 54],
     judge: [180, 680, 130],
     footer: [36, 768, 310],
   },
@@ -125,7 +130,29 @@ export async function buildSddaGamesJudgePacket(
     }
     if (run.gameType === 'Aerial' && run.aerialDivision)
       draw('X', run.aerialDivision === 'High' ? fields.aerialHigh! : fields.aerialHighfly!, 12);
-    if (run.entryType === 'FEO') draw('FEO', [535, 75, 40], 11);
+    if (run.entryType === 'FEO') {
+      const [x, top] = fields.feo;
+      const y = 792 - top;
+      page.drawRectangle({
+        x,
+        y: y - 8,
+        width: 9,
+        height: 9,
+        borderWidth: 1,
+        borderColor: rgb(0, 0, 0),
+      });
+      page.drawLine({
+        start: { x: x + 1.5, y: y - 6.5 },
+        end: { x: x + 7.5, y: y - 0.5 },
+        thickness: 1.2,
+      });
+      page.drawLine({
+        start: { x: x + 1.5, y: y - 0.5 },
+        end: { x: x + 7.5, y: y - 6.5 },
+        thickness: 1.2,
+      });
+      draw('FEO', [x + 13, top, 40], 10);
+    }
     draw(
       `Day ${run.dayNumber} - ${run.gameType} - Run ${run.order}/${totals.get(`${run.dayNumber}|${run.gameType}`)}`,
       fields.footer,

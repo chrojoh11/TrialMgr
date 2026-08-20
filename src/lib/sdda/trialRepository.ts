@@ -65,7 +65,9 @@ export interface SddaTrialWorkspace extends SddaTrialSummary {
 export async function listSddaTrials(client: SupabaseClient): Promise<SddaTrialSummary[]> {
   const { data, error } = await client
     .from('sdda_trials')
-    .select('id,name,host_club,venue,status,created_at,trial_format,sdda_trial_days(day_number,trial_date)')
+    .select(
+      'id,name,host_club,venue,status,created_at,trial_format,sdda_trial_days(day_number,trial_date)'
+    )
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return (data || []) as SddaTrialSummary[];
@@ -83,15 +85,25 @@ export async function createSddaTrial(client: SupabaseClient, input: SddaTrialSe
     ...request,
     requested_trial_format: setup.trialFormat,
   });
-  if (error && setup.trialFormat === 'scent' && /function|schema cache|requested_trial_format/i.test(error.message)) {
+  if (
+    error &&
+    setup.trialFormat === 'scent' &&
+    /function|schema cache|requested_trial_format/i.test(error.message)
+  ) {
     const legacy = await client.rpc('sdda_create_trial', request);
     if (legacy.error || !legacy.data) {
       throw new Error(legacy.error?.message || 'Unable to create the SDDA trial.');
     }
     return legacy.data as string;
   }
-  if (error && setup.trialFormat !== 'scent' && /function|schema cache|requested_trial_format/i.test(error.message)) {
-    throw new Error('Games support is ready in the application, but SDDA database migration 0018 must be applied before creating a Games or Combined trial.');
+  if (
+    error &&
+    setup.trialFormat !== 'scent' &&
+    /function|schema cache|requested_trial_format/i.test(error.message)
+  ) {
+    throw new Error(
+      'Games support is ready in the application, but SDDA database migration 0018 must be applied before creating a Games or Combined trial.'
+    );
   }
   if (error || !data) throw new Error(error?.message || 'Unable to create the SDDA trial.');
   return data as string;
@@ -109,12 +121,17 @@ export async function setSddaTrialEntryStatus(
   trialId: string,
   status: 'entries_open' | 'entries_closed'
 ) {
-  const { data: before, error: readError } = await client.from('sdda_trials').select('status').eq('id', trialId).single();
+  const { data: before, error: readError } = await client
+    .from('sdda_trials')
+    .select('status')
+    .eq('id', trialId)
+    .single();
   if (readError) throw new Error(readError.message);
   const { error } = await client.from('sdda_trials').update({ status }).eq('id', trialId);
   if (error) throw new Error(error.message);
   const { data: authData, error: authError } = await client.auth.getUser();
-  if (authError || !authData.user) throw new Error(authError?.message || 'Signed-in user required.');
+  if (authError || !authData.user)
+    throw new Error(authError?.message || 'Signed-in user required.');
   const { error: auditError } = await client.from('sdda_audit_records').insert({
     trial_id: trialId,
     actor_id: authData.user.id,
@@ -124,7 +141,8 @@ export async function setSddaTrialEntryStatus(
     before_state: { status: before.status },
     after_state: { status },
   });
-  if (auditError) throw new Error(`Entry status changed, but audit recording failed: ${auditError.message}`);
+  if (auditError)
+    throw new Error(`Entry status changed, but audit recording failed: ${auditError.message}`);
 }
 
 export async function getSddaTrialWorkspace(client: SupabaseClient, trialId: string) {
@@ -148,10 +166,20 @@ export async function saveSddaGameOfferings(
   trialId: string,
   current: SddaGameOffering[],
   selectedKeys: Set<string>,
-  configuration: Record<string, Pick<SddaGameOffering, 'judge_name' | 'capacity' | 'entry_fee_cents' | 'feo_fee_cents'>>
+  configuration: Record<
+    string,
+    Pick<SddaGameOffering, 'judge_name' | 'capacity' | 'entry_fee_cents' | 'feo_fee_cents'>
+  >
 ) {
-  const currentKeys = new Map(current.map((offering) => [gameOfferingKey(offering.trial_day_id, offering.game_type), offering]));
-  const removeIds = [...currentKeys].filter(([key]) => !selectedKeys.has(key)).map(([, offering]) => offering.id);
+  const currentKeys = new Map(
+    current.map((offering) => [
+      gameOfferingKey(offering.trial_day_id, offering.game_type),
+      offering,
+    ])
+  );
+  const removeIds = [...currentKeys]
+    .filter(([key]) => !selectedKeys.has(key))
+    .map(([, offering]) => offering.id);
   const selected = [...selectedKeys].map((key) => {
     const separator = key.indexOf('|');
     return {
@@ -166,11 +194,17 @@ export async function saveSddaGameOfferings(
     };
   });
   if (removeIds.length) {
-    const { error } = await client.from('sdda_game_offerings').delete().eq('trial_id', trialId).in('id', removeIds);
+    const { error } = await client
+      .from('sdda_game_offerings')
+      .delete()
+      .eq('trial_id', trialId)
+      .in('id', removeIds);
     if (error) throw new Error(error.message);
   }
   if (selected.length) {
-    const { error } = await client.from('sdda_game_offerings').upsert(selected, { onConflict: 'trial_day_id,game_type' });
+    const { error } = await client
+      .from('sdda_game_offerings')
+      .upsert(selected, { onConflict: 'trial_day_id,game_type' });
     if (error) throw new Error(error.message);
   }
 }
@@ -223,7 +257,7 @@ export async function listSddaEntries(client: SupabaseClient, trialId: string) {
   const { data, error } = await client
     .from('sdda_entries')
     .select(
-      'id,handler_name,handler_email,handler_phone,stream,formal_alerts,entry_status,confirmation_status,confirmation_code,submitted_at,source,created_at,sdda_dogs(id,call_name,registered_name,sdda_registration_number,registration_pending,breed),sdda_runs(id,trial_day_id,level,component,stream,run_group,running_position)'
+      'id,handler_name,handler_email,handler_phone,handler_address,participant_number,stream,formal_alerts,reactivity,title_watch_note,entry_status,confirmation_status,confirmation_code,submitted_at,source,created_at,sdda_dogs(id,call_name,registered_name,sdda_registration_number,registration_pending,breed),sdda_runs(id,trial_day_id,level,component,stream,run_group,running_position),sdda_game_runs(id,trial_day_id,offering_id,entry_type,requested_team_partner,aerial_division,sdda_game_offerings(game_type))'
     )
     .eq('trial_id', trialId)
     .order('created_at');
@@ -231,9 +265,14 @@ export async function listSddaEntries(client: SupabaseClient, trialId: string) {
   return data || [];
 }
 
-export async function listSddaEntryFinancials(client: SupabaseClient, trialId:string) {
-  const {data,error}=await client.from('sdda_financial_transactions').select('entry_id,transaction_type,amount_cents').eq('trial_id',trialId).not('entry_id','is',null);
-  if(error) throw new Error(error.message); return data||[];
+export async function listSddaEntryFinancials(client: SupabaseClient, trialId: string) {
+  const { data, error } = await client
+    .from('sdda_financial_transactions')
+    .select('entry_id,transaction_type,amount_cents')
+    .eq('trial_id', trialId)
+    .not('entry_id', 'is', null);
+  if (error) throw new Error(error.message);
+  return data || [];
 }
 
 export async function importSddaCsvEntries(
@@ -287,7 +326,9 @@ export async function listSddaRunningOrderRuns(client: SupabaseClient, trialId: 
 export async function listSddaGameRuns(client: SupabaseClient, trialId: string) {
   const { data, error } = await client
     .from('sdda_game_runs')
-    .select('id,trial_day_id,entry_type,running_position,requested_team_partner,created_at,sdda_game_offerings(game_type,judge_name),sdda_entries(id,handler_name,dog_id,reactivity,sdda_dogs(call_name,registered_name,breed,sdda_registration_number))')
+    .select(
+      'id,trial_day_id,entry_type,aerial_division,running_position,requested_team_partner,created_at,sdda_game_offerings(game_type,judge_name),sdda_entries(id,handler_name,dog_id,reactivity,sdda_dogs(call_name,registered_name,breed,sdda_registration_number))'
+    )
     .eq('trial_id', trialId)
     .order('created_at');
   if (error) throw new Error(error.message);

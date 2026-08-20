@@ -158,6 +158,7 @@ export default function SddaScoreSheetsPage() {
           entryType: run.entry_type,
           order: run.running_position || index + 1,
           requestedTeamPartner: run.requested_team_partner || '',
+          aerialDivision: run.aerial_division || undefined,
         };
       })
       .sort(
