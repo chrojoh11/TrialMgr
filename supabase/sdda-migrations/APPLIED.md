@@ -243,3 +243,15 @@ No legacy C-WAGS migration was applied.
 - Verification status: competitor-reported only; declarations do not automatically approve a title or move-up
 - Security: public changes require the private receipt token and an open, received entry; authorized trial managers may correct a snapshot
 - Audit: every snapshot addition or correction is retained in `sdda_audit_records`
+
+## `20260820_0024_trial_pricing.sql`
+
+- Applied: 2026-08-20 (America/Edmonton)
+- Project: `SDDA-Trialdesk`
+- Project reference: `hsxwwtvzfulxdqimkgcc`
+- Database branch: `main` / Production
+- Reported execution result: success, no rows returned
+- Capability: audited Scent component, three-component package, and Elite pricing
+- Financials: accepted entries can now be tallied automatically alongside Games fees, payments, refunds, adjustments, operating expenses, SDDA remittance estimates, and judge compensation estimates
+- Security: pricing changes require authenticated trial-management access; no anonymous table access or privileged service-role credential is used
+- Audit: every pricing change is retained in `sdda_audit_records`
