@@ -43,6 +43,7 @@ const publicEntryRandomMigration = readFileSync(new URL('../supabase/sdda-migrat
 const publicEntryGroupsMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0016_public_entry_run_group_requests.sql', import.meta.url), 'utf8').toLowerCase();
 const perRunStreamsMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0017_per_run_entry_streams.sql', import.meta.url), 'utf8').toLowerCase();
 const gamesMigration = readFileSync(new URL('../supabase/sdda-migrations/20260819_0018_trial_formats_and_games.sql', import.meta.url), 'utf8').toLowerCase();
+const publicGamesEntryMigration = readFileSync(new URL('../supabase/sdda-migrations/20260820_0019_public_games_entries.sql', import.meta.url), 'utf8').toLowerCase();
 
 const runningOrderMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260813_0006_atomic_running_order.sql', import.meta.url),
@@ -281,4 +282,14 @@ test('models Scent, Games, and Combined trials without reusing scent run columns
   assert.match(gamesMigration, /public\.sdda_can_manage_trial\(trial_id\)/);
   assert.match(gamesMigration, /recorded_by=auth\.uid\(\)/);
   assert.doesNotMatch(gamesMigration, /service_role|cwags|c-wags/);
+});
+
+test('accepts public Games entries without anonymous table access', () => {
+  assert.match(publicGamesEntryMigration, /'game_offerings'/);
+  assert.match(publicGamesEntryMigration, /submission->'game_runs'/);
+  assert.match(publicGamesEntryMigration, /entry_type.*'regular','feo'/s);
+  assert.match(publicGamesEntryMigration, /requested_team_partner/);
+  assert.match(publicGamesEntryMigration, /game_type='team'.*team partner name is required/s);
+  assert.match(publicGamesEntryMigration, /grant execute on function public\.sdda_submit_public_entry/);
+  assert.doesNotMatch(publicGamesEntryMigration, /grant (select|insert|update|delete).*to anon|service_role|cwags|c-wags/);
 });
