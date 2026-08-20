@@ -15,7 +15,7 @@ export async function proxy(request: NextRequest) {
     pathname === '/dashboard/judges' || pathname.startsWith('/dashboard/judges/') ||
     pathname === '/dashboard/admin' || pathname.startsWith('/dashboard/admin/') ||
     /^\/dashboard\/trials\/create\/(days|levels|rounds|summary)(?:\/|$)/.test(pathname) ||
-    /^\/dashboard\/trials\/[^/]+\/(close-to-titles|collaborators|financials|journal|live-event|ringside|summary|time-calculator|trial-application)(?:\/|$)/.test(pathname);
+    /^\/dashboard\/trials\/[^/]+\/(close-to-titles|collaborators|journal|live-event|ringside|summary|time-calculator|trial-application)(?:\/|$)/.test(pathname);
   if (retiredPage) return NextResponse.redirect(new URL('/dashboard', request.url));
 
   const retiredApi = /^\/api\/(admin|invitations|public|registry|ringside|trials)(?:\/|$)/.test(pathname);
