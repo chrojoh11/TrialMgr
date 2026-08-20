@@ -204,6 +204,10 @@ export default function Page() {
     }
     return [...grouped.values()];
   }, [setup]);
+  const configuredGameFeesCents = useMemo(() => (setup?.game_offerings || [])
+    .filter((game) => gameChosen.has(game.id))
+    .reduce((total, game) => total + ((gameEntryType[game.id] || 'Regular') === 'FEO' ? game.feo_fee_cents : game.entry_fee_cents), 0), [setup, gameChosen, gameEntryType]);
+  const money = (cents: number) => new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(cents / 100);
   const set = (key: string, value: string | boolean | number) => setForm((v) => ({ ...v, [key]: value }));
   const toggle = (key: string) =>
     setChosen((v) => {
@@ -370,6 +374,8 @@ export default function Page() {
       runCount: totalRuns,
       selections,
       privateEditUrl: `${window.location.origin}/sdda-entry/${trialId}?code=${encodeURIComponent(receipt.confirmation_code)}&token=${encodeURIComponent(receipt.receipt_token)}`,
+      amountOwingCents: configuredGameFeesCents,
+      amountLabel: chosen.size ? 'Configured Games fees' : 'Amount owing',
     });
     const blob = new Blob([Uint8Array.from(bytes).buffer], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
@@ -398,6 +404,7 @@ export default function Page() {
             {form.handler_name} with {form.dog_call_name} · {chosen.size + gameChosen.size} runs
             requested
           </p>
+          {gameChosen.size > 0 && <div className="mt-4 rounded-xl border border-[#b9ceb9] bg-[#edf6ef] p-4"><small className="font-bold uppercase text-[#526057]">{chosen.size ? 'Configured Games fees' : 'Amount owing'}</small><p className="text-3xl font-bold text-[#225f45]">{money(configuredGameFeesCents)}</p>{chosen.size > 0 && <p className="mt-1 text-sm text-gray-600">Scent fees are not configured in TrialDesk yet and must be added by the secretary.</p>}</div>}
           <div className="mt-4 rounded-xl border bg-white p-4">
             <h2 className="mb-2 font-bold">Selections received</h2>
             <ul className="list-disc space-y-1 pl-5">
@@ -850,6 +857,7 @@ export default function Page() {
                 <br />
                 {chosen.size + gameChosen.size} runs
                 {(form.reported_advanced_gold_count > 0 || form.reported_excellent_gold_count > 0 || form.reported_elite_gold_count > 0) && <><br /><span className="text-amber-800"><b>Competitor-reported Gold:</b> Advanced {form.reported_advanced_gold_count} · Excellent {form.reported_excellent_gold_count} · Elite {form.reported_elite_gold_count} (unverified)</span></>}
+                {gameChosen.size > 0 && <><br /><span className="text-[#225f45]"><b>{chosen.size ? 'Configured Games fees' : 'Amount owing'}:</b> {money(configuredGameFeesCents)}</span></>}
               </div>
               <div className="mt-4 space-y-2">
                 {choices
