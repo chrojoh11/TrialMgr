@@ -22,10 +22,10 @@ begin
       'trial_date',d.trial_date,'sdda_trial_number',d.sdda_trial_number,'judge_name',d.judge_name) order by d.day_number)
       from public.sdda_trial_days d where d.trial_id=t.id),'[]'::jsonb),
     'offerings',coalesce((select jsonb_agg(jsonb_build_object('id',o.id,'trial_day_id',o.trial_day_id,
-      'level',o.level,'component',o.component,'stream',o.stream,'capacity',o.capacity)
+      'level',o.level,'component',o.component,'stream',o.stream,'capacity',o.capacity))
       from public.sdda_trial_offerings o where o.trial_id=t.id),'[]'::jsonb),
     'game_offerings',coalesce((select jsonb_agg(jsonb_build_object('id',g.id,'trial_day_id',g.trial_day_id,
-      'game_type',g.game_type,'capacity',g.capacity,'entry_fee_cents',g.entry_fee_cents,'feo_fee_cents',g.feo_fee_cents)
+      'game_type',g.game_type,'capacity',g.capacity,'entry_fee_cents',g.entry_fee_cents,'feo_fee_cents',g.feo_fee_cents))
       from public.sdda_game_offerings g where g.trial_id=t.id),'[]'::jsonb)
   ) into result from public.sdda_trials t where t.id=target_trial_id and t.status='entries_open'
     and (t.entry_open_at is null or now()>=t.entry_open_at) and (t.entry_close_at is null or now()<=t.entry_close_at);
