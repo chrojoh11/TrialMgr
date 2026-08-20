@@ -1,5 +1,15 @@
 # Applied SDDA migrations
 
+## `20260820_0020_secure_formatted_trial_creation.sql`
+
+- Applied: 2026-08-20 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Database branch: `main` / Production
+- Execution result: success, no rows returned
+- Fix: restored secure-definer execution for the five-argument formatted-trial function so its atomic child inserts pass RLS
+- Security: anonymous execution remains revoked; only authenticated users may call it, and the function still requires `auth.uid()` and assigns ownership to that user
+- Data impact: function security configuration only; no trial or entry records were changed
+
 ## `20260820_0019_public_games_entries.sql`
 
 - Applied: 2026-08-20 (America/Edmonton)
