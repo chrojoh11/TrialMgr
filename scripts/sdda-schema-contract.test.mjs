@@ -98,6 +98,10 @@ const financialLedgerMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260820_0022_financial_ledger.sql', import.meta.url),
   'utf8'
 ).toLowerCase();
+const trialPricingMigration = readFileSync(
+  new URL('../supabase/sdda-migrations/20260820_0024_trial_pricing.sql', import.meta.url),
+  'utf8'
+).toLowerCase();
 
 const runningOrderMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260813_0006_atomic_running_order.sql', import.meta.url),
@@ -472,4 +476,15 @@ test('records SDDA financial transactions through audited finance-only functions
     financialLedgerMigration,
     /grant (select|insert|update|delete).*to anon|service_role|cwags|c-wags/
   );
+});
+
+test('stores audited non-negative Scent pricing without privileged credentials', () => {
+  for (const column of ['scent_component_fee_cents', 'scent_three_component_fee_cents', 'elite_fee_cents'])
+    assert.match(trialPricingMigration, new RegExp(`${column} integer not null default 0`));
+  assert.match(trialPricingMigration, /function public\.sdda_set_trial_pricing/);
+  assert.match(trialPricingMigration, /security invoker/);
+  assert.match(trialPricingMigration, /sdda_can_manage_trial\(target_trial_id\)/);
+  assert.match(trialPricingMigration, /trial\.pricing_updated/);
+  assert.match(trialPricingMigration, /from public, anon/);
+  assert.doesNotMatch(trialPricingMigration, /service_role|cwags|c-wags/);
 });

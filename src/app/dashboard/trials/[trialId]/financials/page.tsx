@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { getSddaTrialWorkspace, listSddaEntries, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
 import { deleteSddaFinancialTransaction, listSddaFinancialTransactions, recordSddaFinancialTransaction, SDDA_FINANCIAL_TYPES, type SddaFinancialType } from '@/lib/sdda/operationsRepository';
+import { acceptedEntryChargeCents, minimumJudgeFeeCents, sddaRemittanceCents } from '@/lib/sdda/financialSummary';
 
 type Transaction = Awaited<ReturnType<typeof listSddaFinancialTransactions>>[number];
 type Entry = Awaited<ReturnType<typeof listSddaEntries>>[number];
@@ -55,6 +56,37 @@ export default function SddaFinancialsPage() {
     return sum;
   }, { charges: 0, payments: 0, refunds: 0, costs: 0 }), [transactions]);
 
+  const entryBalances = useMemo(() => {
+    if (!trial) return [];
+    const pricing = { scentComponentFeeCents: trial.scent_component_fee_cents || 0, scentThreeComponentFeeCents: trial.scent_three_component_fee_cents || 0, eliteFeeCents: trial.elite_fee_cents || 0 };
+    return entries.map((entry: any) => {
+      const automatic = acceptedEntryChargeCents(entry, pricing, trial.sdda_game_offerings);
+      const ledger = transactions.filter((item: any) => item.entry_id === entry.id).reduce((sum, item: any) => {
+        if (item.transaction_type === 'entry_fee' || item.transaction_type === 'adjustment') sum.charges += Number(item.amount_cents) || 0;
+        if (item.transaction_type === 'payment') sum.payments += Number(item.amount_cents) || 0;
+        if (item.transaction_type === 'refund') sum.refunds += Number(item.amount_cents) || 0;
+        return sum;
+      }, { charges: 0, payments: 0, refunds: 0 });
+      const dog = Array.isArray(entry.sdda_dogs) ? entry.sdda_dogs[0] : entry.sdda_dogs;
+      return { id: entry.id, handler: entry.handler_name, dog: dog?.call_name || 'Dog', status: entry.confirmation_status, automatic, paid: ledger.payments - ledger.refunds, owing: automatic + ledger.charges - ledger.payments + ledger.refunds };
+    });
+  }, [entries, transactions, trial]);
+
+  const automaticCharges = entryBalances.reduce((sum, entry) => sum + entry.automatic, 0);
+  const sddaFees = trial ? sddaRemittanceCents(entries as any, trial.sdda_trial_days.length) : 0;
+  const judgeMinimum = useMemo(() => {
+    if (!trial) return 0;
+    return trial.sdda_trial_days.reduce((total, day) => {
+      let standard = 0; let games = 0;
+      for (const entry of entries as any[]) {
+        if (entry.confirmation_status !== 'accepted') continue;
+        standard += (entry.sdda_runs || []).filter((run: any) => run.trial_day_id === day.id).length;
+        games += (entry.sdda_game_runs || []).filter((run: any) => run.trial_day_id === day.id).length;
+      }
+      return total + (standard || games ? minimumJudgeFeeCents(standard, games) : 0);
+    }, 0);
+  }, [entries, trial]);
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     const amountCents = Math.round(Number(amount.replace(/[$,\s]/g, '')) * 100);
@@ -79,9 +111,12 @@ export default function SddaFinancialsPage() {
     <div className="mx-auto max-w-7xl space-y-6">
       <div><h1 className="text-3xl font-bold">Trial finances</h1><p className="text-gray-600">{trial?.name} · amounts in Canadian dollars</p></div>
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">{[
-        ['Entry charges', totals.charges], ['Payments', totals.payments], ['Refunds', totals.refunds], ['Operating costs', totals.costs], ['Outstanding', totals.charges - totals.payments + totals.refunds],
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[
+        ['Entry fees owed', automaticCharges + totals.charges], ['Collected (net)', totals.payments - totals.refunds], ['Outstanding', automaticCharges + totals.charges - totals.payments + totals.refunds], ['Operating expenses entered', totals.costs],
+        ['Estimated SDDA fees', sddaFees], ['Minimum judge compensation', judgeMinimum], ['Projected net', totals.payments - totals.refunds - totals.costs - sddaFees - judgeMinimum],
       ].map(([label, value]) => <Card key={String(label)}><CardHeader className="pb-2"><CardTitle className="text-sm text-gray-600">{label}</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{money(Number(value))}</CardContent></Card>)}</div>
+      <Alert><AlertDescription>Automatic charges include accepted entries only. Estimated SDDA fees are $50 per trial day, $5 per Started/Advanced/Excellent component and Games run, and $10 per Elite dog. Judge compensation is the greater of $200 per active judge day or $3 per Standard run plus $2 per Games run. Enter mileage, hotel, meals, and other actual costs separately.</AlertDescription></Alert>
+      <Card><CardHeader><CardTitle>Entry balances</CardTitle></CardHeader><CardContent className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="p-2">Handler / dog</th><th className="p-2">Status</th><th className="p-2 text-right">Fees owed</th><th className="p-2 text-right">Collected</th><th className="p-2 text-right">Balance</th></tr></thead><tbody>{entryBalances.map((entry) => <tr key={entry.id} className="border-b"><td className="p-2 font-medium">{entry.handler} · {entry.dog}</td><td className="p-2 capitalize">{entry.status}</td><td className="p-2 text-right">{money(entry.automatic)}</td><td className="p-2 text-right">{money(entry.paid)}</td><td className={`p-2 text-right font-bold ${entry.owing > 0 ? 'text-orange-800' : 'text-emerald-800'}`}>{money(entry.owing)}</td></tr>)}</tbody></table></CardContent></Card>
       <Card><CardHeader><CardTitle>Record transaction</CardTitle></CardHeader><CardContent><form onSubmit={submit} className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <div><Label>Type</Label><select className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3" value={type} onChange={(e) => setType(e.target.value as SddaFinancialType)}>{SDDA_FINANCIAL_TYPES.map((value) => <option key={value} value={value}>{labels[value]}</option>)}</select></div>
         <div><Label>Entry</Label><select disabled={!entryTypes.has(type)} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 disabled:bg-gray-100" value={entryId} onChange={(e) => setEntryId(e.target.value)}><option value="">Select entry</option>{entries.map((entry: any) => { const dog = Array.isArray(entry.sdda_dogs) ? entry.sdda_dogs[0] : entry.sdda_dogs; return <option key={entry.id} value={entry.id}>{entry.handler_name} · {dog?.call_name || 'Dog'}</option>; })}</select></div>

@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { SDDA_COMPONENTS, SDDA_LEVELS, SDDA_STREAMS, offeringKey } from '@/lib/sdda/offerings';
 import { formatSddaTrialStatus } from '@/lib/sdda/trialSetup';
-import { gameOfferingKey, getSddaTrialWorkspace, saveSddaGameOfferings, saveSddaTrialOfferings, SDDA_GAME_TYPES, setSddaTrialEntryStatus, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
+import { gameOfferingKey, getSddaTrialWorkspace, saveSddaGameOfferings, saveSddaTrialOfferings, saveSddaTrialPricing, SDDA_GAME_TYPES, setSddaTrialEntryStatus, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
 
 export default function SddaTrialWorkspacePage() {
   const trialId = useParams<{ trialId: string }>().trialId;
@@ -22,6 +22,8 @@ export default function SddaTrialWorkspacePage() {
   const [gamesSelected, setGamesSelected] = useState<Set<string>>(new Set());
   const [gameConfiguration, setGameConfiguration] = useState<Record<string, { judge_name: string | null; capacity: number | null; entry_fee_cents: number; feo_fee_cents: number }>>({});
   const [gameConfigurationDirty, setGameConfigurationDirty] = useState(false);
+  const [pricing, setPricing] = useState({ componentFee: '', threeComponentFee: '', eliteFee: '' });
+  const [pricingDirty, setPricingDirty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +46,8 @@ export default function SddaTrialWorkspacePage() {
         judge_name: item.judge_name, capacity: item.capacity, entry_fee_cents: item.entry_fee_cents, feo_fee_cents: item.feo_fee_cents,
       }])));
       setGameConfigurationDirty(false);
+      setPricing({ componentFee: workspace.scent_component_fee_cents ? (workspace.scent_component_fee_cents / 100).toFixed(2) : '', threeComponentFee: workspace.scent_three_component_fee_cents ? (workspace.scent_three_component_fee_cents / 100).toFixed(2) : '', eliteFee: workspace.elite_fee_cents ? (workspace.elite_fee_cents / 100).toFixed(2) : '' });
+      setPricingDirty(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to load the SDDA trial.');
     } finally { setLoading(false); }
@@ -117,6 +121,12 @@ export default function SddaTrialWorkspacePage() {
     (trial?.sdda_trial_days || []).flatMap((day) => SDDA_GAME_TYPES.map((game) => gameOfferingKey(day.id, game))),
   ), [trial]);
 
+  const updatePricing = (field: keyof typeof pricing, value: string) => {
+    if (!/^\d*(?:\.\d{0,2})?$/.test(value)) return;
+    setPricing((current) => ({ ...current, [field]: value }));
+    setPricingDirty(true); setSaved(false);
+  };
+
   const save = async () => {
     if (!trial) return;
     try {
@@ -124,6 +134,11 @@ export default function SddaTrialWorkspacePage() {
       const client = getSupabaseBrowser();
       if (hasScent) await saveSddaTrialOfferings(client, trial.id, trial.sdda_trial_offerings, selected);
       if (hasGames) await saveSddaGameOfferings(client, trial.id, trial.sdda_game_offerings, gamesSelected, gameConfiguration);
+      if (hasScent && pricingDirty) await saveSddaTrialPricing(client, trial.id, {
+        componentFeeCents: Math.round(Number(pricing.componentFee || 0) * 100),
+        threeComponentFeeCents: Math.round(Number(pricing.threeComponentFee || 0) * 100),
+        eliteFeeCents: Math.round(Number(pricing.eliteFee || 0) * 100),
+      });
       await load(); setSaved(true);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to save SDDA offerings.');
@@ -163,11 +178,16 @@ export default function SddaTrialWorkspacePage() {
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div><div className="flex flex-wrap items-center gap-3"><h1 className="text-3xl font-bold">{trial.name}</h1><Badge>{formatSddaTrialStatus(trial.status)}</Badge><Badge variant="outline">{trial.trial_format === 'combined' ? 'Combined' : trial.trial_format === 'games' ? 'Games' : 'Scent'}</Badge></div><p className="mt-1 text-gray-600">{trial.host_club}</p>{trial.venue && <p className="mt-1 flex items-center text-sm text-gray-600"><MapPin className="mr-2 h-4 w-4" />{trial.venue}</p>}</div>
-          <Button onClick={save} disabled={(!dirty && !gamesDirty && !gameConfigurationDirty) || saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save offerings</Button>
+          <Button onClick={save} disabled={(!dirty && !gamesDirty && !gameConfigurationDirty && !pricingDirty) || saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save setup</Button>
         </div>
         {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
         {saved && <Alert><Check className="h-4 w-4" /><AlertDescription>SDDA offerings saved.</AlertDescription></Alert>}
         <Card><CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle>Trial offering setup</CardTitle><CardDescription>{hasScent && hasGames ? 'Select the scent classes and Games offered on each trial day.' : hasGames ? 'Select every SDDA Game offered on each trial day.' : 'Select every level, component, and stream offered on each trial day.'}</CardDescription></div><div className="flex flex-wrap gap-2">{hasScent && <><Button type="button" variant="outline" onClick={selectAllOfferings} disabled={selected.size === allOfferingKeys.size}>Select all scent</Button><Button type="button" variant="outline" onClick={clearAllOfferings} disabled={selected.size === 0}>Clear scent</Button></>}{hasGames && <><Button type="button" variant="outline" onClick={() => setGamesSelected(new Set(allGameKeys))} disabled={gamesSelected.size === allGameKeys.size}>Select all Games</Button><Button type="button" variant="outline" onClick={() => setGamesSelected(new Set())} disabled={gamesSelected.size === 0}>Clear Games</Button></>}</div></CardHeader></Card>
+        {hasScent && <Card><CardHeader><CardTitle>Scent entry pricing</CardTitle><CardDescription>These prices automatically calculate accepted-entry balances in Finances. A three-component price of $0 uses the individual component price three times.</CardDescription></CardHeader><CardContent className="grid gap-4 sm:grid-cols-3">
+          <div><Label htmlFor="component-fee">Per component ($)</Label><Input id="component-fee" inputMode="decimal" className="mt-1 bg-white" value={pricing.componentFee} placeholder="0.00" onChange={(event) => updatePricing('componentFee', event.target.value)} /></div>
+          <div><Label htmlFor="package-fee">All 3 components ($)</Label><Input id="package-fee" inputMode="decimal" className="mt-1 bg-white" value={pricing.threeComponentFee} placeholder="0.00" onChange={(event) => updatePricing('threeComponentFee', event.target.value)} /></div>
+          <div><Label htmlFor="elite-fee">Elite per dog ($)</Label><Input id="elite-fee" inputMode="decimal" className="mt-1 bg-white" value={pricing.eliteFee} placeholder="0.00" onChange={(event) => updatePricing('eliteFee', event.target.value)} /></div>
+        </CardContent></Card>}
         <Card><CardHeader><CardTitle>Trial operations</CardTitle><CardDescription>Open every secretary workflow for this trial, including its financial ledger.</CardDescription></CardHeader><CardContent className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/entries`)}><Users className="mr-2 h-4 w-4" />Entries & CSV import</Button>
           {trial.status === 'entries_open' ? <><Button onClick={() => window.open(`/sdda-entry/${trial.id}`, '_blank')}><ExternalLink className="mr-2 h-4 w-4" />Competitor entry form</Button><Button variant="outline" onClick={() => void copyEntryFormLink()}>{entryLinkCopied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}{entryLinkCopied ? 'Link copied' : 'Copy entry form link'}</Button><Button variant="outline" disabled={changingEntryStatus} onClick={() => void changeEntryStatus('entries_closed')}><LockKeyhole className="mr-2 h-4 w-4" />Close entries</Button></> : <Button disabled={changingEntryStatus} onClick={() => void changeEntryStatus('entries_open')}><ExternalLink className="mr-2 h-4 w-4" />Open entries & enable form</Button>}

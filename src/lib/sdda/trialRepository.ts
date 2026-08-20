@@ -51,6 +51,9 @@ export interface SddaGameOffering {
 
 export interface SddaTrialWorkspace extends SddaTrialSummary {
   timezone: string;
+  scent_component_fee_cents: number;
+  scent_three_component_fee_cents: number;
+  elite_fee_cents: number;
   sdda_trial_days: Array<{
     id: string;
     day_number: number;
@@ -149,12 +152,26 @@ export async function getSddaTrialWorkspace(client: SupabaseClient, trialId: str
   const { data, error } = await client
     .from('sdda_trials')
     .select(
-      'id,name,host_club,venue,timezone,status,created_at,trial_format,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,judge_name,capacity),sdda_game_offerings(id,trial_day_id,game_type,judge_name,capacity,entry_fee_cents,feo_fee_cents)'
+      'id,name,host_club,venue,timezone,status,created_at,trial_format,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,judge_name,capacity),sdda_game_offerings(id,trial_day_id,game_type,judge_name,capacity,entry_fee_cents,feo_fee_cents)'
     )
     .eq('id', trialId)
     .single();
   if (error || !data) throw new Error(error?.message || 'SDDA trial not found.');
   return data as SddaTrialWorkspace;
+}
+
+export async function saveSddaTrialPricing(
+  client: SupabaseClient,
+  trialId: string,
+  pricing: { componentFeeCents: number; threeComponentFeeCents: number; eliteFeeCents: number },
+) {
+  const { error } = await client.rpc('sdda_set_trial_pricing', {
+    target_trial_id: trialId,
+    requested_component_fee_cents: pricing.componentFeeCents,
+    requested_three_component_fee_cents: pricing.threeComponentFeeCents,
+    requested_elite_fee_cents: pricing.eliteFeeCents,
+  });
+  if (error) throw new Error(error.message);
 }
 
 export function gameOfferingKey(trialDayId: string, gameType: SddaGameType) {
