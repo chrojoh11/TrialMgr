@@ -8,6 +8,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { SDDA_COMPONENTS, SDDA_LEVELS, SDDA_STREAMS, offeringKey } from '@/lib/sdda/offerings';
 import { formatSddaTrialStatus } from '@/lib/sdda/trialSetup';
@@ -18,6 +20,8 @@ export default function SddaTrialWorkspacePage() {
   const [trial, setTrial] = useState<SddaTrialWorkspace | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [gamesSelected, setGamesSelected] = useState<Set<string>>(new Set());
+  const [gameConfiguration, setGameConfiguration] = useState<Record<string, { judge_name: string | null; capacity: number | null; entry_fee_cents: number; feo_fee_cents: number }>>({});
+  const [gameConfigurationDirty, setGameConfigurationDirty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +38,10 @@ export default function SddaTrialWorkspacePage() {
         trialDayId: item.trial_day_id, level: item.level, component: item.component, stream: item.stream,
       }))));
       setGamesSelected(new Set(workspace.sdda_game_offerings.map((item) => gameOfferingKey(item.trial_day_id, item.game_type))));
+      setGameConfiguration(Object.fromEntries(workspace.sdda_game_offerings.map((item) => [gameOfferingKey(item.trial_day_id, item.game_type), {
+        judge_name: item.judge_name, capacity: item.capacity, entry_fee_cents: item.entry_fee_cents, feo_fee_cents: item.feo_fee_cents,
+      }])));
+      setGameConfigurationDirty(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to load the SDDA trial.');
     } finally { setLoading(false); }
@@ -88,6 +96,21 @@ export default function SddaTrialWorkspacePage() {
     });
   };
 
+  const updateGameConfiguration = (key: string, field: 'judge_name' | 'capacity' | 'entry_fee_cents' | 'feo_fee_cents', value: string) => {
+    setSaved(false);
+    setGameConfigurationDirty(true);
+    setGameConfiguration((current) => ({
+      ...current,
+      [key]: {
+        judge_name: current[key]?.judge_name || null,
+        capacity: current[key]?.capacity || null,
+        entry_fee_cents: current[key]?.entry_fee_cents || 0,
+        feo_fee_cents: current[key]?.feo_fee_cents || 0,
+        [field]: field === 'judge_name' ? (value.trimStart() || null) : field === 'capacity' ? (value ? Math.max(1, Number(value)) : null) : Math.max(0, Math.round(Number(value || 0) * 100)),
+      },
+    }));
+  };
+
   const allGameKeys = useMemo(() => new Set(
     (trial?.sdda_trial_days || []).flatMap((day) => SDDA_GAME_TYPES.map((game) => gameOfferingKey(day.id, game))),
   ), [trial]);
@@ -98,7 +121,7 @@ export default function SddaTrialWorkspacePage() {
       setSaving(true); setError(null);
       const client = getSupabaseBrowser();
       if (hasScent) await saveSddaTrialOfferings(client, trial.id, trial.sdda_trial_offerings, selected);
-      if (hasGames) await saveSddaGameOfferings(client, trial.id, trial.sdda_game_offerings, gamesSelected);
+      if (hasGames) await saveSddaGameOfferings(client, trial.id, trial.sdda_game_offerings, gamesSelected, gameConfiguration);
       await load(); setSaved(true);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to save SDDA offerings.');
@@ -113,7 +136,7 @@ export default function SddaTrialWorkspacePage() {
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div><div className="flex flex-wrap items-center gap-3"><h1 className="text-3xl font-bold">{trial.name}</h1><Badge>{formatSddaTrialStatus(trial.status)}</Badge><Badge variant="outline">{trial.trial_format === 'combined' ? 'Combined' : trial.trial_format === 'games' ? 'Games' : 'Scent'}</Badge></div><p className="mt-1 text-gray-600">{trial.host_club}</p>{trial.venue && <p className="mt-1 flex items-center text-sm text-gray-600"><MapPin className="mr-2 h-4 w-4" />{trial.venue}</p>}</div>
-          <Button onClick={save} disabled={(!dirty && !gamesDirty) || saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save offerings</Button>
+          <Button onClick={save} disabled={(!dirty && !gamesDirty && !gameConfigurationDirty) || saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save offerings</Button>
         </div>
         {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
         {saved && <Alert><Check className="h-4 w-4" /><AlertDescription>SDDA offerings saved.</AlertDescription></Alert>}
@@ -137,10 +160,19 @@ export default function SddaTrialWorkspacePage() {
                   }))}
                 </div></div>
               ))}
-              {hasGames && <div className="space-y-2"><h3 className="font-semibold">SDDA Games</h3><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{SDDA_GAME_TYPES.map((game) => {
+              {hasGames && <div className="space-y-2"><h3 className="font-semibold">SDDA Games</h3><div className="grid gap-3 sm:grid-cols-2">{SDDA_GAME_TYPES.map((game) => {
                 const key = gameOfferingKey(day.id, game);
                 const active = gamesSelected.has(key);
-                return <button type="button" key={key} onClick={() => toggleGame(key)} className={`rounded-md border p-3 text-left text-sm transition ${active ? 'border-orange-600 bg-orange-50 text-orange-900' : 'border-gray-200 bg-white hover:border-orange-300'}`}><span className="font-medium">{game}</span>{active && <Check className="float-right h-4 w-4" />}</button>;
+                const config = gameConfiguration[key] || { judge_name: null, capacity: null, entry_fee_cents: 0, feo_fee_cents: 0 };
+                return <div key={key} className={`rounded-md border p-3 text-sm transition ${active ? 'border-orange-600 bg-orange-50 text-orange-900' : 'border-gray-200 bg-white'}`}>
+                  <button type="button" onClick={() => toggleGame(key)} className="flex w-full items-center justify-between text-left"><span className="font-semibold">{game}</span>{active && <Check className="h-4 w-4" />}</button>
+                  {active && <div className="mt-3 grid gap-3 border-t border-orange-200 pt-3 sm:grid-cols-2">
+                    <div className="sm:col-span-2"><Label htmlFor={`${key}-judge`}>Judge</Label><Input id={`${key}-judge`} className="bg-white" value={config.judge_name || ''} onChange={(event) => updateGameConfiguration(key, 'judge_name', event.target.value)} /></div>
+                    <div><Label htmlFor={`${key}-capacity`}>Capacity</Label><Input id={`${key}-capacity`} className="bg-white" type="number" min="1" value={config.capacity || ''} onChange={(event) => updateGameConfiguration(key, 'capacity', event.target.value)} /></div>
+                    <div><Label htmlFor={`${key}-fee`}>Regular fee ($)</Label><Input id={`${key}-fee`} className="bg-white" type="number" min="0" step="0.01" value={(config.entry_fee_cents / 100).toFixed(2)} onChange={(event) => updateGameConfiguration(key, 'entry_fee_cents', event.target.value)} /></div>
+                    <div><Label htmlFor={`${key}-feo-fee`}>FEO fee ($)</Label><Input id={`${key}-feo-fee`} className="bg-white" type="number" min="0" step="0.01" value={(config.feo_fee_cents / 100).toFixed(2)} onChange={(event) => updateGameConfiguration(key, 'feo_fee_cents', event.target.value)} /></div>
+                  </div>}
+                </div>;
               })}</div><p className="text-sm text-gray-600">Judges, capacities, Regular/FEO fees, Team pairs, and run order are configured after the Games are selected.</p></div>}
             </CardContent>
           </Card>

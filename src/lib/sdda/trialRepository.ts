@@ -124,20 +124,30 @@ export async function saveSddaGameOfferings(
   client: SupabaseClient,
   trialId: string,
   current: SddaGameOffering[],
-  selectedKeys: Set<string>
+  selectedKeys: Set<string>,
+  configuration: Record<string, Pick<SddaGameOffering, 'judge_name' | 'capacity' | 'entry_fee_cents' | 'feo_fee_cents'>>
 ) {
   const currentKeys = new Map(current.map((offering) => [gameOfferingKey(offering.trial_day_id, offering.game_type), offering]));
   const removeIds = [...currentKeys].filter(([key]) => !selectedKeys.has(key)).map(([, offering]) => offering.id);
-  const additions = [...selectedKeys].filter((key) => !currentKeys.has(key)).map((key) => {
+  const selected = [...selectedKeys].map((key) => {
     const separator = key.indexOf('|');
-    return { trial_day_id: key.slice(0, separator), game_type: key.slice(separator + 1) as SddaGameType };
+    return {
+      trial_id: trialId,
+      trial_day_id: key.slice(0, separator),
+      game_type: key.slice(separator + 1) as SddaGameType,
+      judge_name: configuration[key]?.judge_name || null,
+      capacity: configuration[key]?.capacity || null,
+      entry_fee_cents: configuration[key]?.entry_fee_cents || 0,
+      feo_fee_cents: configuration[key]?.feo_fee_cents || 0,
+      updated_at: new Date().toISOString(),
+    };
   });
   if (removeIds.length) {
     const { error } = await client.from('sdda_game_offerings').delete().eq('trial_id', trialId).in('id', removeIds);
     if (error) throw new Error(error.message);
   }
-  if (additions.length) {
-    const { error } = await client.from('sdda_game_offerings').insert(additions.map((offering) => ({ ...offering, trial_id: trialId })));
+  if (selected.length) {
+    const { error } = await client.from('sdda_game_offerings').upsert(selected, { onConflict: 'trial_day_id,game_type' });
     if (error) throw new Error(error.message);
   }
 }
