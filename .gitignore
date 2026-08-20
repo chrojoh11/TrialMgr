@@ -37,6 +37,9 @@ yarn-error.log*
 /.local-server*.log
 /.windows-next*.log
 /.windows-next*.pid
+/.next-*.log
+/.pnpm-store/
+/tmp/
 
 # env files (can opt-in for committing if needed)
 .env*

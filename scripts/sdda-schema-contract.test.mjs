@@ -114,6 +114,10 @@ const trialPublicDetailsMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260820_0027_trial_public_details.sql', import.meta.url),
   'utf8'
 ).toLowerCase();
+const auditedScoreEntryMigration = readFileSync(
+  new URL('../supabase/sdda-migrations/20260820_0028_audited_score_entry.sql', import.meta.url),
+  'utf8'
+).toLowerCase();
 
 const runningOrderMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260813_0006_atomic_running_order.sql', import.meta.url),
@@ -530,4 +534,17 @@ test('stores audited public secretary and payment details', () => {
   assert.match(trialPublicDetailsMigration, /sdda_can_manage_trial\(target_trial_id\)/);
   assert.match(trialPublicDetailsMigration, /trial\.public_details_updated/);
   assert.doesNotMatch(trialPublicDetailsMigration, /service_role|cwags|c-wags/);
+});
+
+test('records and amends accepted Scent and Games scores through audited functions', () => {
+  assert.match(auditedScoreEntryMigration, /function public\.sdda_record_scent_score/);
+  assert.match(auditedScoreEntryMigration, /function public\.sdda_record_game_score/);
+  assert.match(auditedScoreEntryMigration, /confirmation_status <> 'accepted'/);
+  assert.match(auditedScoreEntryMigration, /sdda_can_manage_trial\(run_record\.trial_id\)/);
+  assert.match(auditedScoreEntryMigration, /score\.recorded/);
+  assert.match(auditedScoreEntryMigration, /score\.amended/);
+  assert.match(auditedScoreEntryMigration, /game_score\.recorded/);
+  assert.match(auditedScoreEntryMigration, /before_state,after_state/);
+  assert.match(auditedScoreEntryMigration, /from public, anon/);
+  assert.doesNotMatch(auditedScoreEntryMigration, /service_role|cwags|c-wags/);
 });

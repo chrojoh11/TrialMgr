@@ -405,6 +405,44 @@ export async function listSddaGameRuns(client: SupabaseClient, trialId: string) 
   return data || [];
 }
 
+export async function listSddaScoringRuns(client: SupabaseClient, trialId: string) {
+  const { data, error } = await client
+    .from('sdda_runs')
+    .select('id,trial_day_id,level,component,stream,run_group,running_position,sdda_trial_days(day_number,trial_date),sdda_scores(id,result,score,time_seconds,faults,judge_notes,recorded_at,amended_at),sdda_entries!inner(id,handler_name,confirmation_status,sdda_dogs(call_name,registered_name,sdda_registration_number))')
+    .eq('trial_id', trialId)
+    .eq('sdda_entries.confirmation_status', 'accepted')
+    .order('created_at');
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function listSddaGameScoringRuns(client: SupabaseClient, trialId: string) {
+  const { data, error } = await client
+    .from('sdda_game_runs')
+    .select('id,trial_day_id,entry_type,aerial_division,running_position,sdda_game_offerings(game_type,judge_name),sdda_game_scores(id,result,time_seconds,judge_notes,recorded_at,amended_at),sdda_entries!inner(id,handler_name,confirmation_status,sdda_dogs(call_name,registered_name,sdda_registration_number)),sdda_trial_days(day_number,trial_date)')
+    .eq('trial_id', trialId)
+    .eq('sdda_entries.confirmation_status', 'accepted')
+    .order('created_at');
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function recordSddaScentScore(client: SupabaseClient, input: { runId: string; result: string; score: number | null; timeSeconds: number | null; faults: number; notes: string }) {
+  const { error } = await client.rpc('sdda_record_scent_score', {
+    target_run_id: input.runId, requested_result: input.result, requested_score: input.score,
+    requested_time_seconds: input.timeSeconds, requested_faults: input.faults, requested_notes: input.notes,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function recordSddaGameScore(client: SupabaseClient, input: { runId: string; result: string; timeSeconds: number | null; notes: string }) {
+  const { error } = await client.rpc('sdda_record_game_score', {
+    target_game_run_id: input.runId, requested_result: input.result,
+    requested_time_seconds: input.timeSeconds, requested_notes: input.notes,
+  });
+  if (error) throw new Error(error.message);
+}
+
 export async function listSddaOfficialWorkbookRuns(client: SupabaseClient, trialId: string) {
   const { data, error } = await client
     .from('sdda_runs')
