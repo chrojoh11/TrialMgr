@@ -128,8 +128,10 @@ export async function buildSddaGamesJudgePacket(
       draw(run.partnerBreed, fields.partnerBreed!);
       draw(run.partnerNumber, fields.partnerNumber!);
     }
-    if (run.gameType === 'Aerial' && run.aerialDivision)
-      draw('X', run.aerialDivision === 'High' ? fields.aerialHigh! : fields.aerialHighfly!, 12);
+    if (run.gameType === 'Aerial' && run.aerialDivision) {
+      const [x, top, width] = run.aerialDivision === 'High' ? fields.aerialHigh! : fields.aerialHighfly!;
+      draw('X', [x, top - 5, width], 12);
+    }
     if (run.entryType === 'FEO') {
       const [x, top] = fields.feo;
       const y = 792 - top;
