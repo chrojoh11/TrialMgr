@@ -208,3 +208,26 @@ No legacy C-WAGS migration was applied.
 - Verification: public entry submission derives each run stream from its selected trial offering
 - Compatibility: entry-level stream may be `Mixed`; Started, Advanced, and Excellent runs remain individually Amateur or Working; Elite is presented without a stream
 - Data impact: constraint and submission function replaced transactionally; no existing rows rewritten
+
+## `20260820_0021_entry_editing_and_aerial.sql`
+
+- Applied: 2026-08-20 (America/Edmonton)
+- Project: `SDDA-Trialdesk`
+- Project reference: `hsxwwtvzfulxdqimkgcc`
+- Database branch: `main` / Production
+- Reported execution result: applied successfully
+- Capability: token-scoped competitor editing and authorized secretary editing
+- Games: records Aerial High and Highfly divisions
+- Security: competitor edits require the private receipt token and an open, unconfirmed entry; secretary edits require trial-management access
+- Audit: before/after snapshots are retained for public and secretary entry changes
+
+## `20260820_0022_financial_ledger.sql`
+
+- Applied: 2026-08-20 (America/Edmonton)
+- Project: `SDDA-Trialdesk`
+- Project reference: `hsxwwtvzfulxdqimkgcc`
+- Database branch: `main` / Production
+- Reported execution result: applied successfully
+- Capability: audited entry fees, payments, refunds, adjustments, trial expenses, judge expenses, and volunteer expenses
+- Security: recording and deletion require finance access; entry-linked transactions are checked against the trial
+- Audit: transaction creation and deletion are retained in `sdda_audit_records`
