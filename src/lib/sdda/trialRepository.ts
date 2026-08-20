@@ -284,6 +284,16 @@ export async function listSddaRunningOrderRuns(client: SupabaseClient, trialId: 
   return data || [];
 }
 
+export async function listSddaGameRuns(client: SupabaseClient, trialId: string) {
+  const { data, error } = await client
+    .from('sdda_game_runs')
+    .select('id,trial_day_id,entry_type,running_position,requested_team_partner,created_at,sdda_game_offerings(game_type,judge_name),sdda_entries(id,handler_name,dog_id,reactivity,sdda_dogs(call_name,registered_name,breed,sdda_registration_number))')
+    .eq('trial_id', trialId)
+    .order('created_at');
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
 export async function listSddaOfficialWorkbookRuns(client: SupabaseClient, trialId: string) {
   const { data, error } = await client
     .from('sdda_runs')

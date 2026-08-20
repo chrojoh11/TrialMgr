@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { buildSddaJudgePacket, type SddaScoreSheetRun } from '@/lib/sdda/scoreSheetPdf';
-import { getSddaTrialWorkspace, listSddaRunningOrderRuns, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
+import { getSddaTrialWorkspace, listSddaGameRuns, listSddaRunningOrderRuns, SDDA_GAME_TYPES, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
 
 const safeName = (value: string) => value.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '');
 
@@ -18,6 +18,7 @@ export default function SddaScoreSheetsPage() {
   const trialId = useParams<{ trialId: string }>().trialId;
   const [trial, setTrial] = useState<SddaTrialWorkspace | null>(null);
   const [runs, setRuns] = useState<SddaScoreSheetRun[]>([]);
+  const [gameRuns, setGameRuns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +27,7 @@ export default function SddaScoreSheetsPage() {
     try {
       setLoading(true); setError(null);
       const client = getSupabaseBrowser();
-      const [workspace, records] = await Promise.all([getSddaTrialWorkspace(client, trialId), listSddaRunningOrderRuns(client, trialId)]);
+      const [workspace, records, games] = await Promise.all([getSddaTrialWorkspace(client, trialId), listSddaRunningOrderRuns(client, trialId), listSddaGameRuns(client, trialId)]);
       workspace.sdda_trial_days.sort((a, b) => a.day_number - b.day_number);
       const days = new Map(workspace.sdda_trial_days.map((day) => [day.id, day]));
       const prepared = records.map((record: any) => {
@@ -45,7 +46,7 @@ export default function SddaScoreSheetsPage() {
       }).sort((a, b) => a.dayNumber - b.dayNumber || a.level.localeCompare(b.level) || a.component.localeCompare(b.component) || a.order - b.order);
       const groupPositions = new Map<string, number>();
       prepared.forEach((run) => { const key = `${run.dayNumber}|${run.level}|${run.component}`; const position = (groupPositions.get(key) || 0) + 1; groupPositions.set(key, position); if (run.order === Number.MAX_SAFE_INTEGER) run.order = position; });
-      setTrial(workspace); setRuns(prepared);
+      setTrial(workspace); setRuns(prepared); setGameRuns(games);
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to load SDDA score sheets.'); }
     finally { setLoading(false); }
   }, [trialId]);
@@ -73,6 +74,7 @@ export default function SddaScoreSheetsPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
       <Card><CardHeader><CardTitle className="flex items-center"><Printer className="mr-2 h-5 w-5" />Judge packets</CardTitle><CardDescription>Prefilled official SDDA portrait score sheets. Each level and component uses its own audited PDF template and coordinate map.</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center gap-3"><Button onClick={() => void exportPacket()} disabled={loading || !runs.length || exporting !== null}>{exporting === 'complete' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}Export complete packet</Button><Badge variant="outline">{runs.length} score sheets</Badge></CardContent></Card>
+      {gameRuns.length > 0 && <Card className="print:border-0 print:shadow-none"><CardHeader className="print:pb-2"><CardTitle className="flex items-center"><Printer className="mr-2 h-5 w-5 print:hidden" />SDDA Games judge sheets</CardTitle><CardDescription>Games are judged Pass/Not Pass. FEO runs are identified and do not earn qualifying results.</CardDescription></CardHeader><CardContent><Button className="mb-5 print:hidden" variant="outline" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Print Games judge sheets</Button>{trial?.sdda_trial_days.map(day => SDDA_GAME_TYPES.map(gameType => { const rows=gameRuns.filter((run:any)=>{const offering=Array.isArray(run.sdda_game_offerings)?run.sdda_game_offerings[0]:run.sdda_game_offerings;return run.trial_day_id===day.id&&offering?.game_type===gameType;});if(!rows.length)return null;return <section key={`${day.id}-${gameType}`} className="mb-8 break-after-page"><h3 className="mb-2 text-xl font-bold">Day {day.day_number} · {day.trial_date} · {gameType}</h3><table className="w-full border-collapse text-sm"><thead><tr><th className="border p-2 text-left">#</th><th className="border p-2 text-left">Dog / Handler</th><th className="border p-2 text-left">SDDA #</th><th className="border p-2">Type</th><th className="border p-2">Pass</th><th className="border p-2">Not Pass</th><th className="border p-2">Time</th></tr></thead><tbody>{rows.map((run:any,index:number)=>{const entry=Array.isArray(run.sdda_entries)?run.sdda_entries[0]:run.sdda_entries;const dog=Array.isArray(entry?.sdda_dogs)?entry.sdda_dogs[0]:entry?.sdda_dogs;return <tr key={run.id}><td className="border p-3">{run.running_position||index+1}</td><td className="border p-3"><b>{dog?.call_name}</b><br/>{entry?.handler_name}{run.requested_team_partner&&<><br/>Partner: {run.requested_team_partner}</>}</td><td className="border p-3">{dog?.sdda_registration_number||'Pending'}</td><td className="border p-3 text-center">{run.entry_type}</td><td className="border p-3 text-center">□</td><td className="border p-3 text-center">□</td><td className="border p-3"></td></tr>})}</tbody></table></section>}))}</CardContent></Card>}
       {loading ? <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div> : (trial?.sdda_trial_days || []).map((day) => <Card key={day.id}><CardHeader><CardTitle className="flex items-center"><FileText className="mr-2 h-5 w-5" />Day {day.day_number} - {day.trial_date}</CardTitle><CardDescription>{day.sdda_trial_number ? `SDDA trial ${day.sdda_trial_number}` : 'SDDA trial number pending'} - {counts.get(day.day_number) || 0} sheets</CardDescription></CardHeader><CardContent><Button variant="outline" onClick={() => void exportPacket(day.day_number)} disabled={!counts.get(day.day_number) || exporting !== null}>{exporting === `day-${day.day_number}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}Export Day {day.day_number} packet</Button></CardContent></Card>)}
     </div>
   </MainLayout>;
