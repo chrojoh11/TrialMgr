@@ -118,6 +118,10 @@ const auditedScoreEntryMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260820_0028_audited_score_entry.sql', import.meta.url),
   'utf8'
 ).toLowerCase();
+const trialCloseoutMigration = readFileSync(
+  new URL('../supabase/sdda-migrations/20260820_0029_trial_closeout.sql', import.meta.url),
+  'utf8'
+).toLowerCase();
 
 const runningOrderMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260813_0006_atomic_running_order.sql', import.meta.url),
@@ -547,4 +551,17 @@ test('records and amends accepted Scent and Games scores through audited functio
   assert.match(auditedScoreEntryMigration, /before_state,after_state/);
   assert.match(auditedScoreEntryMigration, /from public, anon/);
   assert.doesNotMatch(auditedScoreEntryMigration, /service_role|cwags|c-wags/);
+});
+
+test('closes and reopens trials through an audited database-enforced lock', () => {
+  assert.match(trialCloseoutMigration, /function public\.sdda_set_trial_completion/);
+  assert.match(trialCloseoutMigration, /confirmation_status='accepted'/);
+  assert.match(trialCloseoutMigration, /run_group <> 'feo'/);
+  assert.match(trialCloseoutMigration, /entry_type <> 'feo'/);
+  assert.match(trialCloseoutMigration, /trial\.completed/);
+  assert.match(trialCloseoutMigration, /trial\.reopened/);
+  assert.match(trialCloseoutMigration, /sdda_completed_trial_guard/);
+  assert.match(trialCloseoutMigration, /reopen it before making changes/);
+  assert.match(trialCloseoutMigration, /from public, anon/);
+  assert.doesNotMatch(trialCloseoutMigration, /service_role|cwags|c-wags/);
 });

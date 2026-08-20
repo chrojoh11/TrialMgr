@@ -272,6 +272,7 @@ export default function SddaTrialWorkspacePage() {
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/workbook`)}><FileSpreadsheet className="mr-2 h-4 w-4" />Official workbook</Button>
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/financials`)}><CircleDollarSign className="mr-2 h-4 w-4" />Finances</Button>
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/activity`)}><Activity className="mr-2 h-4 w-4" />Activity journal</Button>
+          <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/closeout`)}><LockKeyhole className="mr-2 h-4 w-4" />Trial closeout</Button>
         </CardContent></Card>
         {trial.sdda_trial_days.map((day) => (
           <Card key={day.id}>

@@ -15,6 +15,7 @@ const workflow = [
   ['Title watch', 'Review component move-ups and dogs approaching titles.', 'title-watch'],
   ['Official workbook', 'Prepare the SDDA Trial Workbook submission.', 'workbook'],
   ['Finances', 'Track fees, payments, waivers and trial expenses.', 'financials'],
+  ['Trial closeout', 'Verify final records, back up, complete and lock the trial.', 'closeout'],
 ] as const;
 
 export default function DashboardPage() {
@@ -64,7 +65,7 @@ export default function DashboardPage() {
         <div className="flex flex-wrap justify-between gap-3 px-1 py-4 text-sm text-[#68736c]"><span><b className="text-[#225f45]">{trials.length}</b> trials available</span><span>Secure SDDA-only secretary workspace</span></div>
 
         <nav className="mb-5 flex gap-1 overflow-auto border-b border-[#cfd3cc]">{[
-          ['Trial setup', ''], ['Entries', 'entries'], ['Running orders', 'running-order'], ['Score sheets', 'score-sheets'], ['Score entry', 'scoring'], ['Results', 'results'], ['Titles', 'title-watch'], ['Finances', 'financials'], ['Export', 'workbook'],
+          ['Trial setup', ''], ['Entries', 'entries'], ['Running orders', 'running-order'], ['Score sheets', 'score-sheets'], ['Score entry', 'scoring'], ['Results', 'results'], ['Titles', 'title-watch'], ['Finances', 'financials'], ['Export', 'workbook'], ['Closeout', 'closeout'],
         ].map(([item, suffix], index) => <Link key={item} href={activeHref(suffix)} className={`whitespace-nowrap border-b-4 px-5 py-4 font-bold ${index === 0 ? 'border-[#b98935] text-[#225f45]' : 'border-transparent text-[#68736c]'}`}>{item}</Link>)}</nav>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{workflow.map(([title, description, suffix]) => <Link key={title} href={activeHref(suffix)} className="rounded-2xl border border-[#d9d8cf] bg-[#fffdf7] p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-[#225f45]"><span className="text-[11px] font-extrabold uppercase tracking-[.15em] text-[#b98935]">Operations</span><h2 className="my-2 font-serif text-3xl">{title}</h2><p className="leading-6 text-[#68736c]">{description}</p></Link>)}</section>

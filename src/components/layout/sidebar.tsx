@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, Calendar, Check, ChevronDown, ChevronRight, CircleDollarSign, ClipboardCheck, ClipboardList, Copy, ExternalLink, FileSpreadsheet, FileText, Home, ListOrdered, Plus, Trophy, Users, X } from 'lucide-react';
+import { Activity, Calendar, Check, ChevronDown, ChevronRight, CircleDollarSign, ClipboardCheck, ClipboardList, Copy, ExternalLink, FileSpreadsheet, FileText, Home, ListOrdered, LockKeyhole, Plus, Trophy, Users, X } from 'lucide-react';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { listSddaTrials, type SddaTrialSummary } from '@/lib/sdda/trialRepository';
 
@@ -18,6 +18,7 @@ const trialItems = (id: string) => [
   { label: 'Official workbook', href: `/dashboard/trials/${id}/workbook`, icon: FileSpreadsheet },
   { label: 'Finances', href: `/dashboard/trials/${id}/financials`, icon: CircleDollarSign },
   { label: 'Activity journal', href: `/dashboard/trials/${id}/activity`, icon: Activity },
+  { label: 'Trial closeout', href: `/dashboard/trials/${id}/closeout`, icon: LockKeyhole },
 ];
 
 export function Sidebar({ className = '', isMobileOpen = false, onCloseMobile }: SidebarProps) {

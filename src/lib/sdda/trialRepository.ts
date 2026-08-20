@@ -443,6 +443,26 @@ export async function recordSddaGameScore(client: SupabaseClient, input: { runId
   if (error) throw new Error(error.message);
 }
 
+export async function setSddaTrialCompletion(client: SupabaseClient, trialId: string, complete: boolean) {
+  const { error } = await client.rpc('sdda_set_trial_completion', { target_trial_id: trialId, complete });
+  if (error) throw new Error(error.message);
+}
+
+export async function buildSddaTrialBackup(client: SupabaseClient, trialId: string) {
+  const tables = ['sdda_trials','sdda_trial_days','sdda_trial_members','sdda_trial_offerings','sdda_game_offerings','sdda_dogs','sdda_entries','sdda_runs','sdda_game_runs','sdda_scores','sdda_game_scores','sdda_financial_transactions','sdda_audit_records'] as const;
+  const records = await Promise.all(tables.map(async (table) => {
+    let query = client.from(table).select('*');
+    if (table === 'sdda_trials') query = query.eq('id', trialId);
+    else if (table === 'sdda_dogs') { const dogIds = (await client.from('sdda_entries').select('dog_id').eq('trial_id', trialId)).data?.map((row) => row.dog_id) || []; return [table, dogIds.length ? (await client.from(table).select('*').in('id', dogIds)).data || [] : []] as const; }
+    else if (table === 'sdda_scores') { const runIds = (await client.from('sdda_runs').select('id').eq('trial_id', trialId)).data?.map((row) => row.id) || []; return [table, runIds.length ? (await client.from(table).select('*').in('run_id', runIds)).data || [] : []] as const; }
+    else if (table === 'sdda_game_scores') { const runIds = (await client.from('sdda_game_runs').select('id').eq('trial_id', trialId)).data?.map((row) => row.id) || []; return [table, runIds.length ? (await client.from(table).select('*').in('game_run_id', runIds)).data || [] : []] as const; }
+    else query = query.eq('trial_id', trialId);
+    const { data, error } = await query; if (error) throw new Error(`Backup failed for ${table}: ${error.message}`);
+    return [table, data || []] as const;
+  }));
+  return { format: 'SDDA-TrialDesk-backup', version: 1, exported_at: new Date().toISOString(), trial_id: trialId, records: Object.fromEntries(records) };
+}
+
 export async function listSddaOfficialWorkbookRuns(client: SupabaseClient, trialId: string) {
   const { data, error } = await client
     .from('sdda_runs')

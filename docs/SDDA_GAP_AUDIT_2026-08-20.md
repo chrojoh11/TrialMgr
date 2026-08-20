@@ -25,7 +25,7 @@ This audit compares the SDDA-only application in `K:\TrialManager` with the reus
 | Title watch | Partial/missing | Entry title-watch notes exist | Results-based title calculations, imported history, close-to-title report and warnings |
 | Finances | New partial | Transaction ledger, payments/refunds/costs, summaries, audited deletion | Automatic charges from selections, per-entry balance table, fee waivers, judge/volunteer detail, XLSX closeout, break-even |
 | Activity journal | New substantial | Search/filter audit history and before/after snapshots | Friendly event-specific narratives, optional secretary notes, export, retention policy |
-| Trial summary/closeout | Missing | Data is distributed across workflow screens | Operational summary, counts/capacity, results, finances, checklist, archival lock |
+| Trial summary/closeout | Substantial | Readiness checklist, final-export links, complete JSON backup, audited completion/reopen, database-enforced operational lock | Restore-from-backup workflow and optional published-results package |
 | Collaborators | Schema only | Trial-member roles exist | Invite/manage UI and role-specific workflow validation |
 | Backups/recovery | Missing | Supabase platform backup only | Secretary-triggered export bundle, restore rehearsal, attachment/template inventory, documented disaster recovery |
 | Offline reliability | Missing | Normal browser caching only | Offline score-entry strategy, conflict-safe sync queue, connectivity indicator and recovery tests |
