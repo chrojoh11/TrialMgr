@@ -231,3 +231,15 @@ No legacy C-WAGS migration was applied.
 - Capability: audited entry fees, payments, refunds, adjustments, trial expenses, judge expenses, and volunteer expenses
 - Security: recording and deletion require finance access; entry-linked transactions are checked against the trial
 - Audit: transaction creation and deletion are retained in `sdda_audit_records`
+
+## `20260820_0023_reported_gold_snapshots.sql`
+
+- Applied: 2026-08-20 (America/Edmonton)
+- Project: `SDDA-Trialdesk`
+- Project reference: `hsxwwtvzfulxdqimkgcc`
+- Database branch: `main` / Production
+- Reported execution result: success, no rows returned
+- Capability: dated Advanced, Excellent, and Elite Gold-count snapshots declared on an entry
+- Verification status: competitor-reported only; declarations do not automatically approve a title or move-up
+- Security: public changes require the private receipt token and an open, received entry; authorized trial managers may correct a snapshot
+- Audit: every snapshot addition or correction is retained in `sdda_audit_records`
