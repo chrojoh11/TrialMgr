@@ -94,6 +94,10 @@ const entryEditingMigration = readFileSync(
   ),
   'utf8'
 ).toLowerCase();
+const financialLedgerMigration = readFileSync(
+  new URL('../supabase/sdda-migrations/20260820_0022_financial_ledger.sql', import.meta.url),
+  'utf8'
+).toLowerCase();
 
 const runningOrderMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260813_0006_atomic_running_order.sql', import.meta.url),
@@ -451,6 +455,21 @@ test('supports audited token-scoped and secretary entry editing with Aerial cate
   );
   assert.doesNotMatch(
     entryEditingMigration,
+    /grant (select|insert|update|delete).*to anon|service_role|cwags|c-wags/
+  );
+});
+
+test('records SDDA financial transactions through audited finance-only functions', () => {
+  assert.match(financialLedgerMigration, /function public\.sdda_record_financial_transaction/);
+  assert.match(financialLedgerMigration, /sdda_can_manage_finances\(target_trial_id\)/);
+  assert.match(financialLedgerMigration, /amount must be greater than zero/);
+  assert.match(financialLedgerMigration, /entry does not belong to this trial/);
+  assert.match(financialLedgerMigration, /financial\.transaction_recorded/);
+  assert.match(financialLedgerMigration, /function public\.sdda_delete_financial_transaction/);
+  assert.match(financialLedgerMigration, /financial\.transaction_deleted/);
+  assert.match(financialLedgerMigration, /before_state/);
+  assert.doesNotMatch(
+    financialLedgerMigration,
     /grant (select|insert|update|delete).*to anon|service_role|cwags|c-wags/
   );
 });
