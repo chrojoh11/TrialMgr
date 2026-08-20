@@ -4,8 +4,13 @@ alter table public.sdda_game_runs
   add column if not exists requested_team_partner text;
 
 create or replace function public.sdda_public_trial_entry_setup(target_trial_id uuid)
-returns jsonb language plpgsql stable security definer
-set search_path=public set row_security=off as $$
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+set row_security = off
+as $entry_setup$
 declare result jsonb;
 begin
   select jsonb_build_object(
@@ -26,11 +31,16 @@ begin
     and (t.entry_open_at is null or now()>=t.entry_open_at) and (t.entry_close_at is null or now()<=t.entry_close_at);
   if result is null then raise exception 'This trial is not accepting online entries'; end if;
   return result;
-end; $$;
+end;
+$entry_setup$;
 
 create or replace function public.sdda_submit_public_entry(target_trial_id uuid, submission jsonb)
-returns jsonb language plpgsql security definer
-set search_path=public,extensions set row_security=off as $$
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+set row_security = off
+as $entry_submit$
 declare
   trial_owner uuid; dog_record_id uuid; target_entry_id uuid; request jsonb;
   receipt_token text; code text; entry_stream text; requested_group text; requested_type text;
@@ -103,7 +113,8 @@ begin
       jsonb_build_object('confirmation_code',code,'entry_stream_summary',entry_stream,'runs',coalesce(submission->'runs','[]'::jsonb),
         'game_runs',coalesce(submission->'game_runs','[]'::jsonb)));
   return jsonb_build_object('confirmation_code',code,'receipt_token',receipt_token,'status','received');
-end; $$;
+end;
+$entry_submit$;
 
 revoke all on function public.sdda_public_trial_entry_setup(uuid) from public;
 revoke all on function public.sdda_submit_public_entry(uuid,jsonb) from public;
