@@ -195,6 +195,18 @@ export async function listSddaRunningOrderRuns(client: SupabaseClient, trialId: 
   return data || [];
 }
 
+export async function listSddaOfficialWorkbookRuns(client: SupabaseClient, trialId: string) {
+  const { data, error } = await client
+    .from('sdda_runs')
+    .select(
+      'id,trial_day_id,level,component,stream,run_group,feo,sdda_scores(result,score,time_seconds),sdda_entries(id,entry_status,sdda_dogs(call_name,registered_name,breed,sdda_registration_number))'
+    )
+    .eq('trial_id', trialId)
+    .order('created_at');
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
 export async function saveSddaRunningOrder(
   client: SupabaseClient,
   input: {
