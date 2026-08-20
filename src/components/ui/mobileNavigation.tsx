@@ -5,13 +5,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  Home,
-  Calendar,
-  Database,
-  Trophy,
-  X,
-} from 'lucide-react';
+import { Home, Calendar, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -42,18 +36,6 @@ const navigation: NavigationItem[] = [
     href: '/dashboard/trials', // ✅ FIXED
     icon: Calendar,
     roles: ['administrator', 'trial_secretary'],
-  },
-  {
-    name: 'Registry',
-    href: '/dashboard/admin/registry', // ✅ FIXED
-    icon: Database,
-    roles: ['administrator'],
-  },
-  {
-    name: 'Judges',
-    href: '/dashboard/judges',
-    icon: Trophy,
-    roles: ['administrator'],
   },
 ];
 
@@ -126,11 +108,11 @@ export function MobileNavigation({ isOpen, onClose }: MobileNavigationProps) {
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-orange-600 rounded-md flex items-center justify-center">
-              <span className="text-white font-bold text-sm">CW</span>
+              <span className="text-white font-bold text-[10px]">SDDA</span>
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-gray-900">C-WAGS</h2>
-              <p className="text-xs text-gray-500">Trial Management</p>
+              <h2 className="text-sm font-semibold text-gray-900">SDDA TrialDesk</h2>
+              <p className="text-xs text-gray-500">Secretary program</p>
             </div>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose} className="min-h-[44px] min-w-[44px]">

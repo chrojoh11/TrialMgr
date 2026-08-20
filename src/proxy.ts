@@ -6,6 +6,26 @@ export async function proxy(request: NextRequest) {
   const pathname = url.pathname;
   const params = url.searchParams;
 
+  // The old C-WAGS implementation remains in source temporarily as conversion
+  // reference, but it must never be reachable in the SDDA-only application.
+  const retiredPage =
+    pathname === '/admin/merge-duplicates' ||
+    pathname === '/entries' || pathname.startsWith('/entries/') ||
+    pathname === '/ringside' || pathname.startsWith('/ringside/') ||
+    pathname === '/dashboard/judges' || pathname.startsWith('/dashboard/judges/') ||
+    pathname === '/dashboard/admin' || pathname.startsWith('/dashboard/admin/') ||
+    /^\/dashboard\/trials\/create\/(days|levels|rounds|summary)(?:\/|$)/.test(pathname) ||
+    /^\/dashboard\/trials\/[^/]+\/(close-to-titles|collaborators|financials|journal|live-event|ringside|summary|time-calculator|trial-application)(?:\/|$)/.test(pathname);
+  if (retiredPage) return NextResponse.redirect(new URL('/dashboard', request.url));
+
+  const retiredApi = /^\/api\/(admin|invitations|public|registry|ringside|trials)(?:\/|$)/.test(pathname);
+  if (retiredApi) {
+    return NextResponse.json(
+      { error: 'This legacy C-WAGS endpoint is retired in SDDA TrialDesk.' },
+      { status: 410 }
+    );
+  }
+
   // -------------------------------------------------------
   // 🔥 1. Allow Supabase recovery links IMMEDIATELY
   // -------------------------------------------------------
