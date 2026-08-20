@@ -15,6 +15,8 @@ import { SDDA_COMPONENTS, SDDA_LEVELS, SDDA_STREAMS, offeringKey } from '@/lib/s
 import { formatSddaTrialStatus } from '@/lib/sdda/trialSetup';
 import { gameOfferingKey, getSddaTrialWorkspace, saveSddaGameOfferings, saveSddaTrialDayDetails, saveSddaTrialOfferings, saveSddaTrialPricing, saveSddaTrialPublicDetails, SDDA_GAME_TYPES, setSddaTrialEntryStatus, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
 
+const scentElementKey = (trialDayId: string, level: string, component: string) => `${trialDayId}|${level}|${component}`;
+
 export default function SddaTrialWorkspacePage() {
   const trialId = useParams<{ trialId: string }>().trialId;
   const [trial, setTrial] = useState<SddaTrialWorkspace | null>(null);
@@ -22,6 +24,8 @@ export default function SddaTrialWorkspacePage() {
   const [gamesSelected, setGamesSelected] = useState<Set<string>>(new Set());
   const [gameConfiguration, setGameConfiguration] = useState<Record<string, { judge_name: string | null; capacity: number | null; entry_fee_cents: number; feo_fee_cents: number }>>({});
   const [gameConfigurationDirty, setGameConfigurationDirty] = useState(false);
+  const [scentConfiguration, setScentConfiguration] = useState<Record<string, { judge_name: string | null }>>({});
+  const [scentConfigurationDirty, setScentConfigurationDirty] = useState(false);
   const [pricing, setPricing] = useState({ componentFee: '', threeComponentFee: '', eliteFee: '' });
   const [pricingDirty, setPricingDirty] = useState(false);
   const [dayDetails, setDayDetails] = useState<Record<string, { trialNumber: string; judgeName: string }>>({});
@@ -42,9 +46,19 @@ export default function SddaTrialWorkspacePage() {
       const workspace = await getSddaTrialWorkspace(getSupabaseBrowser(), trialId);
       workspace.sdda_trial_days.sort((a, b) => a.day_number - b.day_number);
       setTrial(workspace);
-      setSelected(new Set(workspace.sdda_trial_offerings.map((item) => offeringKey({
-        trialDayId: item.trial_day_id, level: item.level, component: item.component, stream: item.stream,
-      }))));
+      const normalizedScent = new Set<string>();
+      workspace.sdda_trial_offerings.forEach((item) => {
+        const streams = item.level === 'Elite' ? (['Amateur'] as const) : SDDA_STREAMS;
+        streams.forEach((stream) => normalizedScent.add(offeringKey({ trialDayId: item.trial_day_id, level: item.level, component: item.component, stream })));
+      });
+      setSelected(normalizedScent);
+      const scentConfig: Record<string, { judge_name: string | null }> = {};
+      workspace.sdda_trial_offerings.forEach((item) => {
+        const key = scentElementKey(item.trial_day_id, item.level, item.component);
+        if (!scentConfig[key]?.judge_name) scentConfig[key] = { judge_name: item.judge_name || null };
+      });
+      setScentConfiguration(scentConfig);
+      setScentConfigurationDirty(false);
       setGamesSelected(new Set(workspace.sdda_game_offerings.map((item) => gameOfferingKey(item.trial_day_id, item.game_type))));
       setGameConfiguration(Object.fromEntries(workspace.sdda_game_offerings.map((item) => [gameOfferingKey(item.trial_day_id, item.game_type), {
         judge_name: item.judge_name, capacity: item.capacity, entry_fee_cents: item.entry_fee_cents, feo_fee_cents: item.feo_fee_cents,
@@ -76,13 +90,20 @@ export default function SddaTrialWorkspacePage() {
   const dayAssignmentsComplete = (trial?.sdda_trial_days || []).every((day) => dayDetails[day.id]?.trialNumber.trim() && dayDetails[day.id]?.judgeName.trim());
   const competitorDetailsReady = Boolean(publicDetails.secretaryName.trim() && publicDetails.secretaryEmail.trim() && publicDetails.paymentInstructions.trim() && publicDetails.cancellationPolicy.trim());
 
-  const toggle = (key: string) => {
+  const toggleScentElement = (trialDayId: string, level: typeof SDDA_LEVELS[number], component: typeof SDDA_COMPONENTS[number]) => {
     setSaved(false);
     setSelected((current) => {
       const next = new Set(current);
-      if (next.has(key)) next.delete(key); else next.add(key);
+      const keys = (level === 'Elite' ? (['Amateur'] as const) : SDDA_STREAMS).map((stream) => offeringKey({ trialDayId, level, component, stream }));
+      if (keys.every((key) => next.has(key))) keys.forEach((key) => next.delete(key));
+      else keys.forEach((key) => next.add(key));
       return next;
     });
+  };
+
+  const updateScentJudge = (key: string, value: string) => {
+    setSaved(false); setScentConfigurationDirty(true);
+    setScentConfiguration((current) => ({ ...current, [key]: { judge_name: value.trimStart() || null } }));
   };
 
   const allOfferingKeys = useMemo(() => new Set(
@@ -144,7 +165,7 @@ export default function SddaTrialWorkspacePage() {
     try {
       setSaving(true); setError(null);
       const client = getSupabaseBrowser();
-      if (hasScent) await saveSddaTrialOfferings(client, trial.id, trial.sdda_trial_offerings, selected);
+      if (hasScent) await saveSddaTrialOfferings(client, trial.id, trial.sdda_trial_offerings, selected, scentConfiguration);
       if (hasGames) await saveSddaGameOfferings(client, trial.id, trial.sdda_game_offerings, gamesSelected, gameConfiguration);
       if (hasScent && pricingDirty) await saveSddaTrialPricing(client, trial.id, {
         componentFeeCents: Math.round(Number(pricing.componentFee || 0) * 100),
@@ -218,7 +239,7 @@ export default function SddaTrialWorkspacePage() {
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div><div className="flex flex-wrap items-center gap-3"><h1 className="text-3xl font-bold">{trial.name}</h1><Badge>{formatSddaTrialStatus(trial.status)}</Badge><Badge variant="outline">{trial.trial_format === 'combined' ? 'Combined' : trial.trial_format === 'games' ? 'Games' : 'Scent'}</Badge></div><p className="mt-1 text-gray-600">{trial.host_club}</p>{trial.venue && <p className="mt-1 flex items-center text-sm text-gray-600"><MapPin className="mr-2 h-4 w-4" />{trial.venue}</p>}</div>
-          <Button onClick={save} disabled={(!dirty && !gamesDirty && !gameConfigurationDirty && !pricingDirty) || saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save setup</Button>
+          <Button onClick={save} disabled={(!dirty && !gamesDirty && !gameConfigurationDirty && !scentConfigurationDirty && !pricingDirty) || saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save setup</Button>
         </div>
         {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
         {saved && <Alert><Check className="h-4 w-4" /><AlertDescription>SDDA trial setup saved.</AlertDescription></Alert>}
@@ -235,7 +256,7 @@ export default function SddaTrialWorkspacePage() {
           <div><Label htmlFor="secretary-email">Secretary email</Label><Input id="secretary-email" type="email" className="mt-1 bg-white" value={publicDetails.secretaryEmail} onChange={(event) => setPublicDetails((current) => ({ ...current, secretaryEmail: event.target.value }))} /></div>
           <div><Label htmlFor="secretary-phone">Secretary phone</Label><Input id="secretary-phone" className="mt-1 bg-white" value={publicDetails.secretaryPhone} onChange={(event) => setPublicDetails((current) => ({ ...current, secretaryPhone: event.target.value }))} /></div>
         </div><div><Label htmlFor="payment-instructions">Payment instructions</Label><textarea id="payment-instructions" rows={4} className="mt-1 w-full rounded-md border border-input bg-white px-3 py-2 text-sm" placeholder="When to pay, accepted method, address, deadline, and reference information" value={publicDetails.paymentInstructions} onChange={(event) => setPublicDetails((current) => ({ ...current, paymentInstructions: event.target.value }))} /></div><div><Label htmlFor="cancellation-policy">Cancellation and refund policy</Label><textarea id="cancellation-policy" rows={4} className="mt-1 w-full rounded-md border border-input bg-white px-3 py-2 text-sm" value={publicDetails.cancellationPolicy} onChange={(event) => setPublicDetails((current) => ({ ...current, cancellationPolicy: event.target.value }))} /></div><Button type="button" variant="outline" disabled={savingPublicDetails} onClick={() => void savePublicDetails()}>{savingPublicDetails ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save public details</Button></CardContent></Card>
-        <Card><CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle>Trial offering setup</CardTitle><CardDescription>{hasScent && hasGames ? 'Select the scent classes and Games offered on each trial day.' : hasGames ? 'Select every SDDA Game offered on each trial day.' : 'Select every level, component, and stream offered on each trial day.'}</CardDescription></div><div className="flex flex-wrap gap-2">{hasScent && <><Button type="button" variant="outline" onClick={selectAllOfferings} disabled={selected.size === allOfferingKeys.size}>Select all scent</Button><Button type="button" variant="outline" onClick={clearAllOfferings} disabled={selected.size === 0}>Clear scent</Button></>}{hasGames && <><Button type="button" variant="outline" onClick={() => setGamesSelected(new Set(allGameKeys))} disabled={gamesSelected.size === allGameKeys.size}>Select all Games</Button><Button type="button" variant="outline" onClick={() => setGamesSelected(new Set())} disabled={gamesSelected.size === 0}>Clear Games</Button></>}</div></CardHeader></Card>
+        <Card><CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle>Trial offering setup</CardTitle><CardDescription>{hasScent && hasGames ? 'Select each Scent level/component and Game offered on each trial day.' : hasGames ? 'Select every SDDA Game offered on each trial day.' : 'Select each level and component offered. Amateur and Working are automatically available on the competitor entry form; Elite has no stream.'}</CardDescription></div><div className="flex flex-wrap gap-2">{hasScent && <><Button type="button" variant="outline" onClick={selectAllOfferings} disabled={selected.size === allOfferingKeys.size}>Select all scent</Button><Button type="button" variant="outline" onClick={clearAllOfferings} disabled={selected.size === 0}>Clear scent</Button></>}{hasGames && <><Button type="button" variant="outline" onClick={() => setGamesSelected(new Set(allGameKeys))} disabled={gamesSelected.size === allGameKeys.size}>Select all Games</Button><Button type="button" variant="outline" onClick={() => setGamesSelected(new Set())} disabled={gamesSelected.size === 0}>Clear Games</Button></>}</div></CardHeader></Card>
         {hasScent && <Card><CardHeader><CardTitle>Scent entry pricing</CardTitle><CardDescription>These prices automatically calculate accepted-entry balances in Finances. A three-component price of $0 uses the individual component price three times.</CardDescription></CardHeader><CardContent className="grid gap-4 sm:grid-cols-3">
           <div><Label htmlFor="component-fee">Per component ($)</Label><Input id="component-fee" inputMode="decimal" className="mt-1 bg-white" value={pricing.componentFee} placeholder="0.00" onChange={(event) => updatePricing('componentFee', event.target.value)} /></div>
           <div><Label htmlFor="package-fee">All 3 components ($)</Label><Input id="package-fee" inputMode="decimal" className="mt-1 bg-white" value={pricing.threeComponentFee} placeholder="0.00" onChange={(event) => updatePricing('threeComponentFee', event.target.value)} /></div>
@@ -260,12 +281,13 @@ export default function SddaTrialWorkspacePage() {
                 <Button type="button" variant="outline" disabled={savingDay === day.id} onClick={() => void saveDayDetails(day.id)}>{savingDay === day.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save day details</Button>
               </div>
               {hasScent && SDDA_LEVELS.map((level) => (
-                <div key={level} className="space-y-2"><h3 className="font-semibold">{level}{level === 'Elite' ? ' (no stream)' : ''}</h3><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {SDDA_COMPONENTS.flatMap((component) => (level === 'Elite' ? (['Amateur'] as const) : SDDA_STREAMS).map((stream) => {
-                    const key = offeringKey({ trialDayId: day.id, level, component, stream });
-                    const active = selected.has(key);
-                    return <button type="button" key={key} onClick={() => toggle(key)} className={`rounded-md border p-3 text-left text-sm transition ${active ? 'border-orange-600 bg-orange-50 text-orange-900' : 'border-gray-200 hover:border-orange-300'}`}><span className="font-medium">{component}</span>{level !== 'Elite' && <span className="ml-2 text-gray-600">{stream}</span>}{active && <Check className="float-right h-4 w-4" />}</button>;
-                  }))}
+                <div key={level} className="space-y-2"><h3 className="font-semibold">{level}{level === 'Elite' ? ' (no stream)' : ''}</h3><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {SDDA_COMPONENTS.map((component) => {
+                    const storageKeys = (level === 'Elite' ? (['Amateur'] as const) : SDDA_STREAMS).map((stream) => offeringKey({ trialDayId: day.id, level, component, stream }));
+                    const active = storageKeys.every((key) => selected.has(key));
+                    const configKey = scentElementKey(day.id, level, component);
+                    return <div key={configKey} className={`rounded-md border p-3 text-sm transition ${active ? 'border-orange-600 bg-orange-50 text-orange-900' : 'border-gray-200 bg-white'}`}><button type="button" onClick={() => toggleScentElement(day.id, level, component)} className="flex w-full items-center justify-between text-left"><span className="font-semibold">{component}</span>{active && <Check className="h-4 w-4" />}</button>{active && <div className="mt-3 border-t border-orange-200 pt-3"><Label htmlFor={`${configKey}-judge`}>Judge</Label><Input id={`${configKey}-judge`} className="mt-1 bg-white" placeholder={day.judge_name || 'Use day judge'} value={scentConfiguration[configKey]?.judge_name || ''} onChange={(event) => updateScentJudge(configKey, event.target.value)} /><p className="mt-1 text-xs text-gray-600">Both Amateur and Working use this judge.</p></div>}</div>;
+                  })}
                 </div></div>
               ))}
               {hasGames && <div className="space-y-2"><h3 className="font-semibold">SDDA Games</h3><div className="grid gap-3 sm:grid-cols-2">{SDDA_GAME_TYPES.map((game) => {

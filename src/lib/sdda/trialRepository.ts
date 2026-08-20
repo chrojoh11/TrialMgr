@@ -264,7 +264,8 @@ export async function saveSddaTrialOfferings(
   client: SupabaseClient,
   trialId: string,
   current: SddaTrialOffering[],
-  selectedKeys: Set<string>
+  selectedKeys: Set<string>,
+  configuration?: Record<string, { judge_name: string | null }>,
 ) {
   const currentKeys = new Map(
     current.map((offering) => [
@@ -290,16 +291,20 @@ export async function saveSddaTrialOfferings(
       .in('id', removeIds);
     if (error) throw new Error(error.message);
   }
-  if (additions.length) {
-    const { error } = await client.from('sdda_trial_offerings').insert(
-      additions.map((item) => ({
+  const rows = configuration ? [...selectedKeys].map(parseOfferingKey) : additions;
+  if (rows.length) {
+    const values = rows.map((item) => ({
         trial_id: trialId,
         trial_day_id: item.trialDayId,
         level: item.level,
         component: item.component,
         stream: item.stream,
-      }))
-    );
+        ...(configuration ? { judge_name: configuration[`${item.trialDayId}|${item.level}|${item.component}`]?.judge_name || null } : {}),
+      }));
+    const request = configuration
+      ? client.from('sdda_trial_offerings').upsert(values, { onConflict: 'trial_day_id,level,component,stream' })
+      : client.from('sdda_trial_offerings').insert(values);
+    const { error } = await request;
     if (error) throw new Error(error.message);
   }
 }
