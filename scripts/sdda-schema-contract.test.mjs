@@ -102,6 +102,10 @@ const trialPricingMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260820_0024_trial_pricing.sql', import.meta.url),
   'utf8'
 ).toLowerCase();
+const trialDayDetailsMigration = readFileSync(
+  new URL('../supabase/sdda-migrations/20260820_0025_trial_day_details.sql', import.meta.url),
+  'utf8'
+).toLowerCase();
 
 const runningOrderMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260813_0006_atomic_running_order.sql', import.meta.url),
@@ -487,4 +491,15 @@ test('stores audited non-negative Scent pricing without privileged credentials',
   assert.match(trialPricingMigration, /trial\.pricing_updated/);
   assert.match(trialPricingMigration, /from public, anon/);
   assert.doesNotMatch(trialPricingMigration, /service_role|cwags|c-wags/);
+});
+
+test('updates trial numbers and judge substitutions through an audited boundary', () => {
+  assert.match(trialDayDetailsMigration, /function public\.sdda_update_trial_day_details/);
+  assert.match(trialDayDetailsMigration, /security invoker/);
+  assert.match(trialDayDetailsMigration, /sdda_can_manage_trial\(day_record\.trial_id\)/);
+  assert.match(trialDayDetailsMigration, /sdda_trial_number = nullif/);
+  assert.match(trialDayDetailsMigration, /judge_name = nullif/);
+  assert.match(trialDayDetailsMigration, /trial_day\.details_updated/);
+  assert.match(trialDayDetailsMigration, /before_state, after_state/);
+  assert.doesNotMatch(trialDayDetailsMigration, /service_role|cwags|c-wags/);
 });

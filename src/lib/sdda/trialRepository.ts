@@ -174,6 +174,19 @@ export async function saveSddaTrialPricing(
   if (error) throw new Error(error.message);
 }
 
+export async function saveSddaTrialDayDetails(
+  client: SupabaseClient,
+  trialDayId: string,
+  details: { trialNumber: string; judgeName: string },
+) {
+  const { error } = await client.rpc('sdda_update_trial_day_details', {
+    target_trial_day_id: trialDayId,
+    requested_trial_number: details.trialNumber,
+    requested_judge_name: details.judgeName,
+  });
+  if (error) throw new Error(error.message);
+}
+
 export function gameOfferingKey(trialDayId: string, gameType: SddaGameType) {
   return `${trialDayId}|${gameType}`;
 }
