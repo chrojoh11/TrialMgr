@@ -1,5 +1,16 @@
 # Applied SDDA migrations
 
+## `20260820_0028_audited_score_entry.sql`
+
+- Applied: 2026-08-20 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Database branch: `main` / Production
+- Reported execution result: success, no rows returned
+- Capability: authorized secretaries can record and amend accepted Scent and Games results
+- Workbook integration: saved Scent scores feed the existing official SDDA workbook export
+- Security: scoring requires authenticated trial-management access; anonymous execution is revoked
+- Audit: first results and every correction retain before/after values in `sdda_audit_records`
+
 ## `20260820_0020_secure_formatted_trial_creation.sql`
 
 - Applied: 2026-08-20 (America/Edmonton)
