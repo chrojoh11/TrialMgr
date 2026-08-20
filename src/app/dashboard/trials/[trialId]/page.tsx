@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Activity, AlertTriangle, Calendar, Check, Circle, CircleDollarSign, ClipboardList, Copy, ExternalLink, FileSpreadsheet, FileText, ListOrdered, Loader2, LockKeyhole, MapPin, Save, Users } from 'lucide-react';
+import { Activity, AlertTriangle, Calendar, Check, Circle, CircleDollarSign, ClipboardList, Copy, ExternalLink, FileSpreadsheet, FileText, ListOrdered, Loader2, LockKeyhole, MapPin, Save, Trophy, Users } from 'lucide-react';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -268,6 +268,7 @@ export default function SddaTrialWorkspacePage() {
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/running-order`)}><ListOrdered className="mr-2 h-4 w-4" />Running orders</Button>
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/score-sheets`)}><FileText className="mr-2 h-4 w-4" />Print score sheets</Button>
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/scoring`)}><ClipboardList className="mr-2 h-4 w-4" />Enter scores</Button>
+          <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/results`)}><Trophy className="mr-2 h-4 w-4" />Results</Button>
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/workbook`)}><FileSpreadsheet className="mr-2 h-4 w-4" />Official workbook</Button>
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/financials`)}><CircleDollarSign className="mr-2 h-4 w-4" />Finances</Button>
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/activity`)}><Activity className="mr-2 h-4 w-4" />Activity journal</Button>

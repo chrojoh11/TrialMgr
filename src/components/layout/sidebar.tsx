@@ -13,6 +13,7 @@ const trialItems = (id: string) => [
   { label: 'Running orders', href: `/dashboard/trials/${id}/running-order`, icon: ListOrdered },
   { label: 'Score sheets', href: `/dashboard/trials/${id}/score-sheets`, icon: FileText },
   { label: 'Score entry', href: `/dashboard/trials/${id}/scoring`, icon: ClipboardCheck },
+  { label: 'Results & placements', href: `/dashboard/trials/${id}/results`, icon: Trophy },
   { label: 'Title watch', href: `/dashboard/trials/${id}/title-watch`, icon: Trophy },
   { label: 'Official workbook', href: `/dashboard/trials/${id}/workbook`, icon: FileSpreadsheet },
   { label: 'Finances', href: `/dashboard/trials/${id}/financials`, icon: CircleDollarSign },

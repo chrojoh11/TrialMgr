@@ -20,7 +20,7 @@ This audit compares the SDDA-only application in `K:\TrialManager` with the reus
 | Running order | Substantial for Scent | SDDA grouping, manual group changes, drag/drop, XLSX export, reactivity | Confirm Games ordering and Team pairing workflow; conflict dashboard; printable steward copies |
 | Move-ups | Partial | Component-specific move-up/undo on eligible Scent runs | Stronger qualification evidence, cross-trial/manual provenance, Games implications if any |
 | Score sheets | Substantial | Official PDFs, per-template coordinate maps, Scent and Games, alerts, stream/FEO marks | Full visual regression set for every official template revision; smaller-output option; template version registry |
-| Scoring/live event | Missing UI | Score tables exist | Secretary/ringside score entry, validation, corrections, audit, placements, qualifying results |
+| Scoring/live event | Substantial | Audited Scent/Games score entry, corrections, accepted-entry boundary, provisional placements, printable results | Bulk score entry, offline queue/recovery, final results publication and closeout lock |
 | Official workbook | Partial | SDDA workbook export and Games workbook groundwork | Complete all rule-driven Games/classes mapping, score-fed results, visual comparison to official workbook |
 | Title watch | Partial/missing | Entry title-watch notes exist | Results-based title calculations, imported history, close-to-title report and warnings |
 | Finances | New partial | Transaction ledger, payments/refunds/costs, summaries, audited deletion | Automatic charges from selections, per-entry balance table, fee waivers, judge/volunteer detail, XLSX closeout, break-even |
