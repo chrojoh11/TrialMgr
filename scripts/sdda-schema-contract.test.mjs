@@ -106,6 +106,14 @@ const trialDayDetailsMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260820_0025_trial_day_details.sql', import.meta.url),
   'utf8'
 ).toLowerCase();
+const entryConfirmationMigration = readFileSync(
+  new URL('../supabase/sdda-migrations/20260820_0026_entry_confirmation_workflow.sql', import.meta.url),
+  'utf8'
+).toLowerCase();
+const trialPublicDetailsMigration = readFileSync(
+  new URL('../supabase/sdda-migrations/20260820_0027_trial_public_details.sql', import.meta.url),
+  'utf8'
+).toLowerCase();
 
 const runningOrderMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260813_0006_atomic_running_order.sql', import.meta.url),
@@ -502,4 +510,24 @@ test('updates trial numbers and judge substitutions through an audited boundary'
   assert.match(trialDayDetailsMigration, /trial_day\.details_updated/);
   assert.match(trialDayDetailsMigration, /before_state, after_state/);
   assert.doesNotMatch(trialDayDetailsMigration, /service_role|cwags|c-wags/);
+});
+
+test('supports an audited secretary entry-confirmation workflow', () => {
+  assert.match(entryConfirmationMigration, /function public\.sdda_set_entry_confirmation_status/);
+  assert.match(entryConfirmationMigration, /'received', 'accepted', 'waitlisted', 'rejected'/);
+  assert.match(entryConfirmationMigration, /security invoker/);
+  assert.match(entryConfirmationMigration, /sdda_can_manage_trial\(entry_record\.trial_id\)/);
+  assert.match(entryConfirmationMigration, /entry\.confirmation_status_changed/);
+  assert.match(entryConfirmationMigration, /before_state, after_state/);
+  assert.doesNotMatch(entryConfirmationMigration, /service_role|cwags|c-wags/);
+});
+
+test('stores audited public secretary and payment details', () => {
+  for (const column of ['secretary_name', 'secretary_email', 'secretary_phone', 'payment_instructions', 'cancellation_policy'])
+    assert.match(trialPublicDetailsMigration, new RegExp(`add column if not exists ${column}`));
+  assert.match(trialPublicDetailsMigration, /function public\.sdda_update_trial_public_details/);
+  assert.match(trialPublicDetailsMigration, /security invoker/);
+  assert.match(trialPublicDetailsMigration, /sdda_can_manage_trial\(target_trial_id\)/);
+  assert.match(trialPublicDetailsMigration, /trial\.public_details_updated/);
+  assert.doesNotMatch(trialPublicDetailsMigration, /service_role|cwags|c-wags/);
 });

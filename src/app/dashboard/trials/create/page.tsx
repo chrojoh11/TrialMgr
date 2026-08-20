@@ -51,7 +51,7 @@ export default function CreateTrialPage() {
           <CardContent className="space-y-4">
             <div><Label htmlFor="name">Trial name</Label><Input id="name" required minLength={3} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} /></div>
             <div><Label htmlFor="club">Host club</Label><Input id="club" required minLength={2} maxLength={120} value={hostClub} onChange={(e) => setHostClub(e.target.value)} /></div>
-            <div><Label htmlFor="venue">Venue</Label><Input id="venue" value={venue} onChange={(e) => setVenue(e.target.value)} /></div>
+            <div><Label htmlFor="venue">Venue and full address</Label><Input id="venue" required minLength={3} placeholder="Facility name, street address, city, province, postal code" value={venue} onChange={(e) => setVenue(e.target.value)} /><p className="mt-1 text-xs text-gray-500">Shown to competitors on the entry form and trial documents.</p></div>
           </CardContent>
         </Card>
         <Card>
@@ -83,6 +83,7 @@ export default function CreateTrialPage() {
             {dates.length < 4 && <Button type="button" variant="outline" onClick={() => setDates((current) => [...current, ''])}><Plus className="mr-2 h-4 w-4" />Add trial day</Button>}
           </CardContent>
         </Card>
+        <Alert><AlertDescription>Create the draft with the information you know now. On the next screen you will choose offerings and fees for each day. SDDA trial numbers and judges may be entered later and can be replaced if an assignment changes.</AlertDescription></Alert>
         <div className="flex justify-between">
           <Button type="button" variant="outline" onClick={() => router.push('/dashboard/trials')}><ArrowLeft className="mr-2 h-4 w-4" />Cancel</Button>
           <Button type="submit" disabled={saving}>{saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating…</> : 'Create Draft Trial'}</Button>

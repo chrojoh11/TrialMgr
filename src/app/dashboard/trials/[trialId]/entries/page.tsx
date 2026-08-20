@@ -18,10 +18,12 @@ import {
   listSddaEntries,
   listSddaEntryFinancials,
   saveSddaTrialOfferings,
+  setSddaEntryConfirmationStatus,
   type SddaTrialWorkspace,
 } from '@/lib/sdda/trialRepository';
 import { offeringKey } from '@/lib/sdda/offerings';
 import { createSddaMailingListWorkbook } from '@/lib/sdda/mailingListWorkbook';
+import { acceptedEntryChargeCents } from '@/lib/sdda/financialSummary';
 
 type RosterEntry = Awaited<ReturnType<typeof listSddaEntries>>[number];
 
@@ -35,6 +37,7 @@ export default function SddaEntriesPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [savingEntryId, setSavingEntryId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const exportMailingList = async () => {
@@ -80,7 +83,11 @@ export default function SddaEntriesPage() {
           selections,
           receivedAt: entry.submitted_at || entry.created_at,
           confirmationStatus: entry.confirmation_status || entry.entry_status,
-          amountOwing: (byEntry.get(entry.id) || 0) / 100,
+          amountOwing: (acceptedEntryChargeCents(entry, {
+            scentComponentFeeCents: trial.scent_component_fee_cents || 0,
+            scentThreeComponentFeeCents: trial.scent_three_component_fee_cents || 0,
+            eliteFeeCents: trial.elite_fee_cents || 0,
+          }, trial.sdda_game_offerings) + (byEntry.get(entry.id) || 0)) / 100,
         };
       });
       const bytes = createSddaMailingListWorkbook(trial.name, rows);
@@ -185,6 +192,16 @@ export default function SddaEntriesPage() {
     [entries, search]
   );
 
+  const changeConfirmation = async (entryId: string, status: 'received' | 'accepted' | 'waitlisted' | 'rejected') => {
+    try {
+      setSavingEntryId(entryId); setError(null);
+      await setSddaEntryConfirmationStatus(getSupabaseBrowser(), entryId, status);
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to update entry status.');
+    } finally { setSavingEntryId(null); }
+  };
+
   return (
     <MainLayout
       title="SDDA Entries"
@@ -284,7 +301,7 @@ export default function SddaEntriesPage() {
                         <Dog className="mr-2 h-5 w-5" />
                         {dog?.call_name}
                       </CardTitle>
-                      <Badge>{entry.entry_status}</Badge>
+                      <div className="flex flex-wrap gap-2"><Badge>{entry.entry_status}</Badge><Badge variant="outline">{entry.confirmation_status}</Badge></div>
                     </div>
                     <CardDescription>
                       {entry.handler_name} •{' '}
@@ -322,6 +339,7 @@ export default function SddaEntriesPage() {
                         Edit entry
                       </Link>
                     </Button>
+                    <div className="flex flex-wrap items-center gap-2 border-t pt-3"><span className="text-sm font-semibold">Secretary decision:</span><select aria-label={`Confirmation status for ${dog?.call_name || 'entry'}`} disabled={savingEntryId === entry.id} className="h-9 rounded-md border border-input bg-white px-3 text-sm" value={entry.confirmation_status} onChange={(event) => void changeConfirmation(entry.id, event.target.value as 'received' | 'accepted' | 'waitlisted' | 'rejected')}><option value="received">Received - awaiting review</option><option value="accepted">Accepted</option><option value="waitlisted">Waitlisted</option><option value="rejected">Rejected</option></select>{savingEntryId === entry.id && <Loader2 className="h-4 w-4 animate-spin" />}</div>
                   </CardContent>
                 </Card>
               );

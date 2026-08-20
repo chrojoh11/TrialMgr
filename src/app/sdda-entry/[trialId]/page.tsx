@@ -26,6 +26,12 @@ type Setup = {
   trial_format: 'scent' | 'games' | 'combined';
   payment_instructions?: string;
   cancellation_policy?: string;
+  secretary_name?: string;
+  secretary_email?: string;
+  secretary_phone?: string;
+  scent_component_fee_cents: number;
+  scent_three_component_fee_cents: number;
+  elite_fee_cents: number;
   days: Day[];
   offerings: Offer[];
   game_offerings: GameOffer[];
@@ -100,7 +106,7 @@ export default function Page() {
         client
           .from('sdda_trials')
           .select(
-            'name,host_club,venue,trial_format,sdda_trial_days(id,day_number,trial_date),sdda_trial_offerings(id,trial_day_id,level,component,stream),sdda_game_offerings(id,trial_day_id,game_type,entry_fee_cents,feo_fee_cents)'
+            'name,host_club,venue,trial_format,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,sdda_trial_days(id,day_number,trial_date),sdda_trial_offerings(id,trial_day_id,level,component,stream),sdda_game_offerings(id,trial_day_id,game_type,entry_fee_cents,feo_fee_cents)'
           )
           .eq('id', trialId)
           .single(),
@@ -207,6 +213,22 @@ export default function Page() {
   const configuredGameFeesCents = useMemo(() => (setup?.game_offerings || [])
     .filter((game) => gameChosen.has(game.id))
     .reduce((total, game) => total + ((gameEntryType[game.id] || 'Regular') === 'FEO' ? game.feo_fee_cents : game.entry_fee_cents), 0), [setup, gameChosen, gameEntryType]);
+  const configuredScentFeesCents = useMemo(() => {
+    if (!setup) return 0;
+    const groups = new Map<string, Choice[]>();
+    for (const choice of choices.filter((item) => chosen.has(item.key))) {
+      const key = `${choice.trial_day_id}|${choice.level}`;
+      groups.set(key, [...(groups.get(key) || []), choice]);
+    }
+    let total = 0;
+    for (const selected of groups.values()) {
+      if (selected[0]?.level === 'Elite') total += setup.elite_fee_cents || 0;
+      else if (selected.length === 3 && setup.scent_three_component_fee_cents > 0) total += setup.scent_three_component_fee_cents;
+      else total += selected.length * (setup.scent_component_fee_cents || 0);
+    }
+    return total;
+  }, [setup, choices, chosen]);
+  const configuredEntryFeesCents = configuredScentFeesCents + configuredGameFeesCents;
   const money = (cents: number) => new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(cents / 100);
   const set = (key: string, value: string | boolean | number) => setForm((v) => ({ ...v, [key]: value }));
   const toggle = (key: string) =>
@@ -374,7 +396,7 @@ export default function Page() {
       runCount: totalRuns,
       selections,
       privateEditUrl: `${window.location.origin}/sdda-entry/${trialId}?code=${encodeURIComponent(receipt.confirmation_code)}&token=${encodeURIComponent(receipt.receipt_token)}`,
-      amountOwingCents: configuredGameFeesCents,
+      amountOwingCents: configuredEntryFeesCents,
       amountLabel: chosen.size ? 'Configured Games fees' : 'Amount owing',
     });
     const blob = new Blob([Uint8Array.from(bytes).buffer], { type: 'application/pdf' });
@@ -404,7 +426,7 @@ export default function Page() {
             {form.handler_name} with {form.dog_call_name} · {chosen.size + gameChosen.size} runs
             requested
           </p>
-          {gameChosen.size > 0 && <div className="mt-4 rounded-xl border border-[#b9ceb9] bg-[#edf6ef] p-4"><small className="font-bold uppercase text-[#526057]">{chosen.size ? 'Configured Games fees' : 'Amount owing'}</small><p className="text-3xl font-bold text-[#225f45]">{money(configuredGameFeesCents)}</p>{chosen.size > 0 && <p className="mt-1 text-sm text-gray-600">Scent fees are not configured in TrialDesk yet and must be added by the secretary.</p>}</div>}
+          {(chosen.size > 0 || gameChosen.size > 0) && <div className="mt-4 rounded-xl border border-[#b9ceb9] bg-[#edf6ef] p-4"><small className="font-bold uppercase text-[#526057]">Amount owing when accepted</small><p className="text-3xl font-bold text-[#225f45]">{money(configuredEntryFeesCents)}</p><p className="mt-1 text-sm text-gray-600">Scent {money(configuredScentFeesCents)} · Games {money(configuredGameFeesCents)}</p></div>}
           <div className="mt-4 rounded-xl border bg-white p-4">
             <h2 className="mb-2 font-bold">Selections received</h2>
             <ul className="list-disc space-y-1 pl-5">
@@ -480,6 +502,7 @@ export default function Page() {
       {!setup && !error && <section className={box}>Loading entry form…</section>}
       {setup && (
         <form onSubmit={submit}>
+          {(setup.secretary_name || setup.secretary_email || setup.secretary_phone) && <section className={`${box} mb-4 text-sm`}><b>Trial secretary:</b> {[setup.secretary_name, setup.secretary_email, setup.secretary_phone].filter(Boolean).join(' · ')}</section>}
           {step === 1 && (
             <div className="space-y-4">
               <Section title="Competitor information">
@@ -857,7 +880,7 @@ export default function Page() {
                 <br />
                 {chosen.size + gameChosen.size} runs
                 {(form.reported_advanced_gold_count > 0 || form.reported_excellent_gold_count > 0 || form.reported_elite_gold_count > 0) && <><br /><span className="text-amber-800"><b>Competitor-reported Gold:</b> Advanced {form.reported_advanced_gold_count} · Excellent {form.reported_excellent_gold_count} · Elite {form.reported_elite_gold_count} (unverified)</span></>}
-                {gameChosen.size > 0 && <><br /><span className="text-[#225f45]"><b>{chosen.size ? 'Configured Games fees' : 'Amount owing'}:</b> {money(configuredGameFeesCents)}</span></>}
+                {(chosen.size > 0 || gameChosen.size > 0) && <><br /><span className="text-[#225f45]"><b>Amount owing when accepted:</b> {money(configuredEntryFeesCents)}</span></>}
               </div>
               <div className="mt-4 space-y-2">
                 {choices

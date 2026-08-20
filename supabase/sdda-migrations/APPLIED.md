@@ -255,3 +255,14 @@ No legacy C-WAGS migration was applied.
 - Financials: accepted entries can now be tallied automatically alongside Games fees, payments, refunds, adjustments, operating expenses, SDDA remittance estimates, and judge compensation estimates
 - Security: pricing changes require authenticated trial-management access; no anonymous table access or privileged service-role credential is used
 - Audit: every pricing change is retained in `sdda_audit_records`
+
+## `20260820_0025_trial_day_details.sql`
+
+- Applied: 2026-08-20 (America/Edmonton)
+- Project: `SDDA-Trialdesk`
+- Project reference: `hsxwwtvzfulxdqimkgcc`
+- Database branch: `main` / Production
+- Reported execution result: success, no rows returned
+- Capability: trial numbers and day-level judge assignments can be entered later or replaced on the trial workspace
+- Security: changes require authenticated trial-management access
+- Audit: every trial-number update and judge substitution retains before/after values in `sdda_audit_records`
