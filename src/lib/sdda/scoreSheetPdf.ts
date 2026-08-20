@@ -31,11 +31,11 @@ export type SddaScoreSheetRun = {
 const baseFields: Record<SddaLevel, SheetFields> = {
   Started: {
     trial: [326, 109, 70],
-    date: [490, 109, 82],
-    dog: [90, 136, 164],
-    breed: [294, 136, 118],
-    dogNumber: [509, 136, 62],
-    stream: { y: 170.5, amateurX: 448.5, workingX: 514, amateurY: 171.5, workingY: 171.5 },
+    date: [495, 109, 65],
+    dog: [95, 134, 157],
+    breed: [300, 134, 115],
+    dogNumber: [511, 134, 59],
+    stream: { y: 170, amateurX: 448.5, workingX: 513.6, amateurY: 171.5, workingY: 171.5 },
     footerY: 781,
   },
   Advanced: {
