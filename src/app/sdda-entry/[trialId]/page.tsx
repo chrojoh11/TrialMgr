@@ -61,6 +61,10 @@ const empty = {
   breed: '',
   formal_alerts: '',
   title_watch_note: '',
+  reported_advanced_gold_count: 0,
+  reported_excellent_gold_count: 0,
+  reported_elite_gold_count: 0,
+  reported_gold_acknowledged: false,
   reactivity: 'None',
   waiver_accepted: false,
 };
@@ -200,7 +204,7 @@ export default function Page() {
     }
     return [...grouped.values()];
   }, [setup]);
-  const set = (key: string, value: string | boolean) => setForm((v) => ({ ...v, [key]: value }));
+  const set = (key: string, value: string | boolean | number) => setForm((v) => ({ ...v, [key]: value }));
   const toggle = (key: string) =>
     setChosen((v) => {
       const n = new Set(v);
@@ -248,6 +252,14 @@ export default function Page() {
       return setError('Choose High or Highfly for every Aerial entry.');
     if (step === 3 && !form.waiver_accepted)
       return setError('Accept the acknowledgement before reviewing.');
+    if (
+      step === 3 &&
+      (form.reported_advanced_gold_count > 0 ||
+        form.reported_excellent_gold_count > 0 ||
+        form.reported_elite_gold_count > 0) &&
+      !form.reported_gold_acknowledged
+    )
+      return setError('Acknowledge that the Gold counts are copied from the competitor’s SDDA records.');
     setStep((s) => s + 1);
     scrollTo(0, 0);
   }
@@ -300,11 +312,21 @@ export default function Page() {
     setBusy(false);
     if (error) return setError(error.message);
     const r = data as { confirmation_code: string; receipt_token?: string };
+    const token = r.receipt_token || receipt?.receipt_token || receiptToken;
+    const { error: goldError } = await client.rpc('sdda_set_reported_gold_snapshot', {
+      target_entry_id: secretaryEntryId || null,
+      entry_code: secretaryEntryId ? null : r.confirmation_code,
+      receipt_token: secretaryEntryId ? null : token,
+      advanced_count: form.reported_advanced_gold_count,
+      excellent_count: form.reported_excellent_gold_count,
+      elite_count: form.reported_elite_gold_count,
+      acknowledged: form.reported_gold_acknowledged,
+    });
+    if (goldError) return setError(`The entry was saved, but its reported Gold snapshot was not: ${goldError.message}`);
     if (secretaryEntryId) {
       window.location.href = `/dashboard/trials/${trialId}/entries`;
       return;
     }
-    const token = r.receipt_token || receipt?.receipt_token || receiptToken;
     setReceipt({ confirmation_code: r.confirmation_code, receipt_token: token });
     setEditing(false);
     localStorage.setItem(
@@ -765,6 +787,18 @@ export default function Page() {
                       onChange={(e) => set('title_watch_note', e.target.value)}
                     />
                   </F>
+                  <div className="md:col-span-2 rounded-xl border border-[#d4b778] bg-[#fffaf0] p-4">
+                    <p className="font-bold">Competitor-reported Gold scores</p>
+                    <p className="mt-1 text-sm text-gray-600">Optional. Copy the current counts from the dog’s SDDA account. These are advisory and are not verified by TrialDesk or SDDA.</p>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      {[
+                        ['Advanced', 'reported_advanced_gold_count'],
+                        ['Excellent', 'reported_excellent_gold_count'],
+                        ['Elite', 'reported_elite_gold_count'],
+                      ].map(([label, key]) => <label key={key}><span className="mb-1 block text-sm font-semibold">{label} Gold count</span><input className={field} type="number" min="0" step="1" inputMode="numeric" value={(form as any)[key]} onChange={(e) => set(key, Math.max(0, Math.trunc(Number(e.target.value) || 0)))} /></label>)}
+                    </div>
+                    <label className="mt-4 flex items-start gap-3 text-sm"><input className="mt-1" type="checkbox" checked={form.reported_gold_acknowledged} onChange={(e) => set('reported_gold_acknowledged', e.target.checked)} /><span>I confirm these counts were copied from the competitor’s SDDA account records. They remain competitor-reported until SDDA confirms them.</span></label>
+                  </div>
                   <F label="Is your dog reactive?">
                     <select
                       className={field}
@@ -812,6 +846,7 @@ export default function Page() {
                 {form.dog_registration_number || 'registration pending'}
                 <br />
                 {chosen.size + gameChosen.size} runs
+                {(form.reported_advanced_gold_count > 0 || form.reported_excellent_gold_count > 0 || form.reported_elite_gold_count > 0) && <><br /><span className="text-amber-800"><b>Competitor-reported Gold:</b> Advanced {form.reported_advanced_gold_count} · Excellent {form.reported_excellent_gold_count} · Elite {form.reported_elite_gold_count} (unverified)</span></>}
               </div>
               <div className="mt-4 space-y-2">
                 {choices

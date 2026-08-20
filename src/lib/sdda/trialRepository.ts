@@ -257,7 +257,7 @@ export async function listSddaEntries(client: SupabaseClient, trialId: string) {
   const { data, error } = await client
     .from('sdda_entries')
     .select(
-      'id,handler_name,handler_email,handler_phone,handler_address,participant_number,stream,formal_alerts,reactivity,title_watch_note,entry_status,confirmation_status,confirmation_code,submitted_at,source,created_at,sdda_dogs(id,call_name,registered_name,sdda_registration_number,registration_pending,breed),sdda_runs(id,trial_day_id,level,component,stream,run_group,running_position,move_up_from_level,move_up_approved_at),sdda_game_runs(id,trial_day_id,offering_id,entry_type,requested_team_partner,aerial_division,sdda_game_offerings(game_type))'
+      'id,handler_name,handler_email,handler_phone,handler_address,participant_number,stream,formal_alerts,reactivity,title_watch_note,reported_advanced_gold_count,reported_excellent_gold_count,reported_elite_gold_count,reported_gold_acknowledged,reported_gold_declared_at,entry_status,confirmation_status,confirmation_code,submitted_at,source,created_at,sdda_dogs(id,call_name,registered_name,sdda_registration_number,registration_pending,breed),sdda_runs(id,trial_day_id,level,component,stream,run_group,running_position,move_up_from_level,move_up_approved_at),sdda_game_runs(id,trial_day_id,offering_id,entry_type,requested_team_partner,aerial_division,sdda_game_offerings(game_type))'
     )
     .eq('trial_id', trialId)
     .order('created_at');
