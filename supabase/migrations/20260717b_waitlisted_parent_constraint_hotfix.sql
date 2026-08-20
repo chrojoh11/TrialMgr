@@ -1,3 +1,0 @@
--- Retired placeholder. No SQL is required from this file.
--- The intended forward-only behavior is implemented by
--- 20260717_parent_entry_status_consistency.sql.

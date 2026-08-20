@@ -10,13 +10,7 @@
     "lint": "eslint .",
     "test:environment-safety": "node --test scripts/assert-no-supabase-env.test.mjs",
     "test:sdda-schema": "node --test scripts/sdda-schema-contract.test.mjs",
-    "test:sdda": "tsx --test src/lib/sdda/*.test.ts",
-    "test:judge-selector": "tsx --test src/lib/judgeSelector.test.ts",
-    "test:trial-application": "tsx --test src/lib/trialApplication/trialApplication.test.ts",
-    "test:trial-permissions": "tsx --test src/lib/trialPermissions.test.ts",
-    "test:ringside": "tsx --test src/lib/ringside/*.test.ts",
-    "test:judge-insert": "tsx src/scripts/testJudgeInsert.ts",
-    "test:supabase": "tsx src/scripts/testSupabase.ts"
+    "test:sdda": "tsx --test src/lib/sdda/*.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",

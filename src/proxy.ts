@@ -6,8 +6,7 @@ export async function proxy(request: NextRequest) {
   const pathname = url.pathname;
   const params = url.searchParams;
 
-  // The old C-WAGS implementation remains in source temporarily as conversion
-  // reference, but it must never be reachable in the SDDA-only application.
+  // Block route names retired from the inherited secretary shell.
   const retiredPage =
     pathname === '/admin/merge-duplicates' ||
     pathname === '/entries' || pathname.startsWith('/entries/') ||
@@ -21,7 +20,7 @@ export async function proxy(request: NextRequest) {
   const retiredApi = /^\/api\/(admin|invitations|public|registry|ringside|trials)(?:\/|$)/.test(pathname);
   if (retiredApi) {
     return NextResponse.json(
-      { error: 'This legacy C-WAGS endpoint is retired in SDDA TrialDesk.' },
+      { error: 'This legacy endpoint is retired in SDDA TrialDesk.' },
       { status: 410 }
     );
   }
