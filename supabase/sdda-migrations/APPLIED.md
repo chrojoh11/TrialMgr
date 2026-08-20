@@ -1,5 +1,16 @@
 # Applied SDDA migrations
 
+## `20260820_0019_public_games_entries.sql`
+
+- Applied: 2026-08-20 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Database branch: `main` / Production
+- Execution result: success, no rows returned
+- Verification: `sdda_game_runs.requested_team_partner`, the Games-aware public setup function, and the combined public submission function are available
+- Security verification: anonymous direct table access remains denied; the two narrow public entry functions reject trials that are not accepting entries
+- Entry behavior: one submission may contain Scent runs, Games runs, or both; Games support Regular/FEO and require a requested partner for Team
+- Data impact: function replacement and one additive nullable field; existing entries and runs were not rewritten
+
 ## `20260819_0018_trial_formats_and_games.sql`
 
 - Applied: 2026-08-20 (America/Edmonton)
