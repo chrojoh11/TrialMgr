@@ -11,6 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import {
   buildOfficialSddaWorkbook,
+  officialWorkbookDogNumbers,
+  reviewOfficialSddaWorkbook,
   type OfficialWorkbookRun,
 } from '@/lib/sdda/officialWorkbook';
 import {
@@ -29,6 +31,7 @@ export default function SddaOfficialWorkbookPage() {
   const trialId = useParams<{ trialId: string }>().trialId;
   const [trial, setTrial] = useState<SddaTrialWorkspace | null>(null);
   const [runs, setRuns] = useState<PreparedRun[]>([]);
+  const [registryNumbers, setRegistryNumbers] = useState<Set<string> | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,10 +41,13 @@ export default function SddaOfficialWorkbookPage() {
       setLoading(true);
       setError(null);
       const client = getSupabaseBrowser();
-      const [workspace, records] = await Promise.all([
+      const [workspace, records, templateResponse] = await Promise.all([
         getSddaTrialWorkspace(client, trialId),
         listSddaOfficialWorkbookRuns(client, trialId),
+        fetch(templatePath),
       ]);
+      if (!templateResponse.ok) throw new Error('The untouched official SDDA workbook template could not be loaded.');
+      setRegistryNumbers(officialWorkbookDogNumbers(new Uint8Array(await templateResponse.arrayBuffer())));
       workspace.sdda_trial_days.sort((a, b) => a.day_number - b.day_number);
       const days = new Map(workspace.sdda_trial_days.map((day) => [day.id, day.day_number]));
       setTrial(workspace);
@@ -78,25 +84,35 @@ export default function SddaOfficialWorkbookPage() {
   const enteredRuns = useMemo(() => runs.filter((run) => run.entryStatus === 'entered'), [runs]);
   const excludedRuns = runs.length - enteredRuns.length;
 
+  const groupInput = (index: number) => {
+    if (!trial) return null;
+    const days = dayGroups[index];
+    const selectedDays = new Set(days.map((day) => day.day_number));
+    return {
+      days: days.map((day) => ({
+        dayNumber: day.day_number,
+        trialNumber: day.sdda_trial_number || '',
+        trialDate: day.trial_date,
+        judgeName: day.judge_name || undefined,
+      })),
+      venue: trial.venue || '',
+      runs: enteredRuns.filter((run) => selectedDays.has(run.dayNumber)),
+    };
+  };
+
   const exportGroup = async (index: number) => {
     if (!trial) return;
     const days = dayGroups[index];
+    const input = groupInput(index);
+    if (!input) return;
     try {
       setExporting(index);
       setError(null);
       const response = await fetch(templatePath);
       if (!response.ok) throw new Error('The untouched official SDDA workbook template could not be loaded.');
-      const selectedDays = new Set(days.map((day) => day.day_number));
-      const bytes = buildOfficialSddaWorkbook(new Uint8Array(await response.arrayBuffer()), {
-        days: days.map((day) => ({
-          dayNumber: day.day_number,
-          trialNumber: day.sdda_trial_number || '',
-          trialDate: day.trial_date,
-          judgeName: day.judge_name || undefined,
-        })),
-        venue: trial.venue || '',
-        runs: enteredRuns.filter((run) => selectedDays.has(run.dayNumber)),
-      });
+      const issues = reviewOfficialSddaWorkbook(input, registryNumbers || undefined);
+      if (issues.some((issue) => issue.severity === 'blocker')) throw new Error('Resolve the workbook blockers shown on this page before exporting.');
+      const bytes = buildOfficialSddaWorkbook(new Uint8Array(await response.arrayBuffer()), input);
       const blob = new Blob([bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
@@ -121,7 +137,10 @@ export default function SddaOfficialWorkbookPage() {
       {loading ? <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div> : dayGroups.map((days, index) => {
         const selected = new Set(days.map((day) => day.day_number));
         const count = enteredRuns.filter((run) => selected.has(run.dayNumber)).length;
-        return <Card key={index}><CardHeader><CardTitle>Days {days.map((day) => day.day_number).join('–')}</CardTitle><CardDescription>{days.map((day) => `${day.trial_date}${day.sdda_trial_number ? ` · ${day.sdda_trial_number}` : ' · trial number pending'}`).join(' | ')}</CardDescription></CardHeader><CardContent className="flex items-center gap-3"><Button onClick={() => void exportGroup(index)} disabled={exporting !== null || count === 0}>{exporting === index ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}Export official workbook</Button><Badge variant="outline">{count} runs</Badge></CardContent></Card>;
+        const input = groupInput(index);
+        const issues = input ? reviewOfficialSddaWorkbook(input, registryNumbers || undefined) : [];
+        const blockers = issues.filter((issue) => issue.severity === 'blocker');
+        return <Card key={index}><CardHeader><CardTitle>Days {days.map((day) => day.day_number).join('–')}</CardTitle><CardDescription>{days.map((day) => `${day.trial_date}${day.sdda_trial_number ? ` · ${day.sdda_trial_number}` : ' · trial number pending'}`).join(' | ')}</CardDescription></CardHeader><CardContent className="space-y-4"><div className="flex items-center gap-3"><Button onClick={() => void exportGroup(index)} disabled={exporting !== null || count === 0 || blockers.length > 0}>{exporting === index ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}Export official workbook</Button><Badge variant="outline">{count} runs</Badge></div>{issues.length > 0 ? <div className="space-y-2">{issues.map((issue) => <div key={issue.message} className={`rounded-md border px-3 py-2 text-sm ${issue.severity === 'blocker' ? 'border-red-300 bg-red-50 text-red-900' : 'border-amber-300 bg-amber-50 text-amber-900'}`}><strong>{issue.severity === 'blocker' ? 'Required: ' : 'Review: '}</strong>{issue.message}</div>)}</div> : <div className="rounded-md border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-900">Workbook data checks passed.</div>}</CardContent></Card>;
       })}
     </div>
   </MainLayout>;

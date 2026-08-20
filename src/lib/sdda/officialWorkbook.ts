@@ -28,6 +28,54 @@ export type OfficialWorkbookInput = {
   runs: OfficialWorkbookRun[];
 };
 
+export type OfficialWorkbookReviewIssue = {
+  severity: 'blocker' | 'warning';
+  message: string;
+};
+
+export function reviewOfficialSddaWorkbook(
+  input: OfficialWorkbookInput,
+  registeredDogNumbers?: ReadonlySet<string>
+): OfficialWorkbookReviewIssue[] {
+  const issues: OfficialWorkbookReviewIssue[] = [];
+  if (!input.venue.trim()) issues.push({ severity: 'blocker', message: 'Trial venue is missing.' });
+  for (const day of input.days) {
+    if (!day.trialNumber.trim()) issues.push({ severity: 'blocker', message: `Day ${day.dayNumber} SDDA trial number is missing.` });
+    if (!day.judgeName?.trim() && !input.defaultJudge?.trim()) issues.push({ severity: 'blocker', message: `Day ${day.dayNumber} judge is missing.` });
+  }
+  const relevantRuns = input.runs.filter((run) => input.days.some((day) => day.dayNumber === run.dayNumber));
+  const missingNumbers = relevantRuns.filter((run) => !run.dogNumber.trim()).length;
+  if (missingNumbers) issues.push({ severity: 'blocker', message: `${missingNumbers} ${missingNumbers === 1 ? 'run has' : 'runs have'} no SDDA dog number.` });
+  if (registeredDogNumbers) {
+    const unknown = new Set(relevantRuns.map((run) => run.dogNumber.trim()).filter((number) => number && !registeredDogNumbers.has(number)));
+    if (unknown.size) issues.push({ severity: 'warning', message: `${unknown.size} dog ${unknown.size === 1 ? 'number is' : 'numbers are'} not present in the official workbook’s SDDA Dogs registry snapshot.` });
+  }
+  const unscored = relevantRuns.filter((run) => !run.result && run.runGroup !== 'FEO').length;
+  if (unscored) issues.push({ severity: 'warning', message: `${unscored} ${unscored === 1 ? 'run is' : 'runs are'} not scored yet and will be marked Entered.` });
+  const incomplete = relevantRuns.filter((run) => (run.result === 'qualifying' || run.result === 'non_qualifying') && (run.score == null || run.timeSeconds == null)).length;
+  if (incomplete) issues.push({ severity: 'warning', message: `${incomplete} scored ${incomplete === 1 ? 'run is' : 'runs are'} missing a score or time.` });
+  return issues;
+}
+
+export function officialWorkbookDogNumbers(template: Uint8Array) {
+  const files = unzipSync(template);
+  const workbookXml = strFromU8(files['xl/workbook.xml']);
+  const relationshipXml = strFromU8(files['xl/_rels/workbook.xml.rels']);
+  const sheetId = workbookXml.match(/<sheet\b[^>]*\bname="SDDA Dogs"[^>]*\br:id="([^"]+)"/)?.[1];
+  const escapedId = sheetId?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const target = escapedId && relationshipXml.match(new RegExp(`<Relationship\\b[^>]*\\bId="${escapedId}"[^>]*\\bTarget="([^"]+)"`))?.[1];
+  if (!target) return new Set<string>();
+  const path = target.startsWith('/') ? target.slice(1) : `xl/${target.replace(/^\.\.\//, '')}`;
+  const xml = files[path] ? strFromU8(files[path]) : '';
+  const numbers = new Set<string>();
+  for (const match of xml.matchAll(/<c\b[^>]*\br="A(\d+)"[^>]*>([\s\S]*?)<\/c>/g)) {
+    if (match[1] === '1') continue;
+    const value = match[2].match(/<v>([^<]+)<\/v>/)?.[1]?.trim();
+    if (value) numbers.add(value);
+  }
+  return numbers;
+}
+
 const SCORE_COLUMNS: Record<SddaLevel, Record<SddaComponent, { score: number; time: number }>> = {
   Started: { Container: { score: 6, time: 7 }, Interior: { score: 14, time: 15 }, Exterior: { score: 22, time: 23 } },
   Advanced: { Container: { score: 6, time: 7 }, Interior: { score: 14, time: 15 }, Exterior: { score: 22, time: 23 } },

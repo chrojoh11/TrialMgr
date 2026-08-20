@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { strFromU8, unzipSync } from 'fflate';
-import { buildOfficialSddaWorkbook } from './officialWorkbook';
+import { buildOfficialSddaWorkbook, officialWorkbookDogNumbers, reviewOfficialSddaWorkbook } from './officialWorkbook';
 
 const template = new Uint8Array(readFileSync('public/templates/sdda/TrialWorkbook-20260729.xlsx'));
 
@@ -37,4 +37,16 @@ test('rejects more than two days because the official workbook has only two day 
     { dayNumber: 2, trialNumber: '2', trialDate: '2026-09-13' },
     { dayNumber: 3, trialNumber: '3', trialDate: '2026-09-14' },
   ], venue: '', runs: [] }), /one or two trial days/);
+});
+
+test('reviews required official submission fields and reads the embedded dog registry', () => {
+  const registry = officialWorkbookDogNumbers(template);
+  assert.equal(registry.has('17'), true);
+  const issues = reviewOfficialSddaWorkbook({
+    days: [{ dayNumber: 1, trialNumber: '', trialDate: '2026-09-12' }],
+    venue: '',
+    runs: [{ dayNumber: 1, level: 'Started', component: 'Container', stream: 'Amateur', dogNumber: '', runGroup: 'Regular' }],
+  }, registry);
+  assert.equal(issues.filter((issue) => issue.severity === 'blocker').length, 4);
+  assert.equal(issues.some((issue) => issue.message.includes('not scored')), true);
 });
