@@ -42,6 +42,7 @@ const publicEntryMigration = readFileSync(new URL('../supabase/sdda-migrations/2
 const publicEntryRandomMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0015_public_entry_random_bytes.sql', import.meta.url), 'utf8').toLowerCase();
 const publicEntryGroupsMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0016_public_entry_run_group_requests.sql', import.meta.url), 'utf8').toLowerCase();
 const perRunStreamsMigration = readFileSync(new URL('../supabase/sdda-migrations/20260813_0017_per_run_entry_streams.sql', import.meta.url), 'utf8').toLowerCase();
+const gamesMigration = readFileSync(new URL('../supabase/sdda-migrations/20260819_0018_trial_formats_and_games.sql', import.meta.url), 'utf8').toLowerCase();
 
 const runningOrderMigration = readFileSync(
   new URL('../supabase/sdda-migrations/20260813_0006_atomic_running_order.sql', import.meta.url),
@@ -266,4 +267,18 @@ test('saves complete SDDA running orders atomically with an audit record', () =>
   assert.match(runningOrderMigration, /'running_order\.saved'/);
   assert.match(runningOrderMigration, /from anon/);
   assert.doesNotMatch(runningOrderMigration, /service_role|security definer|cwags|c-wags/);
+});
+
+test('models Scent, Games, and Combined trials without reusing scent run columns', () => {
+  assert.match(gamesMigration, /trial_format in \('scent', 'games', 'combined'\)/);
+  for (const table of ['sdda_game_offerings', 'sdda_game_team_pairs', 'sdda_game_runs', 'sdda_game_scores']) {
+    assert.match(gamesMigration, new RegExp(`create table public\\.${table}\\b`));
+    assert.match(gamesMigration, new RegExp(`alter table public\\.${table} enable row level security`));
+  }
+  for (const game of ['aerial', 'distance', 'speed', 'team']) assert.match(gamesMigration, new RegExp(`'${game}'`));
+  assert.match(gamesMigration, /entry_type in \('regular', 'feo'\)/);
+  assert.match(gamesMigration, /foreign key \(team_pair_id, trial_id\)/);
+  assert.match(gamesMigration, /public\.sdda_can_manage_trial\(trial_id\)/);
+  assert.match(gamesMigration, /recorded_by=auth\.uid\(\)/);
+  assert.doesNotMatch(gamesMigration, /service_role|cwags|c-wags/);
 });
