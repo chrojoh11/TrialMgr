@@ -266,3 +266,25 @@ No legacy C-WAGS migration was applied.
 - Capability: trial numbers and day-level judge assignments can be entered later or replaced on the trial workspace
 - Security: changes require authenticated trial-management access
 - Audit: every trial-number update and judge substitution retains before/after values in `sdda_audit_records`
+
+## `20260820_0026_entry_confirmation_workflow.sql`
+
+- Applied: 2026-08-20 (America/Edmonton)
+- Project: `SDDA-Trialdesk`
+- Project reference: `hsxwwtvzfulxdqimkgcc`
+- Database branch: `main` / Production
+- Reported execution result: success, no rows returned
+- Capability: secretaries can move entries between Received, Accepted, Waitlisted, and Rejected
+- Operational boundary: only accepted entries are used for running orders, score sheets, judge packets, and official workbook output
+- Audit: every confirmation-status change retains before/after values
+
+## `20260820_0027_trial_public_details.sql`
+
+- Applied: 2026-08-20 (America/Edmonton)
+- Project: `SDDA-Trialdesk`
+- Project reference: `hsxwwtvzfulxdqimkgcc`
+- Database branch: `main` / Production
+- Reported execution result: success, no rows returned
+- Capability: trial secretary contact, payment instructions, cancellation policy, and Scent pricing are available to the public entry workflow
+- Security: public setup remains available only through the narrow entry-setup function; writes require trial-management access
+- Audit: every competitor-facing detail change retains before/after values
