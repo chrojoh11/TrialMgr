@@ -11,12 +11,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { SDDA_COMPONENTS, SDDA_LEVELS, SDDA_STREAMS, offeringKey } from '@/lib/sdda/offerings';
 import { formatSddaTrialStatus } from '@/lib/sdda/trialSetup';
-import { getSddaTrialWorkspace, saveSddaTrialOfferings, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
+import { gameOfferingKey, getSddaTrialWorkspace, saveSddaGameOfferings, saveSddaTrialOfferings, SDDA_GAME_TYPES, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
 
 export default function SddaTrialWorkspacePage() {
   const trialId = useParams<{ trialId: string }>().trialId;
   const [trial, setTrial] = useState<SddaTrialWorkspace | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [gamesSelected, setGamesSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +33,7 @@ export default function SddaTrialWorkspacePage() {
       setSelected(new Set(workspace.sdda_trial_offerings.map((item) => offeringKey({
         trialDayId: item.trial_day_id, level: item.level, component: item.component, stream: item.stream,
       }))));
+      setGamesSelected(new Set(workspace.sdda_game_offerings.map((item) => gameOfferingKey(item.trial_day_id, item.game_type))));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to load the SDDA trial.');
     } finally { setLoading(false); }
@@ -43,6 +45,10 @@ export default function SddaTrialWorkspacePage() {
     trialDayId: item.trial_day_id, level: item.level, component: item.component, stream: item.stream,
   }))), [trial]);
   const dirty = selected.size !== original.size || [...selected].some((key) => !original.has(key));
+  const originalGames = useMemo(() => new Set((trial?.sdda_game_offerings || []).map((item) => gameOfferingKey(item.trial_day_id, item.game_type))), [trial]);
+  const gamesDirty = gamesSelected.size !== originalGames.size || [...gamesSelected].some((key) => !originalGames.has(key));
+  const hasScent = trial?.trial_format !== 'games';
+  const hasGames = trial?.trial_format === 'games' || trial?.trial_format === 'combined';
 
   const toggle = (key: string) => {
     setSaved(false);
@@ -73,11 +79,26 @@ export default function SddaTrialWorkspacePage() {
     setSelected(new Set());
   };
 
+  const toggleGame = (key: string) => {
+    setSaved(false);
+    setGamesSelected((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const allGameKeys = useMemo(() => new Set(
+    (trial?.sdda_trial_days || []).flatMap((day) => SDDA_GAME_TYPES.map((game) => gameOfferingKey(day.id, game))),
+  ), [trial]);
+
   const save = async () => {
     if (!trial) return;
     try {
       setSaving(true); setError(null);
-      await saveSddaTrialOfferings(getSupabaseBrowser(), trial.id, trial.sdda_trial_offerings, selected);
+      const client = getSupabaseBrowser();
+      if (hasScent) await saveSddaTrialOfferings(client, trial.id, trial.sdda_trial_offerings, selected);
+      if (hasGames) await saveSddaGameOfferings(client, trial.id, trial.sdda_game_offerings, gamesSelected);
       await load(); setSaved(true);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to save SDDA offerings.');
@@ -91,12 +112,12 @@ export default function SddaTrialWorkspacePage() {
     <MainLayout title={trial.name} breadcrumbItems={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Trials', href: '/dashboard/trials' }, { label: trial.name }]}>
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div><div className="flex items-center gap-3"><h1 className="text-3xl font-bold">{trial.name}</h1><Badge>{formatSddaTrialStatus(trial.status)}</Badge></div><p className="mt-1 text-gray-600">{trial.host_club}</p>{trial.venue && <p className="mt-1 flex items-center text-sm text-gray-600"><MapPin className="mr-2 h-4 w-4" />{trial.venue}</p>}</div>
-          <Button onClick={save} disabled={!dirty || saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save offerings</Button>
+          <div><div className="flex flex-wrap items-center gap-3"><h1 className="text-3xl font-bold">{trial.name}</h1><Badge>{formatSddaTrialStatus(trial.status)}</Badge><Badge variant="outline">{trial.trial_format === 'combined' ? 'Combined' : trial.trial_format === 'games' ? 'Games' : 'Scent'}</Badge></div><p className="mt-1 text-gray-600">{trial.host_club}</p>{trial.venue && <p className="mt-1 flex items-center text-sm text-gray-600"><MapPin className="mr-2 h-4 w-4" />{trial.venue}</p>}</div>
+          <Button onClick={save} disabled={(!dirty && !gamesDirty) || saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save offerings</Button>
         </div>
         {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
         {saved && <Alert><Check className="h-4 w-4" /><AlertDescription>SDDA offerings saved.</AlertDescription></Alert>}
-        <Card><CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle>Trial offering setup</CardTitle><CardDescription>Select every level, component, and stream offered on each trial day.</CardDescription></div><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={selectAllOfferings} disabled={selected.size === allOfferingKeys.size}>Select all</Button><Button type="button" variant="outline" onClick={clearAllOfferings} disabled={selected.size === 0}>Clear all</Button></div></CardHeader></Card>
+        <Card><CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle>Trial offering setup</CardTitle><CardDescription>{hasScent && hasGames ? 'Select the scent classes and Games offered on each trial day.' : hasGames ? 'Select every SDDA Game offered on each trial day.' : 'Select every level, component, and stream offered on each trial day.'}</CardDescription></div><div className="flex flex-wrap gap-2">{hasScent && <><Button type="button" variant="outline" onClick={selectAllOfferings} disabled={selected.size === allOfferingKeys.size}>Select all scent</Button><Button type="button" variant="outline" onClick={clearAllOfferings} disabled={selected.size === 0}>Clear scent</Button></>}{hasGames && <><Button type="button" variant="outline" onClick={() => setGamesSelected(new Set(allGameKeys))} disabled={gamesSelected.size === allGameKeys.size}>Select all Games</Button><Button type="button" variant="outline" onClick={() => setGamesSelected(new Set())} disabled={gamesSelected.size === 0}>Clear Games</Button></>}</div></CardHeader></Card>
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/entries`)}><Users className="mr-2 h-4 w-4" />Entries & CSV import</Button>
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/running-order`)}><ListOrdered className="mr-2 h-4 w-4" />Running orders</Button>
@@ -107,7 +128,7 @@ export default function SddaTrialWorkspacePage() {
           <Card key={day.id}>
             <CardHeader><CardTitle className="flex items-center"><Calendar className="mr-2 h-5 w-5" />Day {day.day_number}: {day.trial_date}</CardTitle><CardDescription>{day.sdda_trial_number ? `SDDA trial ${day.sdda_trial_number}` : 'SDDA trial number pending'}{day.judge_name ? ` • Judge: ${day.judge_name}` : ''}</CardDescription></CardHeader>
             <CardContent className="space-y-5">
-              {SDDA_LEVELS.map((level) => (
+              {hasScent && SDDA_LEVELS.map((level) => (
                 <div key={level} className="space-y-2"><h3 className="font-semibold">{level}</h3><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {SDDA_COMPONENTS.flatMap((component) => SDDA_STREAMS.map((stream) => {
                     const key = offeringKey({ trialDayId: day.id, level, component, stream });
@@ -116,6 +137,11 @@ export default function SddaTrialWorkspacePage() {
                   }))}
                 </div></div>
               ))}
+              {hasGames && <div className="space-y-2"><h3 className="font-semibold">SDDA Games</h3><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{SDDA_GAME_TYPES.map((game) => {
+                const key = gameOfferingKey(day.id, game);
+                const active = gamesSelected.has(key);
+                return <button type="button" key={key} onClick={() => toggleGame(key)} className={`rounded-md border p-3 text-left text-sm transition ${active ? 'border-orange-600 bg-orange-50 text-orange-900' : 'border-gray-200 bg-white hover:border-orange-300'}`}><span className="font-medium">{game}</span>{active && <Check className="float-right h-4 w-4" />}</button>;
+              })}</div><p className="text-sm text-gray-600">Judges, capacities, Regular/FEO fees, Team pairs, and run order are configured after the Games are selected.</p></div>}
             </CardContent>
           </Card>
         ))}

@@ -3,6 +3,7 @@ import {
   validateSddaTrialSetup,
   type SddaTrialSetupInput,
   type SddaTrialStatus,
+  type SddaTrialFormat,
 } from './trialSetup';
 import {
   offeringKey,
@@ -21,6 +22,7 @@ export interface SddaTrialSummary {
   venue: string | null;
   status: SddaTrialStatus;
   created_at: string;
+  trial_format: SddaTrialFormat;
   sdda_trial_days: Array<{ day_number: number; trial_date: string }>;
 }
 
@@ -34,6 +36,19 @@ export interface SddaTrialOffering {
   capacity: number | null;
 }
 
+export const SDDA_GAME_TYPES = ['Aerial', 'Distance', 'Speed', 'Team'] as const;
+export type SddaGameType = (typeof SDDA_GAME_TYPES)[number];
+
+export interface SddaGameOffering {
+  id: string;
+  trial_day_id: string;
+  game_type: SddaGameType;
+  judge_name: string | null;
+  capacity: number | null;
+  entry_fee_cents: number;
+  feo_fee_cents: number;
+}
+
 export interface SddaTrialWorkspace extends SddaTrialSummary {
   timezone: string;
   sdda_trial_days: Array<{
@@ -44,12 +59,13 @@ export interface SddaTrialWorkspace extends SddaTrialSummary {
     judge_name: string | null;
   }>;
   sdda_trial_offerings: SddaTrialOffering[];
+  sdda_game_offerings: SddaGameOffering[];
 }
 
 export async function listSddaTrials(client: SupabaseClient): Promise<SddaTrialSummary[]> {
   const { data, error } = await client
     .from('sdda_trials')
-    .select('id,name,host_club,venue,status,created_at,sdda_trial_days(day_number,trial_date)')
+    .select('id,name,host_club,venue,status,created_at,trial_format,sdda_trial_days(day_number,trial_date)')
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return (data || []) as SddaTrialSummary[];
@@ -92,12 +108,38 @@ export async function getSddaTrialWorkspace(client: SupabaseClient, trialId: str
   const { data, error } = await client
     .from('sdda_trials')
     .select(
-      'id,name,host_club,venue,timezone,status,created_at,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,judge_name,capacity)'
+      'id,name,host_club,venue,timezone,status,created_at,trial_format,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,judge_name,capacity),sdda_game_offerings(id,trial_day_id,game_type,judge_name,capacity,entry_fee_cents,feo_fee_cents)'
     )
     .eq('id', trialId)
     .single();
   if (error || !data) throw new Error(error?.message || 'SDDA trial not found.');
   return data as SddaTrialWorkspace;
+}
+
+export function gameOfferingKey(trialDayId: string, gameType: SddaGameType) {
+  return `${trialDayId}|${gameType}`;
+}
+
+export async function saveSddaGameOfferings(
+  client: SupabaseClient,
+  trialId: string,
+  current: SddaGameOffering[],
+  selectedKeys: Set<string>
+) {
+  const currentKeys = new Map(current.map((offering) => [gameOfferingKey(offering.trial_day_id, offering.game_type), offering]));
+  const removeIds = [...currentKeys].filter(([key]) => !selectedKeys.has(key)).map(([, offering]) => offering.id);
+  const additions = [...selectedKeys].filter((key) => !currentKeys.has(key)).map((key) => {
+    const separator = key.indexOf('|');
+    return { trial_day_id: key.slice(0, separator), game_type: key.slice(separator + 1) as SddaGameType };
+  });
+  if (removeIds.length) {
+    const { error } = await client.from('sdda_game_offerings').delete().eq('trial_id', trialId).in('id', removeIds);
+    if (error) throw new Error(error.message);
+  }
+  if (additions.length) {
+    const { error } = await client.from('sdda_game_offerings').insert(additions.map((offering) => ({ ...offering, trial_id: trialId })));
+    if (error) throw new Error(error.message);
+  }
 }
 
 export async function saveSddaTrialOfferings(
