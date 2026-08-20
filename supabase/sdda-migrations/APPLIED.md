@@ -1,5 +1,16 @@
 # Applied SDDA migrations
 
+## `20260819_0018_trial_formats_and_games.sql`
+
+- Applied: 2026-08-20 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Database branch: `main` / Production
+- Execution result: success
+- Verification: `sdda_trials.trial_format`, all four `sdda_game_*` tables, and the five-argument `sdda_create_trial` function are visible through the dedicated project API
+- Security verification: anonymous table and function requests are denied; authenticated access remains governed by existing SDDA trial-access and trial-management helpers
+- Architecture: Games use dedicated offerings, team pairs, runs, and scores linked to the existing SDDA trial/day/entry records
+- Data impact: existing trials retain the default `scent` format; no existing trial, entry, dog, or scent-run rows were rewritten
+
 ## `20260813_0016_public_entry_run_group_requests.sql`
 
 - Applied: 2026-08-13 (America/Edmonton)
