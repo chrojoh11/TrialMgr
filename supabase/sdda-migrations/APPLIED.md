@@ -1,5 +1,16 @@
 # Applied SDDA migrations
 
+## `20260820_0029_trial_closeout.sql`
+
+- Applied: 2026-08-20 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Database branch: `main` / Production
+- Reported execution result: success, no rows returned
+- Capability: authorized secretaries can complete and reopen a trial after required closeout checks
+- Locking: completed trials reject operational changes to entries, offerings, running orders, scores, and finances until reopened
+- Validation: accepted non-FEO runs must be fully scored; received entries, missing trial numbers, missing judges, and incomplete score/time details block completion
+- Audit: completion and reopening are retained in `sdda_audit_records`
+
 ## `20260820_0028_audited_score_entry.sql`
 
 - Applied: 2026-08-20 (America/Edmonton)
