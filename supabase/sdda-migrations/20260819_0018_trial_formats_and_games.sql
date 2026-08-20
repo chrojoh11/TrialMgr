@@ -80,26 +80,26 @@ alter table public.sdda_game_runs enable row level security;
 alter table public.sdda_game_scores enable row level security;
 
 create policy sdda_game_offerings_read on public.sdda_game_offerings
-  for select to authenticated using (public.sdda_can_view_trial(trial_id));
+  for select to authenticated using (public.sdda_can_access_trial(trial_id));
 create policy sdda_game_offerings_write on public.sdda_game_offerings
   for all to authenticated using (public.sdda_can_manage_trial(trial_id))
   with check (public.sdda_can_manage_trial(trial_id));
 
 create policy sdda_game_team_pairs_read on public.sdda_game_team_pairs
-  for select to authenticated using (public.sdda_can_view_trial(trial_id));
+  for select to authenticated using (public.sdda_can_access_trial(trial_id));
 create policy sdda_game_team_pairs_write on public.sdda_game_team_pairs
   for all to authenticated using (public.sdda_can_manage_trial(trial_id))
   with check (public.sdda_can_manage_trial(trial_id));
 
 create policy sdda_game_runs_read on public.sdda_game_runs
-  for select to authenticated using (public.sdda_can_view_trial(trial_id));
+  for select to authenticated using (public.sdda_can_access_trial(trial_id));
 create policy sdda_game_runs_write on public.sdda_game_runs
   for all to authenticated using (public.sdda_can_manage_trial(trial_id))
   with check (public.sdda_can_manage_trial(trial_id));
 
 create policy sdda_game_scores_read on public.sdda_game_scores
   for select to authenticated using (
-    exists (select 1 from public.sdda_game_runs r where r.id=game_run_id and public.sdda_can_view_trial(r.trial_id))
+    exists (select 1 from public.sdda_game_runs r where r.id=game_run_id and public.sdda_can_access_trial(r.trial_id))
   );
 create policy sdda_game_scores_write on public.sdda_game_scores
   for all to authenticated using (
