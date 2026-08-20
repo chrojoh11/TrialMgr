@@ -74,18 +74,32 @@ export default function SddaFinancialsPage() {
 
   const automaticCharges = entryBalances.reduce((sum, entry) => sum + entry.automatic, 0);
   const sddaFees = trial ? sddaRemittanceCents(entries as any, trial.sdda_trial_days.length) : 0;
-  const judgeMinimum = useMemo(() => {
-    if (!trial) return 0;
-    return trial.sdda_trial_days.reduce((total, day) => {
-      let standard = 0; let games = 0;
-      for (const entry of entries as any[]) {
-        if (entry.confirmation_status !== 'accepted') continue;
-        standard += (entry.sdda_runs || []).filter((run: any) => run.trial_day_id === day.id).length;
-        games += (entry.sdda_game_runs || []).filter((run: any) => run.trial_day_id === day.id).length;
+  const judgeBreakdown = useMemo(() => {
+    if (!trial) return [];
+    const rows = new Map<string, { day: number; date: string; judge: string; standardRuns: number; gameRuns: number }>();
+    const dayMap = new Map(trial.sdda_trial_days.map((day) => [day.id, day]));
+    const gameMap = new Map(trial.sdda_game_offerings.map((offering) => [offering.id, offering]));
+    const add = (dayId: string, judgeName: string | null | undefined, kind: 'standardRuns' | 'gameRuns') => {
+      const day = dayMap.get(dayId); if (!day) return;
+      const judge = judgeName?.trim() || 'Unassigned judge';
+      const key = `${dayId}|${judge.toLowerCase()}`;
+      const row = rows.get(key) || { day: day.day_number, date: day.trial_date, judge, standardRuns: 0, gameRuns: 0 };
+      row[kind] += 1; rows.set(key, row);
+    };
+    for (const entry of entries as any[]) {
+      if (entry.confirmation_status !== 'accepted') continue;
+      for (const run of entry.sdda_runs || []) {
+        const offering = trial.sdda_trial_offerings.find((candidate) => candidate.trial_day_id === run.trial_day_id && candidate.level === run.level && candidate.component === run.component && candidate.stream === run.stream);
+        add(run.trial_day_id, offering?.judge_name || dayMap.get(run.trial_day_id)?.judge_name, 'standardRuns');
       }
-      return total + (standard || games ? minimumJudgeFeeCents(standard, games) : 0);
-    }, 0);
+      for (const run of entry.sdda_game_runs || []) {
+        const offering = gameMap.get(run.offering_id);
+        add(run.trial_day_id, offering?.judge_name || dayMap.get(run.trial_day_id)?.judge_name, 'gameRuns');
+      }
+    }
+    return [...rows.values()].sort((a, b) => a.day - b.day || a.judge.localeCompare(b.judge)).map((row) => ({ ...row, runRateCents: row.standardRuns * 300 + row.gameRuns * 200, minimumFeeCents: minimumJudgeFeeCents(row.standardRuns, row.gameRuns) }));
   }, [entries, trial]);
+  const judgeMinimum = judgeBreakdown.reduce((sum, row) => sum + row.minimumFeeCents, 0);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -116,6 +130,7 @@ export default function SddaFinancialsPage() {
         ['Estimated SDDA fees', sddaFees], ['Minimum judge compensation', judgeMinimum], ['Projected net', totals.payments - totals.refunds - totals.costs - sddaFees - judgeMinimum],
       ].map(([label, value]) => <Card key={String(label)}><CardHeader className="pb-2"><CardTitle className="text-sm text-gray-600">{label}</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{money(Number(value))}</CardContent></Card>)}</div>
       <Alert><AlertDescription>Automatic charges include accepted entries only. Estimated SDDA fees are $50 per trial day, $5 per Started/Advanced/Excellent component and Games run, and $10 per Elite dog. Judge compensation is the greater of $200 per active judge day or $3 per Standard run plus $2 per Games run. Enter mileage, hotel, meals, and other actual costs separately.</AlertDescription></Alert>
+      <Card><CardHeader><CardTitle>Judge compensation breakdown</CardTitle></CardHeader><CardContent className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="p-2">Trial day</th><th className="p-2">Judge</th><th className="p-2 text-right">Standard runs</th><th className="p-2 text-right">Games runs</th><th className="p-2 text-right">Run rate</th><th className="p-2 text-right">Minimum payment</th></tr></thead><tbody>{judgeBreakdown.map((row) => <tr key={`${row.day}-${row.judge}`} className="border-b"><td className="p-2">Day {row.day} · {row.date}</td><td className={`p-2 font-medium ${row.judge === 'Unassigned judge' ? 'text-orange-800' : ''}`}>{row.judge}</td><td className="p-2 text-right">{row.standardRuns}</td><td className="p-2 text-right">{row.gameRuns}</td><td className="p-2 text-right">{money(row.runRateCents)}</td><td className="p-2 text-right font-bold">{money(row.minimumFeeCents)}</td></tr>)}{judgeBreakdown.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-gray-500">No accepted runs are assigned to a judge yet.</td></tr>}</tbody><tfoot><tr className="border-t-2"><td colSpan={5} className="p-2 text-right font-bold">Calculated judge minimum</td><td className="p-2 text-right text-lg font-bold">{money(judgeMinimum)}</td></tr></tfoot></table><p className="mt-3 text-xs text-gray-600">Travel at $0.65/km, lodging, meals, and other judge expenses are additional and should be entered in the ledger as Judge expense transactions.</p></CardContent></Card>
       <Card><CardHeader><CardTitle>Entry balances</CardTitle></CardHeader><CardContent className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="p-2">Handler / dog</th><th className="p-2">Status</th><th className="p-2 text-right">Fees owed</th><th className="p-2 text-right">Collected</th><th className="p-2 text-right">Balance</th></tr></thead><tbody>{entryBalances.map((entry) => <tr key={entry.id} className="border-b"><td className="p-2 font-medium">{entry.handler} · {entry.dog}</td><td className="p-2 capitalize">{entry.status}</td><td className="p-2 text-right">{money(entry.automatic)}</td><td className="p-2 text-right">{money(entry.paid)}</td><td className={`p-2 text-right font-bold ${entry.owing > 0 ? 'text-orange-800' : 'text-emerald-800'}`}>{money(entry.owing)}</td></tr>)}</tbody></table></CardContent></Card>
       <Card><CardHeader><CardTitle>Record transaction</CardTitle></CardHeader><CardContent><form onSubmit={submit} className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <div><Label>Type</Label><select className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3" value={type} onChange={(e) => setType(e.target.value as SddaFinancialType)}>{SDDA_FINANCIAL_TYPES.map((value) => <option key={value} value={value}>{labels[value]}</option>)}</select></div>
