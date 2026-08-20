@@ -369,6 +369,7 @@ export default function Page() {
       dogName: form.dog_call_name,
       runCount: totalRuns,
       selections,
+      privateEditUrl: `${window.location.origin}/sdda-entry/${trialId}?code=${encodeURIComponent(receipt.confirmation_code)}&token=${encodeURIComponent(receipt.receipt_token)}`,
     });
     const blob = new Blob([Uint8Array.from(bytes).buffer], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
@@ -392,6 +393,7 @@ export default function Page() {
               The secretary must confirm your entry and payment instructions. Keep this receipt.
             </p>
           </div>
+          {canEdit && <div className="my-5 rounded-xl border-2 border-[#b98935] bg-white p-4"><b>Save your private edit link</b><p className="mt-1 text-sm">This is the only self-service way to return and change the entry. The confirmation number or SDDA number alone cannot unlock it.</p><p className="mt-3 break-all rounded bg-[#f7f8f4] p-3 font-mono text-xs">{typeof window !== 'undefined' ? window.location.href : ''}</p><p className="mt-2 text-sm font-semibold text-[#7a5718]">Keep it confidential. Anyone with this link can edit the entry until it is accepted or entries close.</p></div>}
           <p>
             {form.handler_name} with {form.dog_call_name} · {chosen.size + gameChosen.size} runs
             requested
@@ -445,12 +447,6 @@ export default function Page() {
               </>
             )}
           </div>
-          {canEdit && (
-            <p className="mt-3 text-sm text-[#68736c] print:hidden">
-              Keep the private link confidential. Anyone with it can update this entry until it is
-              accepted or entries close.
-            </p>
-          )}
         </section>
       </Shell>
     );
