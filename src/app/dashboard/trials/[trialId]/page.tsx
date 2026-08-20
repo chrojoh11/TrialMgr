@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Calendar, Check, FileSpreadsheet, FileText, ListOrdered, Loader2, MapPin, Save, Users } from 'lucide-react';
+import { Calendar, Check, ExternalLink, FileSpreadsheet, FileText, ListOrdered, Loader2, LockKeyhole, MapPin, Save, Users } from 'lucide-react';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { SDDA_COMPONENTS, SDDA_LEVELS, SDDA_STREAMS, offeringKey } from '@/lib/sdda/offerings';
 import { formatSddaTrialStatus } from '@/lib/sdda/trialSetup';
-import { gameOfferingKey, getSddaTrialWorkspace, saveSddaGameOfferings, saveSddaTrialOfferings, SDDA_GAME_TYPES, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
+import { gameOfferingKey, getSddaTrialWorkspace, saveSddaGameOfferings, saveSddaTrialOfferings, SDDA_GAME_TYPES, setSddaTrialEntryStatus, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
 
 export default function SddaTrialWorkspacePage() {
   const trialId = useParams<{ trialId: string }>().trialId;
@@ -26,6 +26,7 @@ export default function SddaTrialWorkspacePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [changingEntryStatus, setChangingEntryStatus] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -128,6 +129,17 @@ export default function SddaTrialWorkspacePage() {
     } finally { setSaving(false); }
   };
 
+  const changeEntryStatus = async (status: 'entries_open' | 'entries_closed') => {
+    if (!trial) return;
+    try {
+      setChangingEntryStatus(true); setError(null); setSaved(false);
+      await setSddaTrialEntryStatus(getSupabaseBrowser(), trial.id, status);
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to change entry status.');
+    } finally { setChangingEntryStatus(false); }
+  };
+
   if (loading) return <MainLayout title="SDDA Trial"><div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin" /></div></MainLayout>;
   if (!trial) return <MainLayout title="SDDA Trial"><Alert variant="destructive"><AlertDescription>{error || 'Trial not found.'}</AlertDescription></Alert></MainLayout>;
 
@@ -143,6 +155,7 @@ export default function SddaTrialWorkspacePage() {
         <Card><CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle>Trial offering setup</CardTitle><CardDescription>{hasScent && hasGames ? 'Select the scent classes and Games offered on each trial day.' : hasGames ? 'Select every SDDA Game offered on each trial day.' : 'Select every level, component, and stream offered on each trial day.'}</CardDescription></div><div className="flex flex-wrap gap-2">{hasScent && <><Button type="button" variant="outline" onClick={selectAllOfferings} disabled={selected.size === allOfferingKeys.size}>Select all scent</Button><Button type="button" variant="outline" onClick={clearAllOfferings} disabled={selected.size === 0}>Clear scent</Button></>}{hasGames && <><Button type="button" variant="outline" onClick={() => setGamesSelected(new Set(allGameKeys))} disabled={gamesSelected.size === allGameKeys.size}>Select all Games</Button><Button type="button" variant="outline" onClick={() => setGamesSelected(new Set())} disabled={gamesSelected.size === 0}>Clear Games</Button></>}</div></CardHeader></Card>
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/entries`)}><Users className="mr-2 h-4 w-4" />Entries & CSV import</Button>
+          {trial.status === 'entries_open' ? <><Button onClick={() => window.open(`/sdda-entry/${trial.id}`, '_blank')}><ExternalLink className="mr-2 h-4 w-4" />Competitor entry form</Button><Button variant="outline" disabled={changingEntryStatus} onClick={() => void changeEntryStatus('entries_closed')}><LockKeyhole className="mr-2 h-4 w-4" />Close entries</Button></> : <Button disabled={changingEntryStatus} onClick={() => void changeEntryStatus('entries_open')}><ExternalLink className="mr-2 h-4 w-4" />Open entries & enable form</Button>}
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/running-order`)}><ListOrdered className="mr-2 h-4 w-4" />Running orders</Button>
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/score-sheets`)}><FileText className="mr-2 h-4 w-4" />Print score sheets</Button>
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/workbook`)}><FileSpreadsheet className="mr-2 h-4 w-4" />Official workbook</Button>
@@ -169,8 +182,8 @@ export default function SddaTrialWorkspacePage() {
                   {active && <div className="mt-3 grid gap-3 border-t border-orange-200 pt-3 sm:grid-cols-2">
                     <div className="sm:col-span-2"><Label htmlFor={`${key}-judge`}>Judge</Label><Input id={`${key}-judge`} className="bg-white" value={config.judge_name || ''} onChange={(event) => updateGameConfiguration(key, 'judge_name', event.target.value)} /></div>
                     <div><Label htmlFor={`${key}-capacity`}>Capacity</Label><Input id={`${key}-capacity`} className="bg-white" type="number" min="1" value={config.capacity || ''} onChange={(event) => updateGameConfiguration(key, 'capacity', event.target.value)} /></div>
-                    <div><Label htmlFor={`${key}-fee`}>Regular fee ($)</Label><Input id={`${key}-fee`} className="bg-white" type="number" min="0" step="0.01" value={(config.entry_fee_cents / 100).toFixed(2)} onChange={(event) => updateGameConfiguration(key, 'entry_fee_cents', event.target.value)} /></div>
-                    <div><Label htmlFor={`${key}-feo-fee`}>FEO fee ($)</Label><Input id={`${key}-feo-fee`} className="bg-white" type="number" min="0" step="0.01" value={(config.feo_fee_cents / 100).toFixed(2)} onChange={(event) => updateGameConfiguration(key, 'feo_fee_cents', event.target.value)} /></div>
+                    <div><Label htmlFor={`${key}-fee`}>Regular fee ($)</Label><Input id={`${key}-fee`} className="bg-white" type="number" min="0" step="0.01" placeholder="0.00" value={config.entry_fee_cents ? config.entry_fee_cents / 100 : ''} onChange={(event) => updateGameConfiguration(key, 'entry_fee_cents', event.target.value)} /></div>
+                    <div><Label htmlFor={`${key}-feo-fee`}>FEO fee ($)</Label><Input id={`${key}-feo-fee`} className="bg-white" type="number" min="0" step="0.01" placeholder="0.00" value={config.feo_fee_cents ? config.feo_fee_cents / 100 : ''} onChange={(event) => updateGameConfiguration(key, 'feo_fee_cents', event.target.value)} /></div>
                   </div>}
                 </div>;
               })}</div><p className="text-sm text-gray-600">Judges, capacities, Regular/FEO fees, Team pairs, and run order are configured after the Games are selected.</p></div>}

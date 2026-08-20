@@ -104,6 +104,29 @@ export async function deleteSddaDraftTrial(client: SupabaseClient, trialId: stri
   if (error) throw new Error(error.message);
 }
 
+export async function setSddaTrialEntryStatus(
+  client: SupabaseClient,
+  trialId: string,
+  status: 'entries_open' | 'entries_closed'
+) {
+  const { data: before, error: readError } = await client.from('sdda_trials').select('status').eq('id', trialId).single();
+  if (readError) throw new Error(readError.message);
+  const { error } = await client.from('sdda_trials').update({ status }).eq('id', trialId);
+  if (error) throw new Error(error.message);
+  const { data: authData, error: authError } = await client.auth.getUser();
+  if (authError || !authData.user) throw new Error(authError?.message || 'Signed-in user required.');
+  const { error: auditError } = await client.from('sdda_audit_records').insert({
+    trial_id: trialId,
+    actor_id: authData.user.id,
+    action: status === 'entries_open' ? 'trial.entries_opened' : 'trial.entries_closed',
+    entity_type: 'sdda_trial',
+    entity_id: trialId,
+    before_state: { status: before.status },
+    after_state: { status },
+  });
+  if (auditError) throw new Error(`Entry status changed, but audit recording failed: ${auditError.message}`);
+}
+
 export async function getSddaTrialWorkspace(client: SupabaseClient, trialId: string) {
   const { data, error } = await client
     .from('sdda_trials')
