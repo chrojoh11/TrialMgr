@@ -151,7 +151,7 @@ export async function buildSddaGamesJudgePacket(
         end: { x: x + 7.5, y: y - 6.5 },
         thickness: 1.2,
       });
-      draw('FEO', [x + 13, top, 40], 10);
+      draw('FEO', [x + 13, top + 5, 40], 10);
     }
     draw(
       `Day ${run.dayNumber} - ${run.gameType} - Run ${run.order}/${totals.get(`${run.dayNumber}|${run.gameType}`)}`,
