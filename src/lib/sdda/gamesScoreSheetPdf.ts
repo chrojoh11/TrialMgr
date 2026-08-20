@@ -37,7 +37,7 @@ export type SddaGameScoreSheetRun = {
 
 export const SDDA_GAME_SCORE_SHEET_FIELDS: Record<SddaGameType, GameFields> = {
   Aerial: {
-    trial: [350, 122, 60],
+    trial: [338, 122, 60],
     date: [474, 122, 100],
     dog: [102, 180, 165],
     breed: [316, 180, 126],
@@ -48,7 +48,7 @@ export const SDDA_GAME_SCORE_SHEET_FIELDS: Record<SddaGameType, GameFields> = {
     footer: [36, 768, 310],
   },
   Distance: {
-    trial: [350, 122, 60],
+    trial: [338, 122, 60],
     date: [474, 122, 100],
     dog: [102, 180, 165],
     breed: [316, 180, 126],
@@ -57,7 +57,7 @@ export const SDDA_GAME_SCORE_SHEET_FIELDS: Record<SddaGameType, GameFields> = {
     footer: [36, 768, 310],
   },
   Speed: {
-    trial: [350, 122, 60],
+    trial: [338, 122, 60],
     date: [474, 122, 100],
     dog: [102, 180, 165],
     breed: [316, 180, 126],
@@ -66,7 +66,7 @@ export const SDDA_GAME_SCORE_SHEET_FIELDS: Record<SddaGameType, GameFields> = {
     footer: [36, 768, 310],
   },
   Team: {
-    trial: [350, 122, 60],
+    trial: [338, 122, 60],
     date: [474, 122, 100],
     dog: [102, 180, 165],
     breed: [316, 180, 126],
