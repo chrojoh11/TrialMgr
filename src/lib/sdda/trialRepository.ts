@@ -57,12 +57,26 @@ export async function listSddaTrials(client: SupabaseClient): Promise<SddaTrialS
 
 export async function createSddaTrial(client: SupabaseClient, input: SddaTrialSetupInput) {
   const setup = validateSddaTrialSetup(input);
-  const { data, error } = await client.rpc('sdda_create_trial', {
+  const request = {
     trial_name: setup.name,
     trial_host_club: setup.hostClub,
     trial_venue: setup.venue || '',
     trial_dates: setup.dates,
+  };
+  const { data, error } = await client.rpc('sdda_create_trial', {
+    ...request,
+    requested_trial_format: setup.trialFormat,
   });
+  if (error && setup.trialFormat === 'scent' && /function|schema cache|requested_trial_format/i.test(error.message)) {
+    const legacy = await client.rpc('sdda_create_trial', request);
+    if (legacy.error || !legacy.data) {
+      throw new Error(legacy.error?.message || 'Unable to create the SDDA trial.');
+    }
+    return legacy.data as string;
+  }
+  if (error && setup.trialFormat !== 'scent' && /function|schema cache|requested_trial_format/i.test(error.message)) {
+    throw new Error('Games support is ready in the application, but SDDA database migration 0018 must be applied before creating a Games or Combined trial.');
+  }
   if (error || !data) throw new Error(error?.message || 'Unable to create the SDDA trial.');
   return data as string;
 }
