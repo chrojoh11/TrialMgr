@@ -576,3 +576,14 @@ test('makes FEO availability an organizer-controlled offering setting', () => {
   assert.match(sql, /'feo_allowed',o\.feo_allowed/i);
   assert.match(sql, /'feo_allowed',g\.feo_allowed/i);
 });
+
+test('grants database-appointed administrators audited access to every trial', () => {
+  const sql = readFileSync(new URL('../supabase/sdda-migrations/20260823_0031_database_administrators.sql', import.meta.url), 'utf8');
+  assert.match(sql, /add column if not exists is_administrator boolean not null default false/i);
+  assert.match(sql, /function public\.sdda_is_administrator\(\)/i);
+  assert.match(sql, /Administrators must be appointed directly in the database/i);
+  assert.match(sql, /public\.sdda_is_administrator\(\) or exists/i);
+  assert.match(sql, /sdda_profiles_administrator_read/i);
+  assert.match(sql, /Only the owner or an administrator can delete a draft SDDA trial/i);
+  assert.doesNotMatch(sql, /grant\s+(?:all|update)\s+on\s+public\.sdda_profiles\s+to\s+authenticated/i);
+});
