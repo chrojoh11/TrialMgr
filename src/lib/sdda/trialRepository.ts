@@ -34,6 +34,7 @@ export interface SddaTrialOffering {
   stream: SddaStream;
   judge_name: string | null;
   capacity: number | null;
+  feo_allowed: boolean;
 }
 
 export const SDDA_GAME_TYPES = ['Aerial', 'Distance', 'Speed', 'Team'] as const;
@@ -47,6 +48,7 @@ export interface SddaGameOffering {
   capacity: number | null;
   entry_fee_cents: number;
   feo_fee_cents: number;
+  feo_allowed: boolean;
 }
 
 export interface SddaTrialWorkspace extends SddaTrialSummary {
@@ -157,7 +159,7 @@ export async function getSddaTrialWorkspace(client: SupabaseClient, trialId: str
   const { data, error } = await client
     .from('sdda_trials')
     .select(
-      'id,name,host_club,venue,timezone,status,created_at,trial_format,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,judge_name,capacity),sdda_game_offerings(id,trial_day_id,game_type,judge_name,capacity,entry_fee_cents,feo_fee_cents)'
+      'id,name,host_club,venue,timezone,status,created_at,trial_format,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,judge_name,capacity,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,judge_name,capacity,entry_fee_cents,feo_fee_cents,feo_allowed)'
     )
     .eq('id', trialId)
     .single();
@@ -219,7 +221,7 @@ export async function saveSddaGameOfferings(
   selectedKeys: Set<string>,
   configuration: Record<
     string,
-    Pick<SddaGameOffering, 'judge_name' | 'capacity' | 'entry_fee_cents' | 'feo_fee_cents'>
+    Pick<SddaGameOffering, 'judge_name' | 'capacity' | 'entry_fee_cents' | 'feo_fee_cents' | 'feo_allowed'>
   >
 ) {
   const currentKeys = new Map(
@@ -241,6 +243,7 @@ export async function saveSddaGameOfferings(
       capacity: configuration[key]?.capacity || null,
       entry_fee_cents: configuration[key]?.entry_fee_cents || 0,
       feo_fee_cents: configuration[key]?.feo_fee_cents || 0,
+      feo_allowed: configuration[key]?.feo_allowed || false,
       updated_at: new Date().toISOString(),
     };
   });
@@ -265,7 +268,7 @@ export async function saveSddaTrialOfferings(
   trialId: string,
   current: SddaTrialOffering[],
   selectedKeys: Set<string>,
-  configuration?: Record<string, { judge_name: string | null }>,
+  configuration?: Record<string, { judge_name: string | null; feo_allowed: boolean }>,
 ) {
   const currentKeys = new Map(
     current.map((offering) => [
@@ -299,7 +302,10 @@ export async function saveSddaTrialOfferings(
         level: item.level,
         component: item.component,
         stream: item.stream,
-        ...(configuration ? { judge_name: configuration[`${item.trialDayId}|${item.level}|${item.component}`]?.judge_name || null } : {}),
+        ...(configuration ? {
+          judge_name: configuration[`${item.trialDayId}|${item.level}|${item.component}`]?.judge_name || null,
+          feo_allowed: configuration[`${item.trialDayId}|${item.level}|${item.component}`]?.feo_allowed || false,
+        } : {}),
       }));
     const request = configuration
       ? client.from('sdda_trial_offerings').upsert(values, { onConflict: 'trial_day_id,level,component,stream' })

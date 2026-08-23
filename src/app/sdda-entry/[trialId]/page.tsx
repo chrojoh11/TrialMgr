@@ -4,7 +4,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { createEntryReceiptPdf } from '@/lib/sdda/entryReceiptPdf';
 type Day = { id: string; day_number: number; trial_date: string };
-type Offer = { id: string; trial_day_id: string; level: string; component: string; stream: string };
+type Offer = { id: string; trial_day_id: string; level: string; component: string; stream: string; feo_allowed: boolean };
 type Choice = {
   key: string;
   trial_day_id: string;
@@ -18,6 +18,7 @@ type GameOffer = {
   game_type: 'Aerial' | 'Distance' | 'Speed' | 'Team';
   entry_fee_cents: number;
   feo_fee_cents: number;
+  feo_allowed: boolean;
 };
 type Setup = {
   name: string;
@@ -53,7 +54,6 @@ type EditData = typeof empty & {
 const box = 'rounded-2xl border border-[#d9d8cf] bg-[#fffdf7] p-5 shadow-sm';
 const field = 'w-full rounded-lg border border-[#bfc8c1] bg-white px-3 py-2';
 const levelOrder = ['Started', 'Advanced', 'Excellent', 'Elite'];
-const runGroups = ['Regular', 'Official', 'Second dog', 'FEO', 'BIS'] as const;
 const empty = {
   handler_name: '',
   handler_email: '',
@@ -67,10 +67,6 @@ const empty = {
   breed: '',
   formal_alerts: '',
   title_watch_note: '',
-  reported_advanced_gold_count: 0,
-  reported_excellent_gold_count: 0,
-  reported_elite_gold_count: 0,
-  reported_gold_acknowledged: false,
   reactivity: 'None',
   waiver_accepted: false,
 };
@@ -106,7 +102,7 @@ export default function Page() {
         client
           .from('sdda_trials')
           .select(
-            'name,host_club,venue,trial_format,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,sdda_trial_days(id,day_number,trial_date),sdda_trial_offerings(id,trial_day_id,level,component,stream),sdda_game_offerings(id,trial_day_id,game_type,entry_fee_cents,feo_fee_cents)'
+            'name,host_club,venue,trial_format,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,sdda_trial_days(id,day_number,trial_date),sdda_trial_offerings(id,trial_day_id,level,component,stream,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,entry_fee_cents,feo_fee_cents,feo_allowed)'
           )
           .eq('id', trialId)
           .single(),
@@ -129,17 +125,18 @@ export default function Page() {
       return;
     }
     if (entryCode && receiptToken) {
-      void client
-        .rpc('sdda_public_entry_for_edit', {
+      void Promise.all([
+        client.rpc('sdda_public_entry_for_edit', {
           entry_code: entryCode,
           receipt_token: receiptToken,
-        })
-        .then(({ data, error }) => {
-          if (error) return setError(error.message);
-          const editData = data as EditData;
-          if (!editData.setup) return setError('Entry setup could not be loaded.');
-          setSetup(editData.setup);
-          hydrateEdit(editData, false, editData.setup);
+        }),
+        client.rpc('sdda_public_trial_entry_setup', { target_trial_id: trialId }),
+      ]).then(([editResult, setupResult]) => {
+          if (editResult.error || setupResult.error) return setError(editResult.error?.message || setupResult.error?.message || 'Entry setup could not be loaded.');
+          const editData = editResult.data as EditData;
+          const activeSetup = setupResult.data as Setup;
+          setSetup(activeSetup);
+          hydrateEdit(editData, false, activeSetup);
         });
       return;
     }
@@ -278,14 +275,6 @@ export default function Page() {
       return setError('Choose High or Highfly for every Aerial entry.');
     if (step === 3 && !form.waiver_accepted)
       return setError('Accept the acknowledgement before reviewing.');
-    if (
-      step === 3 &&
-      (form.reported_advanced_gold_count > 0 ||
-        form.reported_excellent_gold_count > 0 ||
-        form.reported_elite_gold_count > 0) &&
-      !form.reported_gold_acknowledged
-    )
-      return setError('Acknowledge that the Gold counts are copied from the competitor’s SDDA records.');
     setStep((s) => s + 1);
     scrollTo(0, 0);
   }
@@ -339,16 +328,6 @@ export default function Page() {
     if (error) return setError(error.message);
     const r = data as { confirmation_code: string; receipt_token?: string };
     const token = r.receipt_token || receipt?.receipt_token || receiptToken;
-    const { error: goldError } = await client.rpc('sdda_set_reported_gold_snapshot', {
-      target_entry_id: secretaryEntryId || null,
-      entry_code: secretaryEntryId ? null : r.confirmation_code,
-      receipt_token: secretaryEntryId ? null : token,
-      advanced_count: form.reported_advanced_gold_count,
-      excellent_count: form.reported_excellent_gold_count,
-      elite_count: form.reported_elite_gold_count,
-      acknowledged: form.reported_gold_acknowledged,
-    });
-    if (goldError) return setError(`The entry was saved, but its reported Gold snapshot was not: ${goldError.message}`);
     if (secretaryEntryId) {
       window.location.href = `/dashboard/trials/${trialId}/entries`;
       return;
@@ -372,7 +351,7 @@ export default function Page() {
       .filter((c) => chosen.has(c.key))
       .map(
         (c) =>
-          `Day ${setup.days.find((d) => d.id === c.trial_day_id)?.day_number || '?'} - ${c.level} - ${c.component}${c.level === 'Elite' ? '' : ` - ${runStream[c.key] || 'Amateur'}`} - ${runGroup[c.key] || 'Regular'}`
+          `Day ${setup.days.find((d) => d.id === c.trial_day_id)?.day_number || '?'} - ${c.level} - ${c.component}${c.level === 'Elite' ? '' : ` - ${runStream[c.key] || 'Amateur'}`}${runGroup[c.key] === 'FEO' ? ' - FEO' : ''}`
       );
     selections.push(
       ...setup.game_offerings
@@ -554,13 +533,6 @@ export default function Page() {
                       onChange={(e) => set('dog_call_name', e.target.value)}
                     />
                   </F>
-                  <F label="Registered name">
-                    <input
-                      className={field}
-                      value={form.dog_registered_name}
-                      onChange={(e) => set('dog_registered_name', e.target.value)}
-                    />
-                  </F>
                   <F label="SDDA registration number *">
                     <input
                       disabled={form.registration_pending}
@@ -660,30 +632,7 @@ export default function Page() {
                                             </select>
                                           </label>
                                         )}
-                                        <label className="block rounded-lg border border-[#9eb7aa] bg-[#f1f7f3] p-2">
-                                          <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-[#225f45]">
-                                            Running-order placement
-                                          </span>
-                                          <select
-                                            aria-label={`${c.component} running-order request`}
-                                            className={field}
-                                            value={runGroup[c.key] || 'Regular'}
-                                            onChange={(e) =>
-                                              setRunGroup((g) => ({
-                                                ...g,
-                                                [c.key]: e.target.value,
-                                              }))
-                                            }
-                                          >
-                                            {runGroups.map((group) => (
-                                              <option key={group} value={group}>
-                                                {group === 'Regular'
-                                                  ? 'Regular running order'
-                                                  : group}
-                                              </option>
-                                            ))}
-                                          </select>
-                                        </label>
+                                        {c.offerings.some((o) => o.feo_allowed) && <label className="flex items-center gap-2 rounded-lg border border-[#9eb7aa] bg-[#f1f7f3] p-3 font-semibold"><input type="checkbox" checked={runGroup[c.key] === 'FEO'} onChange={(e) => setRunGroup((current) => ({ ...current, [c.key]: e.target.checked ? 'FEO' : 'Regular' }))} />Enter this component For Exhibition Only (FEO)</label>}
                                       </div>
                                     )}
                                   </div>
@@ -697,7 +646,7 @@ export default function Page() {
                     <div className="mt-6">
                       <h4 className="font-bold text-[#225f45]">SDDA Games</h4>
                       <p className="mb-3 text-sm">
-                        Choose Regular or For Exhibition Only (FEO) separately for every Game.
+                        Select each Game requested. FEO is shown only when the trial secretary permits it.
                       </p>
                       <div className="grid gap-3 sm:grid-cols-2">
                         {setup.game_offerings
@@ -720,28 +669,7 @@ export default function Page() {
                               </label>
                               {gameChosen.has(g.id) && (
                                 <div className="mt-3 space-y-3">
-                                  <label className="block">
-                                    <span className="mb-1 block text-xs font-bold uppercase">
-                                      Entry type
-                                    </span>
-                                    <select
-                                      className={field}
-                                      value={gameEntryType[g.id] || 'Regular'}
-                                      onChange={(e) =>
-                                        setGameEntryType((current) => ({
-                                          ...current,
-                                          [g.id]: e.target.value as 'Regular' | 'FEO',
-                                        }))
-                                      }
-                                    >
-                                      <option value="Regular">
-                                        Regular · ${(g.entry_fee_cents / 100).toFixed(2)}
-                                      </option>
-                                      <option value="FEO">
-                                        FEO · ${(g.feo_fee_cents / 100).toFixed(2)}
-                                      </option>
-                                    </select>
-                                  </label>
+                                  {g.feo_allowed && <label className="flex items-center gap-2 rounded-lg border border-[#9eb7aa] bg-[#f1f7f3] p-3 font-semibold"><input type="checkbox" checked={gameEntryType[g.id] === 'FEO'} onChange={(e) => setGameEntryType((current) => ({ ...current, [g.id]: e.target.checked ? 'FEO' : 'Regular' }))} />Enter this Game For Exhibition Only (FEO) · ${(g.feo_fee_cents / 100).toFixed(2)}</label>}
                                   {g.game_type === 'Aerial' && (
                                     <label className="block rounded-lg border border-[#b98935] bg-[#fff9e9] p-2">
                                       <span className="mb-1 block text-xs font-bold uppercase">
@@ -813,18 +741,6 @@ export default function Page() {
                       onChange={(e) => set('title_watch_note', e.target.value)}
                     />
                   </F>
-                  <div className="md:col-span-2 rounded-xl border border-[#d4b778] bg-[#fffaf0] p-4">
-                    <p className="font-bold">Competitor-reported Gold scores</p>
-                    <p className="mt-1 text-sm text-gray-600">Optional. Copy the current counts from the dog’s SDDA account. These are advisory and are not verified by TrialDesk or SDDA.</p>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                      {[
-                        ['Advanced', 'reported_advanced_gold_count'],
-                        ['Excellent', 'reported_excellent_gold_count'],
-                        ['Elite', 'reported_elite_gold_count'],
-                      ].map(([label, key]) => <label key={key}><span className="mb-1 block text-sm font-semibold">{label} Gold count</span><input className={field} type="number" min="0" step="1" inputMode="numeric" value={(form as any)[key]} onChange={(e) => set(key, Math.max(0, Math.trunc(Number(e.target.value) || 0)))} /></label>)}
-                    </div>
-                    <label className="mt-4 flex items-start gap-3 text-sm"><input className="mt-1" type="checkbox" checked={form.reported_gold_acknowledged} onChange={(e) => set('reported_gold_acknowledged', e.target.checked)} /><span>I confirm these counts were copied from the competitor’s SDDA account records. They remain competitor-reported until SDDA confirms them.</span></label>
-                  </div>
                   <F label="Is your dog reactive?">
                     <select
                       className={field}
@@ -879,7 +795,6 @@ export default function Page() {
                 {form.dog_registration_number || 'registration pending'}
                 <br />
                 {chosen.size + gameChosen.size} runs
-                {(form.reported_advanced_gold_count > 0 || form.reported_excellent_gold_count > 0 || form.reported_elite_gold_count > 0) && <><br /><span className="text-amber-800"><b>Competitor-reported Gold:</b> Advanced {form.reported_advanced_gold_count} · Excellent {form.reported_excellent_gold_count} · Elite {form.reported_elite_gold_count} (unverified)</span></>}
                 {(chosen.size > 0 || gameChosen.size > 0) && <><br /><span className="text-[#225f45]"><b>Amount owing when accepted:</b> {money(configuredEntryFeesCents)}</span></>}
               </div>
               <div className="mt-4 space-y-2">
@@ -889,8 +804,8 @@ export default function Page() {
                     <div className="rounded-lg border bg-white p-3" key={c.key}>
                       Day {setup.days.find((d) => d.id === c.trial_day_id)?.day_number} · {c.level}{' '}
                       · {c.component}
-                      {c.level === 'Elite' ? '' : ` · ${runStream[c.key] || 'Amateur'}`} ·{' '}
-                      <b>{runGroup[c.key] || 'Regular'}</b>
+                      {c.level === 'Elite' ? '' : ` · ${runStream[c.key] || 'Amateur'}`}
+                      {runGroup[c.key] === 'FEO' && <> · <b>FEO</b></>}
                     </div>
                   ))}
                 {setup.game_offerings

@@ -565,3 +565,14 @@ test('closes and reopens trials through an audited database-enforced lock', () =
   assert.match(trialCloseoutMigration, /from public, anon/);
   assert.doesNotMatch(trialCloseoutMigration, /service_role|cwags|c-wags/);
 });
+
+test('makes FEO availability an organizer-controlled offering setting', () => {
+  const sql = readFileSync(new URL('../supabase/sdda-migrations/20260823_0030_offering_controlled_feo.sql', import.meta.url), 'utf8');
+  assert.match(sql, /sdda_trial_offerings add column if not exists feo_allowed/i);
+  assert.match(sql, /sdda_game_offerings add column if not exists feo_allowed/i);
+  assert.match(sql, /sdda_validate_feo_selection/i);
+  assert.match(sql, /FEO is not offered for this Scent component/i);
+  assert.match(sql, /FEO is not offered for this Game/i);
+  assert.match(sql, /'feo_allowed',o\.feo_allowed/i);
+  assert.match(sql, /'feo_allowed',g\.feo_allowed/i);
+});
