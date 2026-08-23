@@ -1,11 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 
 export default function LoginPage() {
-  const router = useRouter();
   const supabase = getSupabaseBrowser();
 
   const [email, setEmail] = useState('');
@@ -28,7 +26,10 @@ export default function LoginPage() {
     }
 
     if (data?.user) {
-      router.push('/dashboard');
+      // Start a fresh request after Supabase has persisted the new session.
+      // A client-side transition can mount protected pages before the cookie
+      // is visible to middleware, producing a one-time authorization failure.
+      window.location.assign('/dashboard');
     }
   };
 
