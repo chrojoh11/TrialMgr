@@ -4,29 +4,38 @@ alter table public.sdda_trial_offerings add column if not exists feo_allowed boo
 alter table public.sdda_game_offerings add column if not exists feo_allowed boolean not null default false;
 
 update public.sdda_trial_offerings o set feo_allowed=true
-where exists(select 1 from public.sdda_runs r where r.offering_id=o.id and r.run_group='FEO');
+where exists(select 1 from public.sdda_runs r
+  where r.trial_id=o.trial_id and r.trial_day_id=o.trial_day_id
+    and r.level=o.level and r.component=o.component and r.stream=o.stream and r.run_group='FEO');
 update public.sdda_game_offerings o set feo_allowed=true
 where exists(select 1 from public.sdda_game_runs r where r.offering_id=o.id and r.entry_type='FEO');
 
-create or replace function public.sdda_validate_feo_selection() returns trigger
-language plpgsql set search_path=public as $validate_feo$
+create or replace function public.sdda_validate_scent_feo_selection() returns trigger
+language plpgsql set search_path=public as $validate_scent_feo$
 begin
-  if tg_table_name='sdda_runs' and new.run_group='FEO'
-    and not exists(select 1 from public.sdda_trial_offerings o where o.id=new.offering_id and o.feo_allowed)
+  if new.run_group='FEO' and not exists(select 1 from public.sdda_trial_offerings o
+    where o.trial_id=new.trial_id and o.trial_day_id=new.trial_day_id
+      and o.level=new.level and o.component=new.component and o.stream=new.stream and o.feo_allowed)
   then raise exception 'FEO is not offered for this Scent component'; end if;
-  if tg_table_name='sdda_game_runs' and new.entry_type='FEO'
-    and not exists(select 1 from public.sdda_game_offerings o where o.id=new.offering_id and o.feo_allowed)
+  return new;
+end;
+$validate_scent_feo$;
+
+create or replace function public.sdda_validate_game_feo_selection() returns trigger
+language plpgsql set search_path=public as $validate_game_feo$
+begin
+  if new.entry_type='FEO' and not exists(select 1 from public.sdda_game_offerings o where o.id=new.offering_id and o.feo_allowed)
   then raise exception 'FEO is not offered for this Game'; end if;
   return new;
 end;
-$validate_feo$;
+$validate_game_feo$;
 
 drop trigger if exists sdda_runs_validate_feo on public.sdda_runs;
-create trigger sdda_runs_validate_feo before insert or update of offering_id,run_group on public.sdda_runs
-for each row execute function public.sdda_validate_feo_selection();
+create trigger sdda_runs_validate_feo before insert or update of trial_day_id,level,component,stream,run_group on public.sdda_runs
+for each row execute function public.sdda_validate_scent_feo_selection();
 drop trigger if exists sdda_game_runs_validate_feo on public.sdda_game_runs;
 create trigger sdda_game_runs_validate_feo before insert or update of offering_id,entry_type on public.sdda_game_runs
-for each row execute function public.sdda_validate_feo_selection();
+for each row execute function public.sdda_validate_game_feo_selection();
 
 create or replace function public.sdda_public_trial_entry_setup(target_trial_id uuid)
 returns jsonb language plpgsql stable security definer set search_path=public set row_security=off

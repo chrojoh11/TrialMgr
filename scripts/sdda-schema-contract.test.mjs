@@ -570,7 +570,10 @@ test('makes FEO availability an organizer-controlled offering setting', () => {
   const sql = readFileSync(new URL('../supabase/sdda-migrations/20260823_0030_offering_controlled_feo.sql', import.meta.url), 'utf8');
   assert.match(sql, /sdda_trial_offerings add column if not exists feo_allowed/i);
   assert.match(sql, /sdda_game_offerings add column if not exists feo_allowed/i);
-  assert.match(sql, /sdda_validate_feo_selection/i);
+  assert.match(sql, /sdda_validate_scent_feo_selection/i);
+  assert.match(sql, /sdda_validate_game_feo_selection/i);
+  assert.match(sql, /r\.trial_day_id=o\.trial_day_id/i);
+  assert.doesNotMatch(sql, /public\.sdda_runs r where r\.offering_id/i);
   assert.match(sql, /FEO is not offered for this Scent component/i);
   assert.match(sql, /FEO is not offered for this Game/i);
   assert.match(sql, /'feo_allowed',o\.feo_allowed/i);
