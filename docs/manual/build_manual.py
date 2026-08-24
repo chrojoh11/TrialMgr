@@ -124,7 +124,7 @@ doc.add_paragraph().paragraph_format.space_after=Pt(20)
 callout("Purpose", "A practical, step-by-step operating manual for trial secretaries using SDDA TrialDesk. It follows Sporting Detection Dogs Association Master Rule Book v5.1, effective July 1, 2026, and the implemented TrialDesk workflow.")
 table([
     ["Manual version", "Rules authority", "Application scope"],
-    ["1.0 • August 23, 2026", "SDDA Master Rule Book v5.1", "Scent, Games, and Combined trials • 1–4 days"],
+    ["1.1 • August 23, 2026", "SDDA Master Rule Book v5.1", "Scent, Games, and Combined trials"],
 ], widths=[1.8,2.25,2.75])
 para("This manual explains the secretary’s administrative workflow. The current SDDA rulebook, sanction approval, premium list, judge’s instructions, and official SDDA forms remain controlling if they conflict with this guide.", italic=True)
 
@@ -154,7 +154,7 @@ step(4,"Document changes","If the judge, venue, offering, schedule, or Premium c
 heading("1.2 Gather setup information",2)
 table([
     ["Information", "What to have ready"],
-    ["Trial identity", "Trial name, host club, venue name, full address, and 1–4 dates"],
+    ["Trial identity", "Trial name, host club, venue name, full address, and trial dates"],
     ["Sanction details", "SDDA trial number for each day when issued; judge name and substitutions"],
     ["Offerings", "Scent levels/components and/or Games; any FEO limits; capacities"],
     ["Pricing", "Scent component/three-component/Elite fees; separate Regular and FEO Games fees"],
@@ -166,11 +166,11 @@ for x in ["Prepared scent kit and separately stored clean supplies","Correct off
 
 page_break(); heading("2. Create a trial",1)
 image("01-dashboard.png","Figure 1. TrialDesk dashboard. Select an existing trial or start a new draft; the operation links follow the trial through setup, entries, running order, sheets, scoring, results, export, and closeout.",6.8)
-step(1,"Sign in","Use the secretary account. A database-appointed administrator can access all trials; other users see trials they own or have been assigned.")
+step(1,"Sign in","Use the secretary account assigned to the trial.")
 step(2,"Select Create trial","Use the left menu or the dashboard button.")
 step(3,"Enter trial details","Use a recognizable trial name, the legal host/club name, and the complete venue address shown to competitors.")
 step(4,"Choose the trial format","Choose Scent, Games, or Combined. Combined presents both workflows in the same trial workspace.")
-step(5,"Add one to four dates","Enter unique dates in chronological order. Each becomes a separate trial day in TrialDesk.")
+step(5,"Add the trial dates","Enter unique dates in chronological order. Each becomes a separate trial day in TrialDesk. TrialDesk currently accepts one to four dates; this is an application limit, not an SDDA rule.")
 step(6,"Create Draft Trial","A draft does not accept public entries. It can be completed as information arrives.")
 image("02-create-trial.png","Figure 2. Initial trial creation. Trial numbers, judges, offerings, fees, and public instructions are completed on the next screen and may be amended later.",6.8)
 callout("Rule distinction", "SDDA defines a trial as a single offering of any level within a 12-hour period with a unique trial number. A consecutive set of trials is a trial event. Enter the SDDA numbers exactly as issued for each TrialDesk day.","warning")
@@ -359,7 +359,7 @@ heading("12.1 Common problems",2)
 table([
     ["Symptom", "Secretary action"],
     ["First login fails; Retry works", "Synchronize Windows date/time and time zone; close tabs and sign in again. The production login should use a full authenticated navigation."],
-    ["Trial or Finances unavailable", "Confirm the signed-in profile is owner/member or database-appointed administrator; confirm required migrations were applied."],
+    ["Trial or Finances unavailable", "Confirm the signed-in profile has access to the trial and that the required migrations were applied."],
     ["Entry absent from order/sheets", "Confirm the entry is Accepted, not merely Received; verify at least one valid run and offering."],
     ["CSV row rejected", "Read the row-specific error; correct header mapping, identity, day, level, component, stream, or duplicate data."],
     ["FEO option missing", "Enable Allow FEO entries for that exact offering and save setup. Regular remains the default."],
