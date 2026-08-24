@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { activityFieldLabel, secretaryActivityChanges } from './activityPresentation';
+import { activityFieldLabel, initialTrialSetupRecordIds, secretaryActivityChanges } from './activityPresentation';
 
 test('keeps secretary-facing changes and removes database metadata', () => {
   const changes = secretaryActivityChanges({}, {
@@ -28,4 +28,15 @@ test('retains meaningful clearing and labels common operational fields', () => {
   assert.equal(changes.length, 2);
   assert.equal(activityFieldLabel('judge_name'), 'Judge');
   assert.equal(activityFieldLabel('confirmation_status'), 'Entry Decision');
+});
+
+test('groups only the uninterrupted initial trial setup sequence', () => {
+  const grouped = initialTrialSetupRecordIds([
+    { id: 'later-offering', action: 'trial_offering.insert', created_at: '2026-08-24T12:00:00Z' },
+    { id: 'entry', action: 'entry.submitted', created_at: '2026-08-24T11:00:00Z' },
+    { id: 'offering-2', action: 'trial_offering.insert', created_at: '2026-08-24T10:02:00Z' },
+    { id: 'day', action: 'trial_day.details_updated', created_at: '2026-08-24T10:01:00Z' },
+    { id: 'created', action: 'trial.created', created_at: '2026-08-24T10:00:00Z' },
+  ]);
+  assert.deepEqual([...grouped], ['created', 'day', 'offering-2']);
 });

@@ -68,3 +68,25 @@ export const secretaryActivityChanges = (before: unknown, after: unknown) => {
     .filter((field) => displayActivityValue(oldValues[field]) !== displayActivityValue(newValues[field]))
     .map((field) => ({ field, before: oldValues[field], after: newValues[field] }));
 };
+
+type ActivityRecord = { id: string; action: string; created_at: string };
+const INITIAL_SETUP_ACTIONS = new Set([
+  'trial.created',
+  'trial_offering.insert',
+  'trial_offering.update',
+  'trial_day.details_updated',
+  'trial.pricing_updated',
+  'trial.public_details_updated',
+]);
+
+export const initialTrialSetupRecordIds = (records: ActivityRecord[]) => {
+  const chronological = [...records].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+  const createdIndex = chronological.findIndex((record) => record.action === 'trial.created');
+  if (createdIndex < 0) return new Set<string>();
+  const grouped = new Set<string>();
+  for (const record of chronological.slice(createdIndex)) {
+    if (!INITIAL_SETUP_ACTIONS.has(record.action)) break;
+    grouped.add(record.id);
+  }
+  return grouped;
+};
