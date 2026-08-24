@@ -15,11 +15,12 @@ test('reports invalid rows without accepting them', () => {
 });
 
 test('parses the official multi-day SDDA Google Form response layout', () => {
-  const csv = 'Timestamp,Email Address,Name,Phone Number,Dog Call Name,Dog Registered Number,Breed (Mixed Breed put All Canadian),Amateur or Working Stream? (Instructors and Professionals must choose working) - Check only those that apply to your entries,Saturday - Started,Saturday - Advanced,Sunday - Started\n' +
-    '2026-06-01,handler@example.ca,Chris,555-0100,Finn,SDDA-42,Spaniel,"Started - Amateur, Advanced - Working","All 3 Components","Interior, Exterior",Containers';
+  const csv = 'Timestamp,Email Address,Name,Phone Number,Dog Call Name,Dog Registered Number,Breed (Mixed Breed put All Canadian),Amateur or Working Stream? (Instructors and Professionals must choose working) - Check only those that apply to your entries,Is your dog reactive?,Saturday - Started,Saturday - Advanced,Sunday - Started\n' +
+    '2026-06-01,handler@example.ca,Chris,555-0100,Finn,SDDA-42,Spaniel,"Started - Amateur, Advanced - Working","Dogs, People","All 3 Components","Interior, Exterior",Containers';
   const result = parseSddaEntryCsv(csv);
   assert.equal(result.errors.length, 0);
   assert.equal(result.entries.length, 3);
+  assert.equal(result.entries[0].reactivity, 'Both');
   assert.deepEqual(result.entries.map(({ trialDay, level, stream, components }) => ({ trialDay, level, stream, components })), [
     { trialDay: 1, level: 'Started', stream: 'Amateur', components: ['Container', 'Interior', 'Exterior'] },
     { trialDay: 1, level: 'Advanced', stream: 'Working', components: ['Interior', 'Exterior'] },

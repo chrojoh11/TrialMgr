@@ -5,6 +5,7 @@ export interface SddaCsvEntry {
   dogCallName: string; dogRegisteredName: string; registrationNumber: string;
   registrationPending: boolean; breed: string; stream: SddaStream; level: SddaLevel;
   components: SddaComponent[]; trialDay: number; formalAlerts: string;
+  reactivity: 'None' | 'Dogs' | 'People' | 'Both';
 }
 
 function parseCsvRows(text: string) {
@@ -31,7 +32,19 @@ const aliases: Record<string, string[]> = {
   registrationPending: ['registration_pending', 'sdda_registration_pending'], breed: ['breed'], stream: ['stream', 'division', 'amateur_or_working_stream'],
   level: ['level'], components: ['components', 'component'], trialDay: ['trial_day', 'day', 'day_number'],
   formalAlerts: ['formal_alerts', 'formal_alert_s_started_teams_leave_blank'],
+  reactivity: ['reactivity', 'is_your_dog_reactive'],
 };
+
+function parseReactivity(value: string): SddaCsvEntry['reactivity'] {
+  const normalized = normalize(value);
+  if (normalized.includes('both')) return 'Both';
+  const dogs = normalized.includes('dog');
+  const people = normalized.includes('people') || normalized.includes('person');
+  if (dogs && people) return 'Both';
+  if (dogs) return 'Dogs';
+  if (people) return 'People';
+  return 'None';
+}
 
 const levelNames = SDDA_LEVELS.map((level) => level.toLowerCase());
 const componentNames: Record<string, SddaComponent> = {
@@ -84,7 +97,7 @@ function parseGoogleFormEntries(rows: string[][], headers: string[]) {
         const registration = get(row, 'registrationNumber');
         entries.push({ rowNumber, handlerName: handler, handlerEmail: get(row, 'handlerEmail'), handlerPhone: get(row, 'handlerPhone'), dogCallName: dog,
           dogRegisteredName: get(row, 'dogRegisteredName'), registrationNumber: registration, registrationPending: !registration, breed: get(row, 'breed'),
-          stream, level, components, trialDay: weekdays.indexOf(weekday) + 1, formalAlerts: get(row, 'formalAlerts') });
+          stream, level, components, trialDay: weekdays.indexOf(weekday) + 1, formalAlerts: get(row, 'formalAlerts'), reactivity: parseReactivity(get(row, 'reactivity')) });
       } catch (error) { errors.push(`Row ${rowNumber}: ${error instanceof Error ? error.message : 'invalid row'}`); }
     }
   });
@@ -116,7 +129,7 @@ export function parseSddaEntryCsv(text: string) {
       if (!pending && !registration) throw new Error('registration number required unless pending');
       const trialDay = Number(get(row, 'trialDay')); if (!Number.isInteger(trialDay) || trialDay < 1 || trialDay > 4) throw new Error('trial_day must be 1 through 4');
       entries.push({ rowNumber, handlerName: handler, handlerEmail: get(row, 'handlerEmail'), handlerPhone: get(row, 'handlerPhone'), dogCallName: dog,
-        dogRegisteredName: get(row, 'dogRegisteredName'), registrationNumber: registration, registrationPending: pending, breed: get(row, 'breed'), stream, level, components, trialDay, formalAlerts: get(row, 'formalAlerts') });
+        dogRegisteredName: get(row, 'dogRegisteredName'), registrationNumber: registration, registrationPending: pending, breed: get(row, 'breed'), stream, level, components, trialDay, formalAlerts: get(row, 'formalAlerts'), reactivity: parseReactivity(get(row, 'reactivity')) });
     } catch (error) { errors.push(`Row ${rowNumber}: ${error instanceof Error ? error.message : 'invalid row'}`); }
   });
   return { entries, errors };

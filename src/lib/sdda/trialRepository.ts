@@ -364,7 +364,7 @@ export async function importSddaCsvEntries(
       results.errors.push(`Row ${entry.rowNumber}: trial day ${entry.trialDay} does not exist.`);
       continue;
     }
-    const { error } = await client.rpc('sdda_import_entry', {
+    const { data: importedEntryId, error } = await client.rpc('sdda_import_entry', {
       target_trial_id: trial.id,
       target_trial_day_id: day.id,
       dog_call_name: entry.dogCallName,
@@ -382,7 +382,15 @@ export async function importSddaCsvEntries(
       import_source_row: String(entry.rowNumber),
       entry_formal_alerts: entry.formalAlerts,
     });
-    if (error) results.errors.push(`Row ${entry.rowNumber}: ${error.message}`);
+    if (error) {
+      results.errors.push(`Row ${entry.rowNumber}: ${error.message}`);
+      continue;
+    }
+    const { error: reactivityError } = await client
+      .from('sdda_entries')
+      .update({ reactivity: entry.reactivity })
+      .eq('id', importedEntryId);
+    if (reactivityError) results.errors.push(`Row ${entry.rowNumber}: ${reactivityError.message}`);
     else results.imported++;
   }
   return results;
