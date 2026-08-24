@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as XLSX from 'xlsx';
-import { parseSddaHistoryWorkbook, titleHistoryFlags } from './titleHistoryWorkbook';
+import { parseSddaHistoryWorkbook, titleHistoryFlags, workingStreamConflicts } from './titleHistoryWorkbook';
 
 test('reads official SDDA Dogs component-Q columns', () => {
   const workbook = XLSX.utils.book_new();
@@ -25,4 +25,16 @@ test('flags title opportunities and level-specific Working requirements', () => 
   ]);
   assert.ok(flags.some((flag) => /complete Started title/.test(flag)));
   assert.ok(flags.some((flag) => /Advanced has already titled/.test(flag)));
+});
+
+test('identifies Amateur entries at levels already completed in official history', () => {
+  const summary = { registrationNumber: '12345', dogName: 'Magic', breed: 'All Canadian', qualifyingCounts: {
+    'Started|Container': 1, 'Started|Interior': 1, 'Started|Exterior': 1,
+    'Advanced|Container': 1, 'Advanced|Interior': 0, 'Advanced|Exterior': 1,
+  } };
+  assert.deepEqual(workingStreamConflicts(summary, [
+    { level: 'Started', component: 'Container', stream: 'Amateur' },
+    { level: 'Started', component: 'Exterior', stream: 'Working' },
+    { level: 'Advanced', component: 'Container', stream: 'Amateur' },
+  ]), [{ level: 'Started', components: ['Container'] }]);
 });

@@ -58,3 +58,14 @@ export function titleHistoryFlags(summary: SddaDogHistorySummary, enteredRuns: A
     flags.push('Elite requires all three components to qualify at the same trial; Elite has no stream.');
   return flags;
 }
+
+export function workingStreamConflicts(summary: SddaDogHistorySummary, enteredRuns: Array<{ level: string; component: string; stream?: string }>) {
+  return SDDA_HISTORY_LEVELS.flatMap((level) => {
+    const hasCompletedLevel = SDDA_HISTORY_COMPONENTS.every((component) => (summary.qualifyingCounts[`${level}|${component}`] || 0) > 0);
+    if (!hasCompletedLevel) return [];
+    const components = [...new Set(enteredRuns
+      .filter((run) => run.level === level && run.stream?.toLowerCase() === 'amateur')
+      .map((run) => run.component))];
+    return components.length ? [{ level, components }] : [];
+  });
+}
