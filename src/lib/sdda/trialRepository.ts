@@ -297,7 +297,14 @@ export async function saveSddaTrialOfferings(
       .in('id', removeIds);
     if (error) throw new Error(error.message);
   }
-  const rows = configuration ? [...selectedKeys].map(parseOfferingKey) : additions;
+  const rows = configuration ? [...selectedKeys].map(parseOfferingKey).filter((item) => {
+    const key = offeringKey(item);
+    const existing = currentKeys.get(key);
+    const configured = configuration[`${item.trialDayId}|${item.level}|${item.component}`];
+    const judgeName = configured?.judge_name || null;
+    const feoAllowed = configured?.feo_allowed || false;
+    return !existing || (existing.judge_name || null) !== judgeName || Boolean(existing.feo_allowed) !== feoAllowed;
+  }) : additions;
   if (rows.length) {
     const values = rows.map((item) => ({
         trial_id: trialId,

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { activityFieldLabel, groupOfferingInsertActivity, initialTrialSetupRecordIds, secretaryActivityChanges } from './activityPresentation';
+import { activityFieldLabel, groupOfferingActivity, initialTrialSetupRecordIds, secretaryActivityChanges } from './activityPresentation';
 
 test('keeps secretary-facing changes and removes database metadata', () => {
   const changes = secretaryActivityChanges({}, {
@@ -42,7 +42,7 @@ test('groups only the uninterrupted initial trial setup sequence', () => {
 });
 
 test('combines offering inserts from one save into one display record', () => {
-  const grouped = groupOfferingInsertActivity([
+  const grouped = groupOfferingActivity([
     { id: 'a', action: 'trial_offering.insert', actor_id: 'secretary', created_at: '2026-08-24T10:02:00.111Z' },
     { id: 'b', action: 'trial_offering.insert', actor_id: 'secretary', created_at: '2026-08-24T10:02:00.222Z' },
     { id: 'c', action: 'trial_offering.insert', actor_id: 'other', created_at: '2026-08-24T10:02:00.333Z' },
@@ -50,6 +50,17 @@ test('combines offering inserts from one save into one display record', () => {
   assert.equal(grouped.length, 2);
   assert.ok(grouped[0].offeringBatch);
   assert.ok(grouped[1].offeringBatch);
+  assert.equal(grouped[0].offeringBatch?.length, 2);
+  assert.equal(grouped[1].offeringBatch?.length, 1);
+});
+
+test('combines offering updates but keeps them separate from inserts', () => {
+  const grouped = groupOfferingActivity([
+    { id: 'a', action: 'trial_offering.update', actor_id: 'secretary', created_at: '2026-08-24T10:02:00.111Z' },
+    { id: 'b', action: 'trial_offering.update', actor_id: 'secretary', created_at: '2026-08-24T10:02:00.222Z' },
+    { id: 'c', action: 'trial_offering.insert', actor_id: 'secretary', created_at: '2026-08-24T10:02:00.333Z' },
+  ]);
+  assert.equal(grouped.length, 2);
   assert.equal(grouped[0].offeringBatch?.length, 2);
   assert.equal(grouped[1].offeringBatch?.length, 1);
 });

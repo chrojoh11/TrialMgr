@@ -192,8 +192,8 @@ export default function SddaTrialWorkspacePage() {
     try {
       setSaving(true); setError(null);
       const client = getSupabaseBrowser();
-      if (hasScent) await saveSddaTrialOfferings(client, trial.id, trial.sdda_trial_offerings, selected, scentConfiguration);
-      if (hasGames) await saveSddaGameOfferings(client, trial.id, trial.sdda_game_offerings, gamesSelected, gameConfiguration);
+      if (hasScent && (dirty || scentConfigurationDirty)) await saveSddaTrialOfferings(client, trial.id, trial.sdda_trial_offerings, selected, scentConfiguration);
+      if (hasGames && (gamesDirty || gameConfigurationDirty)) await saveSddaGameOfferings(client, trial.id, trial.sdda_game_offerings, gamesSelected, gameConfiguration);
       if (hasScent && pricingDirty) await saveSddaTrialPricing(client, trial.id, {
         componentFeeCents: Math.round(Number(pricing.componentFee || 0) * 100),
         threeComponentFeeCents: Math.round(Number(pricing.threeComponentFee || 0) * 100),
