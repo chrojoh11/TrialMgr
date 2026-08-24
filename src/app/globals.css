@@ -161,6 +161,34 @@ a:active,
   transition: transform 0.1s ease;
 }
 
+@media print {
+  @page {
+    size: letter;
+    margin: 0.55in;
+  }
+
+  body:has(.activity-journal-print-root) * {
+    visibility: hidden !important;
+  }
+
+  .activity-journal-print-root,
+  .activity-journal-print-root * {
+    visibility: visible !important;
+  }
+
+  .activity-journal-print-root {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    background: white !important;
+    color: #18231d !important;
+  }
+
+  .activity-journal-print-root article {
+    break-inside: avoid;
+  }
+}
+
 /* Better loading states on mobile */
 @media (max-width: 640px) {
   .loading-spinner {

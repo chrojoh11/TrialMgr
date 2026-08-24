@@ -25,6 +25,9 @@ const FIELD_LABELS: Record<string, string> = {
   judge_name: 'Judge',
   formal_alerts: 'Formal alerts',
   time_seconds: 'Time (seconds)',
+  scent_component_fee_cents: 'Scent—single component',
+  scent_three_component_fee_cents: 'Scent—all three components',
+  games_entry_fee_cents: 'Games entry',
 };
 
 const flatten = (value: unknown, prefix = '', result: Record<string, unknown> = {}) => {
@@ -45,6 +48,13 @@ export const displayActivityValue = (value: unknown) => {
   if (Array.isArray(value) && !value.length) return 'None';
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
+};
+
+export const displayActivityFieldValue = (field: string, value: unknown) => {
+  if (field.split('.').at(-1)?.endsWith('_cents') && typeof value === 'number') {
+    return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(value / 100);
+  }
+  return displayActivityValue(value);
 };
 
 const isInternalField = (field: string) => {
