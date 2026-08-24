@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { activityFieldLabel, displayActivityFieldValue, groupOfferingActivity, initialTrialSetupRecordIds, secretaryActivityChanges } from './activityPresentation';
+import { activityFieldLabel, displayActivityFieldValue, groupEntryImportActivity, groupOfferingActivity, initialTrialSetupRecordIds, secretaryActivityChanges } from './activityPresentation';
 
 test('keeps secretary-facing changes and removes database metadata', () => {
   const changes = secretaryActivityChanges({}, {
@@ -69,4 +69,23 @@ test('formats stored cent values as Canadian currency', () => {
   assert.equal(displayActivityFieldValue('scent_component_fee_cents', 3575), '$35.75');
   assert.equal(displayActivityFieldValue('scent_three_component_fee_cents', 10000), '$100.00');
   assert.equal(activityFieldLabel('scent_component_fee_cents'), 'Scent—Single Component');
+});
+
+test('combines contiguous entry imports from one actor into one batch', () => {
+  const grouped = groupEntryImportActivity([
+    { id: 'a', action: 'entry.imported', actor_id: 'secretary', created_at: '2026-08-24T10:02:30Z' },
+    { id: 'b', action: 'entry.imported', actor_id: 'secretary', created_at: '2026-08-24T10:02:10Z' },
+    { id: 'c', action: 'entry.imported', actor_id: 'secretary', created_at: '2026-08-24T09:58:00Z' },
+  ]);
+  assert.equal(grouped.length, 2);
+  assert.equal(grouped[0].importBatch?.length, 2);
+  assert.equal(grouped[1].importBatch?.length, 1);
+});
+
+test('does not combine imports from different actors', () => {
+  const grouped = groupEntryImportActivity([
+    { id: 'a', action: 'entry.imported', actor_id: 'secretary', created_at: '2026-08-24T10:02:30Z' },
+    { id: 'b', action: 'entry.imported', actor_id: 'other', created_at: '2026-08-24T10:02:20Z' },
+  ]);
+  assert.equal(grouped.length, 2);
 });

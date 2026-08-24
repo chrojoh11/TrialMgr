@@ -8,14 +8,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
-import { activityFieldLabel, displayActivityFieldValue, groupOfferingActivity, initialTrialSetupRecordIds, secretaryActivityChanges } from '@/lib/sdda/activityPresentation';
+import { activityFieldLabel, displayActivityFieldValue, groupEntryImportActivity, groupOfferingActivity, initialTrialSetupRecordIds, secretaryActivityChanges } from '@/lib/sdda/activityPresentation';
 import { listSddaAuditRecords } from '@/lib/sdda/operationsRepository';
 import { getSddaTrialWorkspace, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
 
 type Audit = Awaited<ReturnType<typeof listSddaAuditRecords>>[number];
-type DisplayAudit = Audit & { offeringBatch?: Audit[] };
+type DisplayAudit = Audit & { offeringBatch?: Audit[]; importBatch?: Audit[] };
 const title = (value: string) => value.replace(/[._]/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
-const eventTitle = (item: DisplayAudit) => item.action === 'trial.created' ? 'Trial created and initial setup' : item.offeringBatch ? 'Trial offerings updated' : title(item.action);
+const eventTitle = (item: DisplayAudit) => item.action === 'trial.created' ? 'Trial created and initial setup' : item.offeringBatch ? 'Trial offerings updated' : item.importBatch ? 'CSV entries imported' : title(item.action);
 
 export default function SddaActivityPage() {
   const trialId = useParams<{ trialId: string }>().trialId;
@@ -30,10 +30,10 @@ export default function SddaActivityPage() {
 
   const types = useMemo(() => [...new Set(records.map((item) => item.entity_type))].sort(), [records]);
   const initialSetupIds = useMemo(() => initialTrialSetupRecordIds(records), [records]);
-  const displayRecords = useMemo(() => groupOfferingActivity(records), [records]);
+  const displayRecords = useMemo(() => groupEntryImportActivity(groupOfferingActivity(records)), [records]);
   const filtered = useMemo(() => displayRecords.filter((item) => {
     if (initialSetupIds.has(item.id) && item.action !== 'trial.created') return false;
-    const batch = item.offeringBatch || [item];
+    const batch = item.offeringBatch || item.importBatch || [item];
     const hasOfferingSnapshot = Boolean(item.offeringBatch?.some((record) => record.after_state));
     if (!hasOfferingSnapshot && batch.every((record) => secretaryActivityChanges(record.before_state, record.after_state).length === 0)) return false;
     const profile = Array.isArray(item.sdda_profiles) ? item.sdda_profiles[0] : item.sdda_profiles;
@@ -60,6 +60,7 @@ function ActivityEvent({ item, trial }: { item: DisplayAudit; trial: SddaTrialWo
   const profile = Array.isArray(item.sdda_profiles) ? item.sdda_profiles[0] : item.sdda_profiles;
   const actor = profile?.display_name || profile?.email || 'System';
   const offeringBatch = item.offeringBatch;
+  const importBatch = item.importBatch;
   const offeringTree = offeringBatch && trial ? trial.sdda_trial_days.map((day) => {
     const rows = offeringBatch.map((record) => record.after_state as Record<string, unknown>).filter((state) => state?.trial_day_id === day.id);
     const levels = [...new Set(rows.map((state) => String(state.level || 'Unspecified')))];
@@ -75,7 +76,19 @@ function ActivityEvent({ item, trial }: { item: DisplayAudit; trial: SddaTrialWo
   return <article className="grid gap-4 py-5 sm:grid-cols-[9rem_1fr] print:grid-cols-[8rem_1fr] print:py-3">
     <div className="text-sm"><time className="font-semibold">{new Date(item.created_at).toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' })}</time><p className="text-gray-500">{new Date(item.created_at).toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' })}</p></div>
     <div><div className="mb-2 flex flex-wrap items-baseline justify-between gap-2"><h2 className="font-serif text-2xl font-semibold text-[#18231d]">{eventTitle(item)}</h2><span className="text-sm text-gray-600">by {actor}</span></div>
-      {offeringTree.length ? <div className="space-y-3">{offeringTree.map(({ day, levels }) => <section key={day.id} className="border-l-4 border-[#8ba99a] pl-4"><p className="font-semibold">Day {day.day_number} · {day.trial_date} · Judge: {day.judge_name || 'Pending assignment'}</p>{levels.map(({ level, components }) => <p key={level} className="text-sm"><b>{level}</b> → {components.join(', ')}</p>)}</section>)}</div> : <div className="space-y-1">{changes.map((change) => <div key={change.field} className="grid gap-2 py-1 text-sm sm:grid-cols-[minmax(12rem,1fr)_minmax(7rem,.55fr)_1.5rem_minmax(7rem,.55fr)] print:grid-cols-[minmax(12rem,1fr)_minmax(7rem,.55fr)_1.5rem_minmax(7rem,.55fr)]"><span className="font-semibold">{activityFieldLabel(change.field)}</span><span className="text-red-800 line-through">{displayActivityFieldValue(change.field, change.before)}</span><ArrowRight className="h-4 w-4 text-[#b98935]" /><span className="font-semibold text-green-800">{displayActivityFieldValue(change.field, change.after)}</span></div>)}</div>}
+      {offeringTree.length ? <div className="space-y-3">{offeringTree.map(({ day, levels }) => <section key={day.id} className="border-l-4 border-[#8ba99a] pl-4"><p className="font-semibold">Day {day.day_number} · {day.trial_date} · Judge: {day.judge_name || 'Pending assignment'}</p>{levels.map(({ level, components }) => <p key={level} className="text-sm"><b>{level}</b> → {components.join(', ')}</p>)}</section>)}</div> : importBatch ? <ImportBatchSummary records={importBatch} /> : <div className="space-y-1">{changes.map((change) => <div key={change.field} className="grid gap-2 py-1 text-sm sm:grid-cols-[minmax(12rem,1fr)_minmax(7rem,.55fr)_1.5rem_minmax(7rem,.55fr)] print:grid-cols-[minmax(12rem,1fr)_minmax(7rem,.55fr)_1.5rem_minmax(7rem,.55fr)]"><span className="font-semibold">{activityFieldLabel(change.field)}</span><span className="text-red-800 line-through">{displayActivityFieldValue(change.field, change.before)}</span><ArrowRight className="h-4 w-4 text-[#b98935]" /><span className="font-semibold text-green-800">{displayActivityFieldValue(change.field, change.after)}</span></div>)}</div>}
     </div>
   </article>;
+}
+
+function ImportBatchSummary({ records }: { records: Audit[] }) {
+  const states = records.map((record) => record.after_state as Record<string, unknown> | null).filter(Boolean) as Record<string, unknown>[];
+  const sources = [...new Set(states.map((state) => String(state.source || 'CSV')).filter(Boolean))];
+  const rows = [...new Set(states.map((state) => String(state.source_row || '')).filter(Boolean))];
+  const runs = states.reduce((total, state) => total + (Array.isArray(state.components) ? state.components.length : 1), 0);
+  return <div className="border-l-4 border-[#8ba99a] pl-4 text-sm">
+    <p><b>{records.length}</b> imported selection{records.length === 1 ? '' : 's'} · <b>{runs}</b> run{runs === 1 ? '' : 's'}</p>
+    <p>Source: {sources.map((source) => source.replaceAll('_', ' ')).join(', ') || 'CSV import'}</p>
+    {rows.length > 0 && <p className="text-gray-600">CSV response rows: {rows.join(', ')}</p>}
+  </div>;
 }

@@ -117,3 +117,23 @@ export const groupOfferingActivity = <T extends ActivityRecord & { actor_id?: st
     return [{ ...record, offeringBatch: batches.get(key) || [record] }];
   });
 };
+
+export const groupEntryImportActivity = <T extends ActivityRecord & { actor_id?: string | null }>(records: T[]): Array<T & { importBatch?: T[] }> => {
+  const result: Array<T & { importBatch?: T[] }> = [];
+  let current: T[] = [];
+  const flush = () => {
+    if (!current.length) return;
+    result.push({ ...current[0], importBatch: current });
+    current = [];
+  };
+  records.forEach((record) => {
+    if (record.action !== 'entry.imported') { flush(); result.push(record); return; }
+    const previous = current.at(-1);
+    const sameActor = previous && (previous.actor_id || 'system') === (record.actor_id || 'system');
+    const closeInTime = previous && Math.abs(Date.parse(previous.created_at) - Date.parse(record.created_at)) <= 60_000;
+    if (!sameActor || !closeInTime) flush();
+    current.push(record);
+  });
+  flush();
+  return result;
+};
