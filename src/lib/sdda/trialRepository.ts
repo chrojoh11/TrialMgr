@@ -37,6 +37,9 @@ export interface SddaTrialOffering {
   feo_allowed: boolean;
 }
 
+export const SDDA_RUNNING_ORDER_RUN_SELECT =
+  'id,trial_day_id,level,component,stream,run_group,running_position,move_up_from_run_id,move_up_from_level,move_up_approved_at,created_at,sdda_trial_days(day_number,trial_date),sdda_entries!inner(id,handler_name,dog_id,formal_alerts,reactivity,confirmation_status,sdda_dogs(call_name,registered_name,breed,sdda_registration_number))';
+
 export const SDDA_GAME_TYPES = ['Aerial', 'Distance', 'Speed', 'Team'] as const;
 export type SddaGameType = (typeof SDDA_GAME_TYPES)[number];
 
@@ -388,9 +391,7 @@ export async function importSddaCsvEntries(
 export async function listSddaRunningOrderRuns(client: SupabaseClient, trialId: string) {
   const { data, error } = await client
     .from('sdda_runs')
-    .select(
-      'id,trial_day_id,level,component,stream,run_group,running_position,move_up_from_run_id,move_up_from_level,move_up_approved_at,created_at,sdda_trial_days(day_number,trial_date),sdda_entries!inner(id,handler_name,dog_id,reactivity,confirmation_status,sdda_dogs(call_name,registered_name,breed,sdda_registration_number))'
-    )
+    .select(SDDA_RUNNING_ORDER_RUN_SELECT)
     .eq('trial_id', trialId)
     .eq('sdda_entries.confirmation_status', 'accepted')
     .order('created_at');
