@@ -240,7 +240,7 @@ for x in [
     "If a judge approves a trial-day change in component order, Started Container still must be held first when offered.",
     "Re-check every component because the rulebook warns that a competitor’s position may change between components.",
 ]: bullet(x)
-image("03-running-order-workbook.png","Figure 4. Running-order workbook example. TrialDesk exports one formatted worksheet per day; review names, group sequencing, conflicts, and timing estimates before posting.",6.8)
+image("03-running-order-workbook.png","Figure 4. Header from an actual TrialDesk running-order export. Each day receives its own worksheet with a day total, trial metadata, level-coloured class bands, component columns, reactive indicators, and class totals. Review the complete workbook’s names, streams, run groups, conflicts, and sequence before posting.",6.8)
 heading("5.3 Export and post",2)
 step(1,"Save the running order","Resolve any on-screen conflict warnings.")
 step(2,"Export running order XLSX","Open it in Excel and inspect every day/level/component.")
