@@ -102,20 +102,23 @@ export const initialTrialSetupRecordIds = (records: ActivityRecord[]) => {
 };
 
 export const groupOfferingActivity = <T extends ActivityRecord & { actor_id?: string | null }>(records: T[]): Array<T & { offeringBatch?: T[] }> => {
-  const batches = new Map<string, T[]>();
+  const result: Array<T & { offeringBatch?: T[] }> = [];
+  let current: T[] = [];
+  const flush = () => {
+    if (!current.length) return;
+    result.push({ ...current[0], offeringBatch: current });
+    current = [];
+  };
   records.forEach((record) => {
-    if (!['trial_offering.insert','trial_offering.update'].includes(record.action)) return;
-    const key = `${record.action}|${record.actor_id || 'system'}|${record.created_at.slice(0, 19)}`;
-    batches.set(key, [...(batches.get(key) || []), record]);
+    if (!record.action.startsWith('trial_offering.')) { flush(); result.push(record); return; }
+    const previous = current.at(-1);
+    const sameActor = previous && (previous.actor_id || 'system') === (record.actor_id || 'system');
+    const closeInTime = previous && Math.abs(Date.parse(previous.created_at) - Date.parse(record.created_at)) <= 60_000;
+    if (!sameActor || !closeInTime) flush();
+    current.push(record);
   });
-  const emitted = new Set<string>();
-  return records.flatMap((record) => {
-    if (!['trial_offering.insert','trial_offering.update'].includes(record.action)) return [record as T & { offeringBatch?: T[] }];
-    const key = `${record.action}|${record.actor_id || 'system'}|${record.created_at.slice(0, 19)}`;
-    if (emitted.has(key)) return [];
-    emitted.add(key);
-    return [{ ...record, offeringBatch: batches.get(key) || [record] }];
-  });
+  flush();
+  return result;
 };
 
 export const groupEntryImportActivity = <T extends ActivityRecord & { actor_id?: string | null }>(records: T[]): Array<T & { importBatch?: T[] }> => {

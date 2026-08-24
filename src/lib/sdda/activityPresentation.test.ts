@@ -54,15 +54,23 @@ test('combines offering inserts from one save into one display record', () => {
   assert.equal(grouped[1].offeringBatch?.length, 1);
 });
 
-test('combines offering updates but keeps them separate from inserts', () => {
+test('combines inserts, updates, and deletes from one offering save', () => {
   const grouped = groupOfferingActivity([
     { id: 'a', action: 'trial_offering.update', actor_id: 'secretary', created_at: '2026-08-24T10:02:00.111Z' },
     { id: 'b', action: 'trial_offering.update', actor_id: 'secretary', created_at: '2026-08-24T10:02:00.222Z' },
     { id: 'c', action: 'trial_offering.insert', actor_id: 'secretary', created_at: '2026-08-24T10:02:00.333Z' },
+    { id: 'd', action: 'trial_offering.delete', actor_id: 'secretary', created_at: '2026-08-24T10:01:59.999Z' },
+  ]);
+  assert.equal(grouped.length, 1);
+  assert.equal(grouped[0].offeringBatch?.length, 4);
+});
+
+test('keeps offering saves separated when more than a minute apart', () => {
+  const grouped = groupOfferingActivity([
+    { id: 'a', action: 'trial_offering.delete', actor_id: 'secretary', created_at: '2026-08-24T10:04:00Z' },
+    { id: 'b', action: 'trial_offering.insert', actor_id: 'secretary', created_at: '2026-08-24T10:02:00Z' },
   ]);
   assert.equal(grouped.length, 2);
-  assert.equal(grouped[0].offeringBatch?.length, 2);
-  assert.equal(grouped[1].offeringBatch?.length, 1);
 });
 
 test('formats stored cent values as Canadian currency', () => {

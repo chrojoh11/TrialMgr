@@ -76,9 +76,17 @@ function ActivityEvent({ item, trial }: { item: DisplayAudit; trial: SddaTrialWo
   return <article className="grid gap-4 py-5 sm:grid-cols-[9rem_1fr] print:grid-cols-[8rem_1fr] print:py-3">
     <div className="text-sm"><time className="font-semibold">{new Date(item.created_at).toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' })}</time><p className="text-gray-500">{new Date(item.created_at).toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' })}</p></div>
     <div><div className="mb-2 flex flex-wrap items-baseline justify-between gap-2"><h2 className="font-serif text-2xl font-semibold text-[#18231d]">{eventTitle(item)}</h2><span className="text-sm text-gray-600">by {actor}</span></div>
-      {offeringTree.length ? <div className="space-y-3">{offeringTree.map(({ day, levels }) => <section key={day.id} className="border-l-4 border-[#8ba99a] pl-4"><p className="font-semibold">Day {day.day_number} · {day.trial_date} · Judge: {day.judge_name || 'Pending assignment'}</p>{levels.map(({ level, components }) => <p key={level} className="text-sm"><b>{level}</b> → {components.join(', ')}</p>)}</section>)}</div> : importBatch ? <ImportBatchSummary records={importBatch} /> : <div className="space-y-1">{changes.map((change) => <div key={change.field} className="grid gap-2 py-1 text-sm sm:grid-cols-[minmax(12rem,1fr)_minmax(7rem,.55fr)_1.5rem_minmax(7rem,.55fr)] print:grid-cols-[minmax(12rem,1fr)_minmax(7rem,.55fr)_1.5rem_minmax(7rem,.55fr)]"><span className="font-semibold">{activityFieldLabel(change.field)}</span><span className="text-red-800 line-through">{displayActivityFieldValue(change.field, change.before)}</span><ArrowRight className="h-4 w-4 text-[#b98935]" /><span className="font-semibold text-green-800">{displayActivityFieldValue(change.field, change.after)}</span></div>)}</div>}
+      {offeringTree.length ? <div className="space-y-3"><OfferingBatchCounts records={offeringBatch || []} />{offeringTree.map(({ day, levels }) => <section key={day.id} className="border-l-4 border-[#8ba99a] pl-4"><p className="font-semibold">Day {day.day_number} · {day.trial_date} · Judge: {day.judge_name || 'Pending assignment'}</p>{levels.map(({ level, components }) => <p key={level} className="text-sm"><b>{level}</b> → {components.join(', ')}</p>)}</section>)}</div> : offeringBatch ? <OfferingBatchCounts records={offeringBatch} /> : importBatch ? <ImportBatchSummary records={importBatch} /> : <div className="space-y-1">{changes.map((change) => <div key={change.field} className="grid gap-2 py-1 text-sm sm:grid-cols-[minmax(12rem,1fr)_minmax(7rem,.55fr)_1.5rem_minmax(7rem,.55fr)] print:grid-cols-[minmax(12rem,1fr)_minmax(7rem,.55fr)_1.5rem_minmax(7rem,.55fr)]"><span className="font-semibold">{activityFieldLabel(change.field)}</span><span className="text-red-800 line-through">{displayActivityFieldValue(change.field, change.before)}</span><ArrowRight className="h-4 w-4 text-[#b98935]" /><span className="font-semibold text-green-800">{displayActivityFieldValue(change.field, change.after)}</span></div>)}</div>}
     </div>
   </article>;
+}
+
+function OfferingBatchCounts({ records }: { records: Audit[] }) {
+  const added = records.filter((record) => record.action.endsWith('.insert')).length;
+  const updated = records.filter((record) => record.action.endsWith('.update')).length;
+  const removed = records.filter((record) => record.action.endsWith('.delete')).length;
+  const parts = [added && `${added} added`, updated && `${updated} updated`, removed && `${removed} removed`].filter(Boolean);
+  return <p className="text-sm text-gray-600">One offering setup change: {parts.join(' · ')}</p>;
 }
 
 function ImportBatchSummary({ records }: { records: Audit[] }) {

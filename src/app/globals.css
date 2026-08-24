@@ -177,11 +177,21 @@ a:active,
   }
 
   .activity-journal-print-root {
-    position: absolute;
+    position: fixed;
     inset: 0;
     width: 100%;
+    height: auto;
+    overflow: visible !important;
     background: white !important;
     color: #18231d !important;
+  }
+
+  body:has(.activity-journal-print-root),
+  body:has(.activity-journal-print-root) > div,
+  body:has(.activity-journal-print-root) main {
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
   }
 
   .activity-journal-print-root article {
