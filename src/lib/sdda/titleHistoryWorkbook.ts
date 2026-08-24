@@ -69,3 +69,25 @@ export function workingStreamConflicts(summary: SddaDogHistorySummary, enteredRu
     return components.length ? [{ level, components }] : [];
   });
 }
+
+export function possibleTitleAwards(summary: SddaDogHistorySummary | undefined, enteredRuns: Array<{ level: string; component: string; stream?: string }>) {
+  const awards: Array<{ level: string; title: string; requiredComponents: string[]; historyVerified: boolean }> = [];
+  if (summary) {
+    SDDA_HISTORY_LEVELS.forEach((level) => {
+      const missing = SDDA_HISTORY_COMPONENTS.filter((component) => (summary.qualifyingCounts[`${level}|${component}`] || 0) === 0);
+      if (!missing.length) return;
+      const entered = new Set(enteredRuns.filter((run) => run.level === level).map((run) => run.component));
+      if (missing.every((component) => entered.has(component))) awards.push({
+        level,
+        title: missing.length === 3 ? `Special ${level} title` : `${level} title`,
+        requiredComponents: missing,
+        historyVerified: true,
+      });
+    });
+  }
+  const eliteEntered = new Set(enteredRuns.filter((run) => run.level === 'Elite').map((run) => run.component));
+  if (SDDA_HISTORY_COMPONENTS.every((component) => eliteEntered.has(component))) awards.push({
+    level: 'Elite', title: 'Elite title', requiredComponents: [...SDDA_HISTORY_COMPONENTS], historyVerified: false,
+  });
+  return awards;
+}

@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { getSddaTrialWorkspace, listSddaEntries, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
-import { parseSddaHistoryWorkbook, SDDA_HISTORY_COMPONENTS, SDDA_HISTORY_LEVELS, titleHistoryFlags, workingStreamConflicts, type SddaDogHistorySummary } from '@/lib/sdda/titleHistoryWorkbook';
+import { parseSddaHistoryWorkbook, possibleTitleAwards, SDDA_HISTORY_COMPONENTS, SDDA_HISTORY_LEVELS, titleHistoryFlags, workingStreamConflicts, type SddaDogHistorySummary } from '@/lib/sdda/titleHistoryWorkbook';
 
 type Entry = Awaited<ReturnType<typeof listSddaEntries>>[number];
 
@@ -94,6 +94,12 @@ export default function SddaTitleWatchPage() {
     return { entry, dog, official, flags: actionableFlags, workingConflicts, moveUp, reportedGold, matches: text.includes(search.toLowerCase()) };
   }).filter((item) => item.matches && (item.entry.title_watch_note || item.moveUp || item.reportedGold || item.flags.length)), [entries, history, search]);
   const workingReview = useMemo(() => watched.flatMap((item) => item.workingConflicts.map((conflict) => ({ ...item, conflict }))), [watched]);
+  const potentialAwards = useMemo(() => entries.flatMap((entry: any) => {
+    const dog = Array.isArray(entry.sdda_dogs) ? entry.sdda_dogs[0] : entry.sdda_dogs;
+    const official = history.get(registrationKey(dog?.sdda_registration_number));
+    return possibleTitleAwards(official, entry.sdda_runs || []).map((award) => ({ entry, dog, award }));
+  }), [entries, history]);
+  const ribbonTotals = useMemo(() => [...potentialAwards.reduce((totals, item) => totals.set(item.award.title, (totals.get(item.award.title) || 0) + 1), new Map<string, number>())], [potentialAwards]);
 
   return <MainLayout title="Title watch" breadcrumbItems={[
     { label: 'Dashboard', href: '/dashboard' },
@@ -119,5 +125,6 @@ export default function SddaTitleWatchPage() {
         return <p key={flag} className={`rounded-md border-l-4 p-3 font-medium ${titleFlagStyles[kind]}`}>{flag}</p>;
       })}</div>}{official && <details className="rounded-md border bg-[#f7f8f4] p-3"><summary className="cursor-pointer font-semibold text-[#225f45]">View official component history</summary><div className="mt-3 overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="px-2 py-1 text-left">Level</th>{SDDA_HISTORY_COMPONENTS.map((component) => <th key={component} className="px-2 py-1 text-left">{component}</th>)}</tr></thead><tbody>{SDDA_HISTORY_LEVELS.map((level) => <tr key={level} className="border-t"><th className="px-2 py-2 text-left">{level}</th>{SDDA_HISTORY_COMPONENTS.map((component) => <td key={component} className="px-2 py-2">{official.qualifyingCounts[`${level}|${component}`] || 0} Q</td>)}</tr>)}</tbody></table></div><p className="mt-2 text-xs text-gray-500">Reference counts from the current official workbook snapshot; detailed scores are not included.</p></details>}{!official && dog?.sdda_registration_number && <p className="rounded-md border bg-gray-50 p-3 text-sm text-gray-600">This SDDA number was not matched in the current official workbook snapshot.</p>}{entry.title_watch_note && <p className="rounded-md border border-amber-200 bg-amber-50 p-3"><strong>Entrant title note:</strong> {entry.title_watch_note}</p>}{movedRuns.length > 0 && <div><p className="mb-2 text-sm font-semibold">Approved component move-ups</p><div className="flex flex-wrap gap-2">{movedRuns.map((run: any) => <Badge key={run.id}>{run.component}: {run.move_up_from_level || 'Previous level'} → {run.level}</Badge>)}</div></div>}</CardContent></Card>;
     })}</div>}
+    {!loading && <Card><CardHeader><CardTitle>Maximum possible title ribbons</CardTitle><CardDescription>Preparation estimate if every required entered component qualifies. Review results before presenting any ribbon.</CardDescription></CardHeader><CardContent className="space-y-4">{ribbonTotals.length > 0 ? <><div className="flex flex-wrap gap-2">{ribbonTotals.map(([titleName,count]) => <Badge key={titleName} className="bg-[#225f45] text-white">{titleName}: {count}</Badge>)}<Badge className="bg-[#b98935] text-white">Maximum total: {potentialAwards.length}</Badge></div><div className="overflow-x-auto rounded-md border"><table className="w-full text-sm"><thead className="bg-[#edf2ed] text-left"><tr><th className="px-4 py-3">Dog</th><th className="px-4 py-3">Handler</th><th className="px-4 py-3">Possible title</th><th className="px-4 py-3">Must qualify in</th><th className="px-4 py-3">History check</th></tr></thead><tbody>{potentialAwards.map(({entry,dog,award}) => <tr key={`${entry.id}-${award.title}`} className="border-t"><td className="px-4 py-3 font-semibold">{dog?.call_name || 'Dog'}<span className="block text-xs font-normal text-gray-500">{dog?.sdda_registration_number || 'Registration pending'}</span></td><td className="px-4 py-3">{entry.handler_name}</td><td className="px-4 py-3 font-semibold">{award.title}</td><td className="px-4 py-3">{award.requiredComponents.join(', ')}</td><td className="px-4 py-3">{award.historyVerified ? 'Official component counts compared' : 'Verify prior Elite status manually'}</td></tr>)}</tbody></table></div></> : <p className="rounded-md border bg-[#f7f8f4] p-4 text-gray-600">No title ribbons are currently projected from the entered runs and official component history.</p>}</CardContent></Card>}
   </div></MainLayout>;
 }

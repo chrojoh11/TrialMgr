@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as XLSX from 'xlsx';
-import { parseSddaHistoryWorkbook, titleHistoryFlags, workingStreamConflicts } from './titleHistoryWorkbook';
+import { parseSddaHistoryWorkbook, possibleTitleAwards, titleHistoryFlags, workingStreamConflicts } from './titleHistoryWorkbook';
 
 test('reads official SDDA Dogs component-Q columns', () => {
   const workbook = XLSX.utils.book_new();
@@ -37,4 +37,21 @@ test('identifies Amateur entries at levels already completed in official history
     { level: 'Started', component: 'Exterior', stream: 'Working' },
     { level: 'Advanced', component: 'Container', stream: 'Amateur' },
   ]), [{ level: 'Started', components: ['Container'] }]);
+});
+
+test('calculates the maximum titles possible when all entered components pass', () => {
+  const summary = { registrationNumber: '12345', dogName: 'Magic', breed: 'All Canadian', qualifyingCounts: {
+    'Started|Container': 1, 'Started|Interior': 1, 'Started|Exterior': 0,
+    'Advanced|Container': 0, 'Advanced|Interior': 0, 'Advanced|Exterior': 0,
+    'Excellent|Container': 1, 'Excellent|Interior': 1, 'Excellent|Exterior': 1,
+  } };
+  assert.deepEqual(possibleTitleAwards(summary, [
+    { level: 'Started', component: 'Exterior' },
+    { level: 'Advanced', component: 'Container' },
+    { level: 'Advanced', component: 'Interior' },
+    { level: 'Advanced', component: 'Exterior' },
+    { level: 'Elite', component: 'Container' },
+    { level: 'Elite', component: 'Interior' },
+    { level: 'Elite', component: 'Exterior' },
+  ]).map((award) => award.title), ['Started title', 'Special Advanced title', 'Elite title']);
 });
