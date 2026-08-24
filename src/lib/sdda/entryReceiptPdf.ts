@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, PDFString, StandardFonts, rgb } from 'pdf-lib';
 
 export type EntryReceiptPdfInput={confirmationCode:string;trialName:string;handlerName:string;dogName:string;runCount:number;selections:string[];privateEditUrl?:string;amountOwingCents?:number;amountLabel?:string};
 export async function createEntryReceiptPdf(input:EntryReceiptPdfInput){
@@ -6,7 +6,19 @@ export async function createEntryReceiptPdf(input:EntryReceiptPdfInput){
   page.drawRectangle({x:0,y:700,width:612,height:92,color:rgb(0.133,0.373,0.271)});page.drawText('SDDA TrialDesk',{x:48,y:754,size:13,font:bold,color:rgb(1,1,1)});page.drawText('Entry received',{x:48,y:720,size:28,font:bold,color:rgb(1,1,1)});
   let y=660;const line=(text:string,size=12,font=regular)=>{page.drawText(text.replace(/[^ -~]/g,'-'),{x:48,y,size,font,color:rgb(0.09,0.14,0.11)});y-=22};
   line('CONFIRMATION NUMBER',10,bold);line(input.confirmationCode,22,bold);y-=8;line('Received - not yet accepted.',14,bold);line('The trial secretary must confirm this entry and provide payment instructions.');y-=10;line(input.trialName,18,bold);line(`${input.handlerName} with ${input.dogName}`);line(`${input.runCount} component run${input.runCount===1?'':'s'} requested`);if(input.amountOwingCents!==undefined){line(`${input.amountLabel||'Amount owing'}: ${new Intl.NumberFormat('en-CA',{style:'currency',currency:'CAD'}).format(input.amountOwingCents/100)}`,14,bold)}
-  if(input.privateEditUrl){y-=6;line('PRIVATE EDIT LINK - KEEP CONFIDENTIAL',10,bold);for(let index=0;index<input.privateEditUrl.length;index+=64)line(input.privateEditUrl.slice(index,index+64),7);line('Anyone with this link can edit the entry until it is accepted or entries close.',8)}
+  let privateEditUrl:string|undefined;
+  if(input.privateEditUrl){try{const parsed=new URL(input.privateEditUrl);if(parsed.protocol==='https:'||parsed.protocol==='http:')privateEditUrl=parsed.toString()}catch{/* Do not embed malformed or unsafe links. */}}
+  if(privateEditUrl){
+    y-=6;line('PRIVATE EDIT LINK - KEEP CONFIDENTIAL',10,bold);
+    const linkText='Click here to edit this entry';
+    const linkX=48;const linkY=y;const linkSize=12;const linkWidth=bold.widthOfTextAtSize(linkText,linkSize);
+    page.drawText(linkText,{x:linkX,y:linkY,size:linkSize,font:bold,color:rgb(0.02,0.28,0.62)});
+    page.drawLine({start:{x:linkX,y:linkY-2},end:{x:linkX+linkWidth,y:linkY-2},thickness:0.8,color:rgb(0.02,0.28,0.62)});
+    const annotation=pdf.context.register(pdf.context.obj({Type:'Annot',Subtype:'Link',Rect:[linkX,linkY-4,linkX+linkWidth,linkY+linkSize+3],Border:[0,0,0],A:{Type:'Action',S:'URI',URI:PDFString.of(privateEditUrl)}}));
+    page.node.addAnnot(annotation);y-=22;
+    for(let index=0;index<privateEditUrl.length;index+=64)line(privateEditUrl.slice(index,index+64),7);
+    line('Anyone with this link can edit the entry until it is accepted or entries close.',8)
+  }
   y-=10;line('Selections',14,bold);
   input.selections.forEach(selection=>{if(y>60)line(`- ${selection}`,10)});page.drawText('Keep this receipt for your records.',{x:48,y:38,size:9,font:regular,color:rgb(0.35,0.4,0.37)});
   return pdf.save();
