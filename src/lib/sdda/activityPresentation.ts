@@ -90,3 +90,20 @@ export const initialTrialSetupRecordIds = (records: ActivityRecord[]) => {
   }
   return grouped;
 };
+
+export const groupOfferingInsertActivity = <T extends ActivityRecord & { actor_id?: string | null }>(records: T[]): Array<T & { offeringBatch?: T[] }> => {
+  const batches = new Map<string, T[]>();
+  records.forEach((record) => {
+    if (record.action !== 'trial_offering.insert') return;
+    const key = `${record.actor_id || 'system'}|${record.created_at.slice(0, 19)}`;
+    batches.set(key, [...(batches.get(key) || []), record]);
+  });
+  const emitted = new Set<string>();
+  return records.flatMap((record) => {
+    if (record.action !== 'trial_offering.insert') return [record as T & { offeringBatch?: T[] }];
+    const key = `${record.actor_id || 'system'}|${record.created_at.slice(0, 19)}`;
+    if (emitted.has(key)) return [];
+    emitted.add(key);
+    return [{ ...record, offeringBatch: batches.get(key) || [record] }];
+  });
+};

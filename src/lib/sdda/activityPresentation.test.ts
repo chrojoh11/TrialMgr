@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { activityFieldLabel, initialTrialSetupRecordIds, secretaryActivityChanges } from './activityPresentation';
+import { activityFieldLabel, groupOfferingInsertActivity, initialTrialSetupRecordIds, secretaryActivityChanges } from './activityPresentation';
 
 test('keeps secretary-facing changes and removes database metadata', () => {
   const changes = secretaryActivityChanges({}, {
@@ -39,4 +39,17 @@ test('groups only the uninterrupted initial trial setup sequence', () => {
     { id: 'created', action: 'trial.created', created_at: '2026-08-24T10:00:00Z' },
   ]);
   assert.deepEqual([...grouped], ['created', 'day', 'offering-2']);
+});
+
+test('combines offering inserts from one save into one display record', () => {
+  const grouped = groupOfferingInsertActivity([
+    { id: 'a', action: 'trial_offering.insert', actor_id: 'secretary', created_at: '2026-08-24T10:02:00.111Z' },
+    { id: 'b', action: 'trial_offering.insert', actor_id: 'secretary', created_at: '2026-08-24T10:02:00.222Z' },
+    { id: 'c', action: 'trial_offering.insert', actor_id: 'other', created_at: '2026-08-24T10:02:00.333Z' },
+  ]);
+  assert.equal(grouped.length, 2);
+  assert.ok(grouped[0].offeringBatch);
+  assert.ok(grouped[1].offeringBatch);
+  assert.equal(grouped[0].offeringBatch?.length, 2);
+  assert.equal(grouped[1].offeringBatch?.length, 1);
 });
