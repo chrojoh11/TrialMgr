@@ -262,9 +262,9 @@ export default function SddaTrialWorkspacePage() {
   if (!trial) return <MainLayout title="SDDA Trial"><Alert variant="destructive"><AlertDescription>{error || 'Trial not found.'}</AlertDescription></Alert></MainLayout>;
 
   return (
-    <MainLayout title={trial.name} breadcrumbItems={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Trials', href: '/dashboard/trials' }, { label: trial.name }]}>
+    <MainLayout breadcrumbItems={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Trials', href: '/dashboard/trials' }, { label: trial.name }]}>
       <div className="mx-auto max-w-7xl space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="sticky top-0 z-30 -mx-2 flex flex-col gap-3 border-b border-[#c8d7cd] bg-[#fffdf7]/95 px-4 py-4 shadow-sm backdrop-blur sm:flex-row sm:items-start sm:justify-between lg:-mx-4">
           <div><div className="flex flex-wrap items-center gap-3"><h1 className="text-3xl font-bold">{trial.name}</h1><Badge>{formatSddaTrialStatus(trial.status)}</Badge><Badge variant="outline">{trial.trial_format === 'combined' ? 'Combined' : trial.trial_format === 'games' ? 'Games' : 'Scent'}</Badge></div><p className="mt-1 text-gray-600">{trial.host_club}</p>{trial.venue && <p className="mt-1 flex items-center text-sm text-gray-600"><MapPin className="mr-2 h-4 w-4" />{trial.venue}</p>}</div>
           <Button onClick={save} disabled={(!dirty && !gamesDirty && !gameConfigurationDirty && !scentConfigurationDirty && !pricingDirty) || saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save setup</Button>
         </div>
