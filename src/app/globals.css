@@ -167,31 +167,13 @@ a:active,
     margin: 0.55in;
   }
 
-  body:has(.activity-journal-print-root) * {
-    visibility: hidden !important;
-  }
-
-  .activity-journal-print-root,
-  .activity-journal-print-root * {
-    visibility: visible !important;
-  }
-
   .activity-journal-print-root {
-    position: fixed;
-    inset: 0;
+    position: static;
     width: 100%;
     height: auto;
     overflow: visible !important;
     background: white !important;
     color: #18231d !important;
-  }
-
-  body:has(.activity-journal-print-root),
-  body:has(.activity-journal-print-root) > div,
-  body:has(.activity-journal-print-root) main {
-    height: auto !important;
-    overflow: visible !important;
-    background: white !important;
   }
 
   .activity-journal-print-root article {

@@ -76,33 +76,33 @@ function MainLayout({ children, title, breadcrumbItems, fullWidth = false }: Mai
 
   // At this point, user is guaranteed to exist
   return (
-    <div className="flex h-screen bg-[#f3f0e8] text-[#18231d]">
+    <div className="flex h-screen bg-[#f3f0e8] text-[#18231d] print:block print:h-auto print:bg-white">
       {/* ✅ SIDEBAR - Responsive with mobile slide-out */}
-      <Sidebar isMobileOpen={isMobileMenuOpen} onCloseMobile={() => setIsMobileMenuOpen(false)} />
+      <Sidebar className="print:hidden" isMobileOpen={isMobileMenuOpen} onCloseMobile={() => setIsMobileMenuOpen(false)} />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden print:block print:overflow-visible">
         {/* Header with hamburger menu for mobile */}
-        <Header user={user} onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />
+        <div className="print:hidden"><Header user={user} onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} /></div>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden print:block print:overflow-visible">
           {/* Breadcrumbs */}
           {breadcrumbItems && breadcrumbItems.length > 0 && (
-            <div className="border-b border-[#d9d8cf] bg-[#fffdf7] px-4 py-3">
+            <div className="border-b border-[#d9d8cf] bg-[#fffdf7] px-4 py-3 print:hidden">
               <Breadcrumbs items={breadcrumbItems} />
             </div>
           )}
 
           {/* Page Header */}
           {title && (
-            <div className="border-b border-[#d9d8cf] bg-[#fffdf7] px-4 py-4 lg:px-6">
+            <div className="border-b border-[#d9d8cf] bg-[#fffdf7] px-4 py-4 lg:px-6 print:hidden">
               <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
             </div>
           )}
 
           {/* Page Content - Conditional padding based on fullWidth prop */}
-          <main className={`flex-1 overflow-y-auto ${fullWidth ? '' : 'p-4 lg:p-6'}`}>
+          <main className={`flex-1 overflow-y-auto print:overflow-visible print:p-0 ${fullWidth ? '' : 'p-4 lg:p-6'}`}>
             {children}
           </main>
         </div>
