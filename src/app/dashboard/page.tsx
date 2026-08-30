@@ -6,6 +6,9 @@ import MainLayout from '@/components/layout/mainLayout';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { listSddaTrials, type SddaTrialSummary } from '@/lib/sdda/trialRepository';
 
+type RegistryStatus = { available: boolean; source_name?: string; source_refreshed_at?: string; imported_at?: string; row_count?: number };
+const REGISTRY_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
 const workflow = [
   ['Running orders', 'Arrange officials, regular teams, second dogs, FEO and BIS.', 'running-order'],
   ['Entries', 'Review built-in form entries or import Google Form responses.', 'entries'],
@@ -22,15 +25,25 @@ export default function DashboardPage() {
   const [trials, setTrials] = useState<SddaTrialSummary[]>([]);
   const [activeId, setActiveId] = useState('');
   const [error, setError] = useState('');
+  const [isAdministrator, setIsAdministrator] = useState(false);
+  const [registry, setRegistry] = useState<RegistryStatus | null>(null);
   const load = useCallback(async () => {
     try {
-      const loaded = await listSddaTrials(getSupabaseBrowser());
+      const client = getSupabaseBrowser();
+      const [loaded, adminResult, registryResult] = await Promise.all([
+        listSddaTrials(client),
+        client.rpc('sdda_is_administrator'),
+        client.rpc('sdda_active_registry_status'),
+      ]);
       setTrials(loaded);
       setActiveId((current) => current || loaded[0]?.id || '');
+      setIsAdministrator(Boolean(adminResult.data));
+      if (!registryResult.error) setRegistry(registryResult.data as RegistryStatus);
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to load SDDA trials.'); }
   }, []);
   useEffect(() => { void load(); }, [load]);
   const active = useMemo(() => trials.find((trial) => trial.id === activeId), [trials, activeId]);
+  const registryOverdue = isAdministrator && (!registry?.available || !registry.imported_at || Date.now() - new Date(registry.imported_at).getTime() >= REGISTRY_MAX_AGE_MS);
   const activeHref = (suffix = '') => active ? `/dashboard/trials/${active.id}${suffix ? `/${suffix}` : ''}` : '/dashboard/trials/create';
 
   return <MainLayout fullWidth>
@@ -42,6 +55,8 @@ export default function DashboardPage() {
         </header>
 
         {error && <div className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-red-800">{error}</div>}
+        {isAdministrator && registryOverdue && <section className="mt-4 flex flex-col justify-between gap-3 rounded-xl border-2 border-amber-400 bg-amber-50 p-5 text-amber-950 shadow-sm sm:flex-row sm:items-center"><div><strong className="font-serif text-xl">SDDA registry refresh due</strong><p className="mt-1 text-sm">{registry?.available ? `${registry.source_name || 'The active registry'} was imported ${registry.imported_at ? new Date(registry.imported_at).toLocaleDateString('en-CA') : 'more than seven days ago'} and contains ${registry.row_count?.toLocaleString() || 0} dogs.` : 'No official SDDA dog registry is active.'}</p></div><Link href="/dashboard/registry" className="shrink-0 rounded-lg bg-[#225f45] px-5 py-3 text-center font-bold text-white">Review and refresh</Link></section>}
+        {isAdministrator && registry?.available && !registryOverdue && <section className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-5 py-3 text-sm text-emerald-950"><span><strong>SDDA registry current:</strong> {registry.row_count?.toLocaleString()} dogs · {registry.source_name}</span><Link href="/dashboard/registry" className="font-bold text-[#225f45] underline">Registry details</Link></section>}
 
         <section className="mt-4 grid gap-6 rounded-2xl border border-[#d9d8cf] bg-[#fffdf7] p-5 shadow-sm lg:grid-cols-[.7fr_1.3fr]">
           <div className="space-y-3">
