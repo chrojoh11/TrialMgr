@@ -630,3 +630,12 @@ test('keeps administrator registry search authenticated and non-public', () => {
   assert.match(sql, /grant execute on function public\.sdda_search_registry_dogs\(text\) to authenticated/i);
   assert.doesNotMatch(sql, /grant execute on function public\.sdda_search_registry_dogs\(text\) to anon/i);
 });
+
+test('matches registry search words regardless of owner-name order', () => {
+  const sql = readFileSync(new URL('../supabase/sdda-migrations/20260830_0039_registry_search_word_order.sql', import.meta.url), 'utf8');
+  assert.match(sql, /regexp_split_to_array\(lower\(query_text\)/i);
+  assert.match(sql, /not exists \(/i);
+  assert.match(sql, /unnest\(query_terms\)/i);
+  assert.match(sql, /concat_ws\(' ',d\.registration_number,d\.call_name,d\.owner_name,d\.owner_number\)/i);
+  assert.match(sql, /grant execute on function public\.sdda_search_registry_dogs\(text\) to authenticated/i);
+});
