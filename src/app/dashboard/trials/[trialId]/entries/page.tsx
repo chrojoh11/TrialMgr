@@ -35,6 +35,7 @@ export default function SddaEntriesPage() {
   const [fileErrors, setFileErrors] = useState<string[]>([]);
   const [result, setResult] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [savingEntryId, setSavingEntryId] = useState<string | null>(null);
@@ -185,11 +186,13 @@ export default function SddaEntriesPage() {
     () =>
       entries.filter((entry: any) => {
         const dog = Array.isArray(entry.sdda_dogs) ? entry.sdda_dogs[0] : entry.sdda_dogs;
-        return `${entry.handler_name} ${entry.handler_email || ''} ${dog?.call_name || ''} ${dog?.sdda_registration_number || ''}`
+        const matchesSearch = `${entry.handler_name} ${entry.handler_email || ''} ${dog?.call_name || ''} ${dog?.sdda_registration_number || ''}`
           .toLowerCase()
           .includes(search.toLowerCase());
+        const matchesStatus = statusFilter === 'all' || entry.confirmation_status === statusFilter;
+        return matchesSearch && matchesStatus;
       }),
-    [entries, search]
+    [entries, search, statusFilter]
   );
 
   const changeConfirmation = async (entryId: string, status: 'received' | 'accepted' | 'waitlisted' | 'rejected') => {
@@ -213,8 +216,8 @@ export default function SddaEntriesPage() {
     >
       <div className="mx-auto max-w-6xl space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">SDDA Entry Roster</h1>
-          <p className="text-gray-600">{trial?.name}</p>
+          <h1 className="text-3xl font-bold">Entries</h1>
+          <p className="text-gray-600">{trial?.name} · {entries.length} entr{entries.length === 1 ? 'y' : 'ies'}</p>
         </div>
         {error && (
           <Alert variant="destructive">
@@ -226,48 +229,8 @@ export default function SddaEntriesPage() {
             <AlertDescription>{result}</AlertDescription>
           </Alert>
         )}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <FileUp className="mr-2 h-5 w-5" />
-              Import Google Form CSV
-            </CardTitle>
-            <CardDescription>
-              Upload the same Google Form response CSV used by the original SDDA TrialDesk. Day,
-              level, component, and stream offerings found in the file are added to this trial
-              automatically.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Input type="file" accept=".csv,text/csv" onChange={chooseFile} />
-            {preview.length > 0 && (
-              <div className="flex items-center justify-between">
-                <p>{preview.length} valid rows ready to import.</p>
-                <Button onClick={runImport} disabled={importing}>
-                  {importing ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <FileUp className="mr-2 h-4 w-4" />
-                  )}
-                  Import entries
-                </Button>
-              </div>
-            )}
-            {fileErrors.length > 0 && (
-              <Alert variant="destructive">
-                <AlertDescription>
-                  <ul className="list-disc pl-5">
-                    {fileErrors.map((message) => (
-                      <li key={message}>{message}</li>
-                    ))}
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="relative max-w-md flex-1">
+          <div className="relative min-w-64 max-w-md flex-1">
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
             <Input
               className="pl-10"
@@ -276,18 +239,59 @@ export default function SddaEntriesPage() {
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
+          <select
+            aria-label="Filter entries by status"
+            className="h-10 rounded-md border border-input bg-white px-3 text-sm"
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+          >
+            <option value="all">Status: All</option>
+            <option value="received">Received</option>
+            <option value="accepted">Accepted</option>
+            <option value="waitlisted">Waitlisted</option>
+            <option value="rejected">Rejected</option>
+          </select>
           <Button variant="outline" onClick={exportMailingList} disabled={!entries.length}>
             <Download className="mr-2 h-4 w-4" />
             Export mailing list XLSX
           </Button>
         </div>
+        <details className="rounded-lg border bg-white">
+          <summary className="flex cursor-pointer list-none items-center px-5 py-4 font-semibold text-[#225f45]">
+            <FileUp className="mr-2 h-5 w-5" />
+            Import Google Form CSV
+          </summary>
+          <div className="border-t px-5 py-4">
+            <p className="mb-4 text-sm text-gray-600">
+              Upload the same Google Form response CSV used by the original SDDA TrialDesk. Day,
+              level, component, and stream offerings found in the file are added automatically.
+            </p>
+            <div className="space-y-4">
+              <Input type="file" accept=".csv,text/csv" onChange={chooseFile} />
+              {preview.length > 0 && (
+                <div className="flex items-center justify-between gap-3">
+                  <p>{preview.length} valid rows ready to import.</p>
+                  <Button onClick={runImport} disabled={importing}>
+                    {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
+                    Import entries
+                  </Button>
+                </div>
+              )}
+              {fileErrors.length > 0 && (
+                <Alert variant="destructive"><AlertDescription><ul className="list-disc pl-5">{fileErrors.map((message) => <li key={message}>{message}</li>)}</ul></AlertDescription></Alert>
+              )}
+            </div>
+          </div>
+        </details>
         {loading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
           <Card>
-            <CardContent className="py-14 text-center">No SDDA entries yet.</CardContent>
+            <CardContent className="py-14 text-center">
+              {entries.length ? 'No entries match the current search or status filter.' : 'No entries yet.'}
+            </CardContent>
           </Card>
         ) : (
           <div className="grid gap-4">
