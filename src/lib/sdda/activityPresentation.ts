@@ -13,6 +13,7 @@ const INTERNAL_FIELDS = new Set([
   'created_by',
   'recorded_by',
   'receipt_token',
+  'confirmation_code',
 ]);
 
 const FIELD_LABELS: Record<string, string> = {

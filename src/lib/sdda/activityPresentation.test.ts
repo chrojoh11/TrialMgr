@@ -14,6 +14,7 @@ test('keeps secretary-facing changes and removes database metadata', () => {
     stream: 'Working',
     capacity: null,
     judge_name: null,
+    confirmation_code: 'SDDA-SECRET',
   });
 
   assert.deepEqual(changes.map((change) => change.field), ['level', 'component', 'stream']);
