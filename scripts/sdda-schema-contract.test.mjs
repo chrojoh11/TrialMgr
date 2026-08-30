@@ -604,3 +604,13 @@ test('imports and verifies the official SDDA Dogs registry without privileged br
   assert.match(sql, /grant execute on function public\.sdda_lookup_registry_dog\(text\) to anon,authenticated/i);
   assert.doesNotMatch(sql, /service_role|cwags|c-wags/i);
 });
+
+test('loads roster dog names through a trial-authorized RLS-safe boundary', () => {
+  const sql = readFileSync(new URL('../supabase/sdda-migrations/20260829_0036_trial_roster_dogs.sql', import.meta.url), 'utf8');
+  assert.match(sql, /function public\.sdda_trial_roster_dogs\(target_trial_id uuid\)/i);
+  assert.match(sql, /security definer set search_path=public set row_security=off/i);
+  assert.match(sql, /if not public\.sdda_can_access_trial\(target_trial_id\)/i);
+  assert.match(sql, /from public\.sdda_entries e join public\.sdda_dogs d on d\.id=e\.dog_id/i);
+  assert.match(sql, /grant execute on function public\.sdda_trial_roster_dogs\(uuid\) to authenticated/i);
+  assert.doesNotMatch(sql, /service_role|cwags|c-wags/i);
+});

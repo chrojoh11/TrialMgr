@@ -340,7 +340,7 @@ export async function listSddaEntries(client: SupabaseClient, trialId: string) {
   const dogIds = [...new Set(entries.map((entry) => entry.dog_id))];
   const entryIds = entries.map((entry) => entry.id);
   const [{ data: dogs, error: dogsError }, { data: runs, error: runsError }, { data: gameRuns, error: gamesError }] = await Promise.all([
-    client.from('sdda_dogs').select('id,call_name,registered_name,sdda_registration_number,registration_pending,breed').in('id', dogIds),
+    client.rpc('sdda_trial_roster_dogs', { target_trial_id: trialId }),
     client.from('sdda_runs').select('id,entry_id,trial_day_id,level,component,stream,run_group,running_position,move_up_from_level,move_up_approved_at').in('entry_id', entryIds),
     client.from('sdda_game_runs').select('id,entry_id,trial_day_id,offering_id,entry_type,requested_team_partner,aerial_division').in('entry_id', entryIds),
   ]);
@@ -354,7 +354,7 @@ export async function listSddaEntries(client: SupabaseClient, trialId: string) {
     : { data: [], error: null };
   if (offeringsError) throw new Error(`Entry Games could not be identified: ${offeringsError.message}`);
 
-  const dogById = new Map((dogs || []).map((dog) => [dog.id, dog]));
+  const dogById = new Map((dogs || []).filter((dog) => dogIds.includes(dog.id)).map((dog) => [dog.id, dog]));
   const gameOfferingById = new Map((gameOfferings || []).map((offering) => [offering.id, offering]));
   const runsByEntry = new Map<string, typeof runs>();
   const gamesByEntry = new Map<string, Array<(NonNullable<typeof gameRuns>)[number] & { sdda_game_offerings: (NonNullable<typeof gameOfferings>)[number] | null }>>();
