@@ -37,6 +37,11 @@ type Setup = {
   offerings: Offer[];
   game_offerings: GameOffer[];
 };
+type SetupRow = Omit<Setup, 'days' | 'offerings' | 'game_offerings'> & {
+  sdda_trial_days?: Day[];
+  sdda_trial_offerings?: Offer[];
+  sdda_game_offerings?: GameOffer[];
+};
 type EditData = typeof empty & {
   entry_id: string;
   confirmation_code: string;
@@ -91,6 +96,13 @@ export default function Page() {
   const [editing, setEditing] = useState(false);
   const [canEdit, setCanEdit] = useState(true);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [lookupNumber, setLookupNumber] = useState('');
+  const [lookupEmail, setLookupEmail] = useState('');
+  const [lookupBusy, setLookupBusy] = useState(false);
+  const [recoveryCredentials, setRecoveryCredentials] = useState<{
+    registration_number: string;
+    verification_email: string;
+  } | null>(null);
   const [receipt, setReceipt] = useState<{
     confirmation_code: string;
     receipt_token: string;
@@ -112,7 +124,7 @@ export default function Page() {
           return setError(
             setupResult.error?.message || editResult.error?.message || 'Unable to edit entry.'
           );
-        const row = setupResult.data as any;
+        const row = setupResult.data as SetupRow;
         const loadedSetup = {
           ...row,
           days: row.sdda_trial_days || [],
@@ -147,14 +159,17 @@ export default function Page() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trialId, secretaryEntryId, entryCode, receiptToken]);
 
-  function hydrateEdit(data: EditData, secretary: boolean, activeSetup: Setup) {
-    setForm({
-      ...empty,
-      ...Object.fromEntries(
-        Object.keys(empty).map((key) => [key, (data as any)[key] ?? (empty as any)[key]])
-      ),
-      waiver_accepted: true,
-    });
+  function hydrateEdit(
+    data: EditData,
+    secretary: boolean,
+    activeSetup: Setup,
+    startEditing = secretary
+  ) {
+    const formKeys = Object.keys(empty) as Array<keyof typeof empty>;
+    const loadedForm = Object.fromEntries(
+      formKeys.map((key) => [key, data[key] ?? empty[key]])
+    ) as typeof empty;
+    setForm({ ...loadedForm, waiver_accepted: true });
     const scentSelections = data.runs.map((run) => {
       const offering = activeSetup.offerings.find((item) => item.id === run.offering_id)!;
       return {
@@ -185,10 +200,52 @@ export default function Page() {
       )
     );
     setReceipt(
-      secretary ? null : { confirmation_code: data.confirmation_code, receipt_token: receiptToken }
+      secretary || startEditing
+        ? null
+        : { confirmation_code: data.confirmation_code, receipt_token: receiptToken }
     );
     setCanEdit(data.can_edit);
-    setEditing(secretary);
+    setEditing(startEditing);
+  }
+
+  async function lookupExistingEntry(e: FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (!lookupNumber.trim() || !lookupEmail.trim().includes('@')) {
+      setError('Enter the dog’s SDDA registration number and the email used for the entry.');
+      return;
+    }
+    setLookupBusy(true);
+    const client = getSupabaseBrowser();
+    const { data, error: lookupError } = await client.rpc(
+      'sdda_public_entry_by_registration',
+      {
+        target_trial_id: trialId,
+        registration_number: lookupNumber.trim(),
+        verification_email: lookupEmail.trim(),
+      }
+    );
+    setLookupBusy(false);
+    if (lookupError) {
+      setError(lookupError.message);
+      return;
+    }
+    if (!setup) {
+      setError('The trial entry form is not ready yet. Please reload and try again.');
+      return;
+    }
+    const editData = data as EditData;
+    if (!editData.can_edit) {
+      setError('This entry can no longer be edited online. Contact the trial secretary.');
+      return;
+    }
+    setRecoveryCredentials({
+      registration_number: lookupNumber.trim(),
+      verification_email: lookupEmail.trim(),
+    });
+    hydrateEdit(editData, false, setup, true);
+    setStep(1);
+    scrollTo(0, 0);
   }
   const choices = useMemo(() => {
     const grouped = new Map<string, Choice>();
@@ -231,7 +288,8 @@ export default function Page() {
   const toggle = (key: string) =>
     setChosen((v) => {
       const n = new Set(v);
-      n.has(key) ? n.delete(key) : n.add(key);
+      if (n.has(key)) n.delete(key);
+      else n.add(key);
       if (!n.has(key)) {
         setRunGroup((g) => {
           const copy = { ...g };
@@ -314,6 +372,13 @@ export default function Page() {
           target_entry_id: secretaryEntryId,
           submission,
         })
+      : recoveryCredentials
+        ? await client.rpc('sdda_update_public_entry_by_registration', {
+            target_trial_id: trialId,
+            registration_number: recoveryCredentials.registration_number,
+            verification_email: recoveryCredentials.verification_email,
+            submission,
+          })
       : editing
         ? await client.rpc('sdda_update_public_entry', {
             entry_code: receipt?.confirmation_code || entryCode,
@@ -332,17 +397,25 @@ export default function Page() {
       window.location.href = `/dashboard/trials/${trialId}/entries`;
       return;
     }
+    if (recoveryCredentials) {
+      setRecoveryCredentials({
+        registration_number: form.dog_registration_number.trim(),
+        verification_email: form.handler_email.trim(),
+      });
+    }
     setReceipt({ confirmation_code: r.confirmation_code, receipt_token: token });
     setEditing(false);
     localStorage.setItem(
       `sdda-receipt-${r.confirmation_code}`,
       JSON.stringify({ confirmation_code: r.confirmation_code, receipt_token: token, trialId })
     );
-    window.history.replaceState(
-      null,
-      '',
-      `/sdda-entry/${trialId}?code=${encodeURIComponent(r.confirmation_code)}&token=${encodeURIComponent(token)}`
-    );
+    if (token) {
+      window.history.replaceState(
+        null,
+        '',
+        `/sdda-entry/${trialId}?code=${encodeURIComponent(r.confirmation_code)}&token=${encodeURIComponent(token)}`
+      );
+    }
     scrollTo(0, 0);
   }
   function selectionLabels() {
@@ -374,7 +447,9 @@ export default function Page() {
       dogName: form.dog_call_name,
       runCount: totalRuns,
       selections,
-      privateEditUrl: `${window.location.origin}/sdda-entry/${trialId}?code=${encodeURIComponent(receipt.confirmation_code)}&token=${encodeURIComponent(receipt.receipt_token)}`,
+      privateEditUrl: receipt.receipt_token
+        ? `${window.location.origin}/sdda-entry/${trialId}?code=${encodeURIComponent(receipt.confirmation_code)}&token=${encodeURIComponent(receipt.receipt_token)}`
+        : undefined,
       amountOwingCents: configuredEntryFeesCents,
       amountLabel: chosen.size ? 'Configured Games fees' : 'Amount owing',
     });
@@ -400,7 +475,7 @@ export default function Page() {
               The secretary must confirm your entry and payment instructions. Keep this receipt.
             </p>
           </div>
-          {canEdit && <div className="my-5 rounded-xl border-2 border-[#b98935] bg-white p-4"><b>Save your private edit link</b><p className="mt-1 text-sm">This is the only self-service way to return and change the entry. The confirmation number or SDDA number alone cannot unlock it.</p><p className="mt-3 break-all rounded bg-[#f7f8f4] p-3 font-mono text-xs">{typeof window !== 'undefined' ? window.location.href : ''}</p><p className="mt-2 text-sm font-semibold text-[#7a5718]">Keep it confidential. Anyone with this link can edit the entry until it is accepted or entries close.</p></div>}
+          {canEdit && receipt.receipt_token && <div className="my-5 rounded-xl border-2 border-[#b98935] bg-white p-4"><b>Return to this entry</b><p className="mt-1 text-sm">You may keep this private link, or return to the public entry form and use the dog’s SDDA registration number plus the entry email.</p><p className="mt-3 break-all rounded bg-[#f7f8f4] p-3 font-mono text-xs">{typeof window !== 'undefined' ? window.location.href : ''}</p><p className="mt-2 text-sm font-semibold text-[#7a5718]">Keep the private link confidential. Anyone with it can edit the entry while online editing remains open.</p></div>}
           <p>
             {form.handler_name} with {form.dog_call_name} · {chosen.size + gameChosen.size} runs
             requested
@@ -442,16 +517,18 @@ export default function Page() {
                 >
                   Edit entry
                 </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-[#225f45] bg-white px-5 py-3 font-bold text-[#225f45]"
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(window.location.href);
-                    setLinkCopied(true);
-                  }}
-                >
-                  {linkCopied ? 'Private link copied' : 'Copy private entry link'}
-                </button>
+                {receipt.receipt_token && (
+                  <button
+                    type="button"
+                    className="rounded-lg border border-[#225f45] bg-white px-5 py-3 font-bold text-[#225f45]"
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(window.location.href);
+                      setLinkCopied(true);
+                    }}
+                  >
+                    {linkCopied ? 'Private link copied' : 'Copy private entry link'}
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -480,7 +557,45 @@ export default function Page() {
       )}
       {!setup && !error && <section className={box}>Loading entry form…</section>}
       {setup && (
-        <form onSubmit={submit}>
+        <>
+          {!editing && !secretaryEntryId && !entryCode && (
+            <form className={`${box} mb-4`} onSubmit={lookupExistingEntry}>
+              <h2 className="font-serif text-2xl text-[#225f45]">Already entered this trial?</h2>
+              <p className="mt-1 text-sm text-[#68736c]">
+                Enter the dog’s SDDA registration number and the same email used on the entry. We’ll
+                load the current information and selections so you can make changes.
+              </p>
+              <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
+                <F label="SDDA registration number">
+                  <input
+                    className={field}
+                    value={lookupNumber}
+                    onChange={(e) => setLookupNumber(e.target.value)}
+                  />
+                </F>
+                <F label="Entry email">
+                  <input
+                    type="email"
+                    className={field}
+                    value={lookupEmail}
+                    onChange={(e) => setLookupEmail(e.target.value)}
+                  />
+                </F>
+                <button
+                  type="submit"
+                  disabled={lookupBusy}
+                  className="rounded-lg border border-[#225f45] bg-white px-5 py-2 font-bold text-[#225f45] disabled:opacity-60"
+                >
+                  {lookupBusy ? 'Looking up…' : 'Load my entry'}
+                </button>
+              </div>
+              <p className="mt-3 text-xs text-gray-600">
+                For privacy, both values must match. Accepted entries and entries with running orders
+                or scores must be changed by the trial secretary.
+              </p>
+            </form>
+          )}
+          <form onSubmit={submit}>
           {(setup.secretary_name || setup.secretary_email || setup.secretary_phone) && <section className={`${box} mb-4 text-sm`}><b>Trial secretary:</b> {[setup.secretary_name, setup.secretary_email, setup.secretary_phone].filter(Boolean).join(' · ')}</section>}
           {step === 1 && (
             <div className="space-y-4">
@@ -660,7 +775,8 @@ export default function Page() {
                                   onChange={() =>
                                     setGameChosen((current) => {
                                       const next = new Set(current);
-                                      next.has(g.id) ? next.delete(g.id) : next.add(g.id);
+                                      if (next.has(g.id)) next.delete(g.id);
+                                      else next.add(g.id);
                                       return next;
                                     })
                                   }
@@ -850,7 +966,8 @@ export default function Page() {
               </button>
             )}
           </div>
-        </form>
+          </form>
+        </>
       )}
     </Shell>
   );
