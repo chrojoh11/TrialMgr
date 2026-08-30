@@ -31,7 +31,7 @@ export default function SddaTrialWorkspacePage() {
   const [pricing, setPricing] = useState({ componentFee: '', threeComponentFee: '', eliteFee: '' });
   const [pricingDirty, setPricingDirty] = useState(false);
   const [savingPricing, setSavingPricing] = useState(false);
-  const [dayDetails, setDayDetails] = useState<Record<string, { trialNumber: string; judgeName: string }>>({});
+  const [dayDetails, setDayDetails] = useState<Record<string, { trialDate: string; trialNumber: string; judgeName: string }>>({});
   const [savingDay, setSavingDay] = useState<string | null>(null);
   const [publicDetails, setPublicDetails] = useState({ secretaryName: '', secretaryEmail: '', secretaryPhone: '', paymentInstructions: '', cancellationPolicy: '' });
   const [savingPublicDetails, setSavingPublicDetails] = useState(false);
@@ -76,7 +76,7 @@ export default function SddaTrialWorkspacePage() {
       setGameConfigurationDirty(false);
       setPricing({ componentFee: workspace.scent_component_fee_cents ? (workspace.scent_component_fee_cents / 100).toFixed(2) : '', threeComponentFee: workspace.scent_three_component_fee_cents ? (workspace.scent_three_component_fee_cents / 100).toFixed(2) : '', eliteFee: workspace.elite_fee_cents ? (workspace.elite_fee_cents / 100).toFixed(2) : '' });
       setPricingDirty(false);
-      setDayDetails(Object.fromEntries(workspace.sdda_trial_days.map((day) => [day.id, { trialNumber: day.sdda_trial_number || '', judgeName: day.judge_name || '' }])));
+      setDayDetails(Object.fromEntries(workspace.sdda_trial_days.map((day) => [day.id, { trialDate: day.trial_date, trialNumber: day.sdda_trial_number || '', judgeName: day.judge_name || '' }])));
       setPublicDetails({ secretaryName: workspace.secretary_name || '', secretaryEmail: workspace.secretary_email || '', secretaryPhone: workspace.secretary_phone || '', paymentInstructions: workspace.payment_instructions || '', cancellationPolicy: workspace.cancellation_policy || '' });
       const accepted = roster.filter((entry) => entry.confirmation_status === 'accepted').length;
       const scentRequired = scentRuns.filter((run) => run.run_group !== 'FEO');
@@ -246,7 +246,9 @@ export default function SddaTrialWorkspacePage() {
   const saveDayDetails = async (dayId: string) => {
     try {
       setSavingDay(dayId); setError(null); setSaved(false);
-      await saveSddaTrialDayDetails(getSupabaseBrowser(), dayId, dayDetails[dayId] || { trialNumber: '', judgeName: '' });
+      const details = dayDetails[dayId];
+      if (!details?.trialDate) throw new Error('Choose a date for this trial day.');
+      await saveSddaTrialDayDetails(getSupabaseBrowser(), dayId, details);
       await load(); setSaved(true);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to save trial day details.');
@@ -332,11 +334,12 @@ export default function SddaTrialWorkspacePage() {
           <Card key={day.id}>
             <CardHeader><CardTitle className="flex items-center"><Calendar className="mr-2 h-5 w-5" />Day {day.day_number}: {day.trial_date}</CardTitle><CardDescription>{day.sdda_trial_number ? `SDDA trial ${day.sdda_trial_number}` : 'SDDA trial number pending'}{day.judge_name ? ` • Judge: ${day.judge_name}` : ' • Judge pending'}</CardDescription></CardHeader>
             <CardContent className="space-y-5">
-              <div className="grid gap-3 rounded-md border border-[#d7ddd8] bg-[#f7f8f4] p-4 sm:grid-cols-[1fr_2fr_auto] sm:items-end">
-                <div><Label htmlFor={`${day.id}-trial-number`}>SDDA trial number</Label><Input id={`${day.id}-trial-number`} className="mt-1 bg-white" placeholder="Enter when assigned" value={dayDetails[day.id]?.trialNumber || ''} onChange={(event) => setDayDetails((current) => ({ ...current, [day.id]: { trialNumber: event.target.value, judgeName: current[day.id]?.judgeName || '' } }))} /></div>
-                <div><Label htmlFor={`${day.id}-judge-name`}>Day judge</Label><Input id={`${day.id}-judge-name`} className="mt-1 bg-white" placeholder="Enter or replace judge name" value={dayDetails[day.id]?.judgeName || ''} onChange={(event) => setDayDetails((current) => ({ ...current, [day.id]: { trialNumber: current[day.id]?.trialNumber || '', judgeName: event.target.value } }))} /></div>
+              <div className="grid gap-3 rounded-md border border-[#d7ddd8] bg-[#f7f8f4] p-4 sm:grid-cols-[1fr_1fr_2fr_auto] sm:items-end">
+                <div><Label htmlFor={`${day.id}-trial-date`}>Trial date</Label><Input id={`${day.id}-trial-date`} type="date" className="mt-1 bg-white" value={dayDetails[day.id]?.trialDate || ''} onChange={(event) => setDayDetails((current) => ({ ...current, [day.id]: { trialDate: event.target.value, trialNumber: current[day.id]?.trialNumber || '', judgeName: current[day.id]?.judgeName || '' } }))} /></div>
+                <div><Label htmlFor={`${day.id}-trial-number`}>SDDA trial number</Label><Input id={`${day.id}-trial-number`} className="mt-1 bg-white" placeholder="Enter when assigned" value={dayDetails[day.id]?.trialNumber || ''} onChange={(event) => setDayDetails((current) => ({ ...current, [day.id]: { trialDate: current[day.id]?.trialDate || day.trial_date, trialNumber: event.target.value, judgeName: current[day.id]?.judgeName || '' } }))} /></div>
+                <div><Label htmlFor={`${day.id}-judge-name`}>Day judge</Label><Input id={`${day.id}-judge-name`} className="mt-1 bg-white" placeholder="Enter or replace judge name" value={dayDetails[day.id]?.judgeName || ''} onChange={(event) => setDayDetails((current) => ({ ...current, [day.id]: { trialDate: current[day.id]?.trialDate || day.trial_date, trialNumber: current[day.id]?.trialNumber || '', judgeName: event.target.value } }))} /></div>
                 <Button type="button" variant="outline" disabled={savingDay === day.id} onClick={() => void saveDayDetails(day.id)}>{savingDay === day.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save day details</Button>
-              </div>
+              </div><p className="text-xs text-gray-600">The day judge is the default for every offering on this day. A class or Game judge entered below overrides it and can also be replaced later.</p>
               {hasScent && SDDA_LEVELS.map((level) => (
                 <div key={level} className="space-y-2"><h3 className="font-semibold">{level}{level === 'Elite' ? ' (no stream)' : ''}</h3><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {SDDA_COMPONENTS.map((component) => {

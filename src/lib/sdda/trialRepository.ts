@@ -187,10 +187,11 @@ export async function saveSddaTrialPricing(
 export async function saveSddaTrialDayDetails(
   client: SupabaseClient,
   trialDayId: string,
-  details: { trialNumber: string; judgeName: string },
+  details: { trialDate: string; trialNumber: string; judgeName: string },
 ) {
-  const { error } = await client.rpc('sdda_update_trial_day_details', {
+  const { error } = await client.rpc('sdda_update_trial_day_schedule', {
     target_trial_day_id: trialDayId,
+    requested_trial_date: details.trialDate,
     requested_trial_number: details.trialNumber,
     requested_judge_name: details.judgeName,
   });
