@@ -9,6 +9,9 @@ export interface SddaDogHistorySummary {
   registrationNumber: string;
   dogName: string;
   breed: string;
+  sex?: string;
+  ownerNumber?: string;
+  ownerName?: string;
   qualifyingCounts: Record<string, number>;
 }
 
@@ -33,7 +36,15 @@ export function parseSddaHistoryWorkbook(buffer: ArrayBuffer): SddaHistoryWorkbo
         counts[`${level}|${component}`] = Math.max(0, Number(row[6 + levelIndex * 3 + componentIndex]) || 0);
       });
     });
-    return [{ registrationNumber, dogName: clean(row[1]), breed: clean(row[2]), qualifyingCounts: counts }];
+    return [{
+      registrationNumber,
+      dogName: clean(row[1]),
+      breed: clean(row[2]),
+      sex: clean(row[3]),
+      ownerNumber: clean(row[4]),
+      ownerName: clean(row[5]),
+      qualifyingCounts: counts,
+    }];
   });
   const info = workbook.Sheets['Trial Info'];
   return { dogs, refreshedAt: clean(info?.J1?.v) };

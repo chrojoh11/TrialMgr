@@ -14,6 +14,23 @@ test('reads official SDDA Dogs component-Q columns', () => {
   assert.equal(parsed.dogs[0].qualifyingCounts['Advanced|Exterior'], 4);
 });
 
+test('reads official registry identity fields from SDDA Dogs', () => {
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+    ['Number', 'Dog', 'Breed', 'Sex', 'Owner number', 'Owner'],
+    ['17', 'Dali', 'All-Canadian', 'Female', '14187', 'Wolfram, Marg'],
+  ]), 'SDDA Dogs');
+  const parsed = parseSddaHistoryWorkbook(XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer);
+  assert.deepEqual(parsed.dogs[0], {
+    registrationNumber: '17', dogName: 'Dali', breed: 'All-Canadian', sex: 'Female',
+    ownerNumber: '14187', ownerName: 'Wolfram, Marg', qualifyingCounts: {
+      'Started|Container': 0, 'Started|Interior': 0, 'Started|Exterior': 0,
+      'Advanced|Container': 0, 'Advanced|Interior': 0, 'Advanced|Exterior': 0,
+      'Excellent|Container': 0, 'Excellent|Interior': 0, 'Excellent|Exterior': 0,
+    },
+  });
+});
+
 test('flags title opportunities and level-specific Working requirements', () => {
   const summary = { registrationNumber: '12345', dogName: 'Magic', breed: 'All Canadian', qualifyingCounts: {
     'Started|Container': 1, 'Started|Interior': 1, 'Started|Exterior': 0,

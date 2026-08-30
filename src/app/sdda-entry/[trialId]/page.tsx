@@ -56,6 +56,7 @@ type EditData = typeof empty & {
     aerial_division?: 'High' | 'Highfly';
   }>;
 };
+type RegistryDog = { found: boolean; registration_number?: string; call_name?: string; breed?: string; snapshot_source?: string; snapshot_refreshed_at?: string };
 const box = 'rounded-2xl border border-[#d9d8cf] bg-[#fffdf7] p-5 shadow-sm';
 const field = 'w-full rounded-lg border border-[#bfc8c1] bg-white px-3 py-2';
 const levelOrder = ['Started', 'Advanced', 'Excellent', 'Elite'];
@@ -99,6 +100,8 @@ export default function Page() {
   const [lookupNumber, setLookupNumber] = useState('');
   const [lookupEmail, setLookupEmail] = useState('');
   const [lookupBusy, setLookupBusy] = useState(false);
+  const [registryBusy, setRegistryBusy] = useState(false);
+  const [registryDog, setRegistryDog] = useState<RegistryDog | null>(null);
   const [recoveryCredentials, setRecoveryCredentials] = useState<{
     registration_number: string;
     verification_email: string;
@@ -336,6 +339,25 @@ export default function Page() {
     setStep((s) => s + 1);
     scrollTo(0, 0);
   }
+  async function verifyRegistryNumber() {
+    if (form.registration_pending || !form.dog_registration_number.trim()) return;
+    setRegistryBusy(true);
+    setError('');
+    const { data, error: lookupError } = await getSupabaseBrowser().rpc('sdda_lookup_registry_dog', {
+      registration_number: form.dog_registration_number.trim(),
+    });
+    setRegistryBusy(false);
+    if (lookupError) { setRegistryDog(null); setError(lookupError.message); return; }
+    const dog = data as RegistryDog;
+    setRegistryDog(dog);
+    if (dog.found) {
+      setForm((current) => ({
+        ...current,
+        dog_call_name: current.dog_call_name.trim() || dog.call_name || '',
+        breed: current.breed.trim() || dog.breed || '',
+      }));
+    }
+  }
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
@@ -385,7 +407,7 @@ export default function Page() {
             receipt_token: receipt?.receipt_token || receiptToken,
             submission,
           })
-        : await client.rpc('sdda_submit_public_entry_v3', {
+        : await client.rpc('sdda_submit_public_entry_v4', {
             target_trial_id: trialId,
             submission,
           });
@@ -642,7 +664,7 @@ export default function Page() {
               </Section>
               <Section title="Dog information">
                 <Grid>
-                  <F label="Dog call name *">
+                   <F label="Dog call name *">
                     <input
                       className={field}
                       value={form.dog_call_name}
@@ -654,16 +676,26 @@ export default function Page() {
                       disabled={form.registration_pending}
                       className={field}
                       value={form.dog_registration_number}
-                      onChange={(e) => set('dog_registration_number', e.target.value)}
+                      onChange={(e) => { set('dog_registration_number', e.target.value); setRegistryDog(null); }}
+                      onBlur={() => void verifyRegistryNumber()}
                     />
                     <label>
                       <input
                         type="checkbox"
                         checked={form.registration_pending}
-                        onChange={(e) => set('registration_pending', e.target.checked)}
+                        onChange={(e) => { set('registration_pending', e.target.checked); setRegistryDog(null); }}
                       />{' '}
                       Registration pending
                     </label>
+                    {!form.registration_pending && <div className="mt-2 space-y-2">
+                      <button type="button" disabled={registryBusy || !form.dog_registration_number.trim()} onClick={() => void verifyRegistryNumber()} className="rounded-md border border-[#8ba99a] bg-white px-3 py-1.5 text-sm font-semibold text-[#225f45] disabled:opacity-50">{registryBusy ? 'Checking…' : 'Check SDDA registry'}</button>
+                      {registryDog?.found && (() => {
+                        const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        const matches = !form.dog_call_name.trim() || normalize(form.dog_call_name) === normalize(registryDog.call_name || '');
+                        return <p className={`rounded-md border px-3 py-2 text-sm ${matches ? 'border-green-300 bg-green-50 text-green-900' : 'border-red-300 bg-red-50 text-red-900'}`}>{matches ? `Verified: ${registryDog.call_name}${registryDog.breed ? ` · ${registryDog.breed}` : ''}` : `This number is registered to ${registryDog.call_name}. Correct the dog call name before submitting.`}</p>;
+                      })()}
+                      {registryDog && !registryDog.found && <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">This number is not in the current official workbook snapshot. You may continue, but the secretary must verify it manually.</p>}
+                    </div>}
                   </F>
                   <F label="Breed (Mixed Breed put All Canadian) *">
                     <input

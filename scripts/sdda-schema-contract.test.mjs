@@ -590,3 +590,17 @@ test('grants database-appointed administrators audited access to every trial', (
   assert.match(sql, /Only the owner or an administrator can delete a draft SDDA trial/i);
   assert.doesNotMatch(sql, /grant\s+(?:all|update)\s+on\s+public\.sdda_profiles\s+to\s+authenticated/i);
 });
+
+test('imports and verifies the official SDDA Dogs registry without privileged browser credentials', () => {
+  const sql = readFileSync(new URL('../supabase/sdda-migrations/20260829_0035_official_dog_registry.sql', import.meta.url), 'utf8');
+  assert.match(sql, /create table if not exists public\.sdda_registry_snapshots/i);
+  assert.match(sql, /create table if not exists public\.sdda_registry_dogs/i);
+  assert.match(sql, /function public\.sdda_begin_registry_import/i);
+  assert.match(sql, /function public\.sdda_finish_registry_import/i);
+  assert.match(sql, /if not public\.sdda_is_administrator\(\)/i);
+  assert.match(sql, /function public\.sdda_lookup_registry_dog/i);
+  assert.match(sql, /sdda_dogs_validate_official_registry/i);
+  assert.match(sql, /function public\.sdda_submit_public_entry_v4/i);
+  assert.match(sql, /grant execute on function public\.sdda_lookup_registry_dog\(text\) to anon,authenticated/i);
+  assert.doesNotMatch(sql, /service_role|cwags|c-wags/i);
+});

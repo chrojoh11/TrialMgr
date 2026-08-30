@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, Calendar, Check, ChevronDown, ChevronRight, CircleDollarSign, ClipboardCheck, ClipboardList, Copy, ExternalLink, FileSpreadsheet, FileText, Home, ListOrdered, LockKeyhole, Plus, Trophy, Users, X } from 'lucide-react';
+import { Activity, Calendar, Check, ChevronDown, ChevronRight, CircleDollarSign, ClipboardCheck, ClipboardList, Copy, Database, ExternalLink, FileSpreadsheet, FileText, Home, ListOrdered, LockKeyhole, Plus, Trophy, Users, X } from 'lucide-react';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { listSddaTrials, type SddaTrialSummary } from '@/lib/sdda/trialRepository';
 
@@ -29,9 +29,10 @@ export function Sidebar({ className = '', isMobileOpen = false, onCloseMobile }:
   const [trials, setTrials] = useState<SddaTrialSummary[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [copied, setCopied] = useState<string | null>(null);
+  const [isAdministrator, setIsAdministrator] = useState(false);
   const activeTrialId = pathname.match(/\/dashboard\/trials\/([^/]+)/)?.[1] || null;
   const load = useCallback(async () => { try { setTrials(await listSddaTrials(getSupabaseBrowser())); } catch (error) { console.error('Unable to load SDDA trials for navigation:', error); setTrials([]); } }, []);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(); getSupabaseBrowser().rpc('sdda_is_administrator').then(({ data }) => setIsAdministrator(Boolean(data))); }, [load]);
   useEffect(() => { if (activeTrialId) setExpanded((current) => new Set(current).add(activeTrialId)); }, [activeTrialId]);
   const visibleTrials = useMemo(() => { const recent = trials.slice(0, 5); if (!activeTrialId || recent.some((trial) => trial.id === activeTrialId)) return recent; const active = trials.find((trial) => trial.id === activeTrialId); return active ? [...recent.slice(0, 4), active] : recent; }, [trials, activeTrialId]);
   const toggle = (id: string) => setExpanded((current) => { const next = new Set(current); if (next.has(id) && id !== activeTrialId) next.delete(id); else next.add(id); return next; });
@@ -42,6 +43,7 @@ export function Sidebar({ className = '', isMobileOpen = false, onCloseMobile }:
     <div className="flex items-center justify-between border-b border-[#cfd8d1] bg-[#225f45] px-5 py-5 text-white"><Link href="/dashboard" className="flex items-center gap-3" onClick={onCloseMobile}><span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#b98935] text-[10px] font-black">SDDA</span><span><strong className="block font-serif text-xl">TrialDesk</strong><small className="text-[#dce9e1]">Secretary program</small></span></Link><button type="button" className="lg:hidden" onClick={onCloseMobile} aria-label="Close navigation"><X className="h-5 w-5" /></button></div>
     <nav className="flex-1 overflow-y-auto p-4">
       <Link href="/dashboard" onClick={onCloseMobile} className={`flex items-center gap-3 rounded-lg px-3 py-3 font-semibold ${pathname === '/dashboard' ? 'bg-[#dfece4] text-[#225f45]' : 'text-[#45554b] hover:bg-white'}`}><Home className="h-5 w-5" />Dashboard</Link>
+      {isAdministrator && <Link href="/dashboard/registry" onClick={onCloseMobile} className={`mt-1 flex items-center gap-3 rounded-lg px-3 py-3 font-semibold ${pathname === '/dashboard/registry' ? 'bg-[#dfece4] text-[#225f45]' : 'text-[#45554b] hover:bg-white'}`}><Database className="h-5 w-5" />SDDA Dog Registry</Link>}
       <section className="mt-5"><div className="mb-2 flex items-center justify-between px-3"><h2 className="text-xs font-extrabold uppercase tracking-wider text-[#68736c]">Trials</h2><Link href="/dashboard/trials" onClick={onCloseMobile} className="text-xs font-semibold text-[#225f45]">View all</Link></div>
         <div className="space-y-1">{visibleTrials.length === 0 && <p className="px-3 py-2 text-sm text-[#68736c]">No trials yet.</p>}{visibleTrials.map((trial) => { const open = expanded.has(trial.id) || trial.id === activeTrialId; const active = trial.id === activeTrialId; return <div key={trial.id}><button type="button" onClick={() => toggle(trial.id)} className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left font-semibold ${active ? 'bg-[#e9f1eb] text-[#225f45]' : 'text-[#35443a] hover:bg-white'}`}><Calendar className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1 truncate">{trial.name}</span>{open ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}</button>{open && <div className="ml-4 mt-1 space-y-1 border-l-2 border-[#cfd8d1] pl-2">
           {beforeEntryLinks(trial.id).map(trialLink)}
