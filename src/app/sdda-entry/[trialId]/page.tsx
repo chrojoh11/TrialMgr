@@ -212,7 +212,7 @@ export default function Page() {
     e.preventDefault();
     setError('');
     if (!lookupNumber.trim() || !lookupEmail.trim().includes('@')) {
-      setError('Enter the dog’s SDDA registration number and the email used for the entry.');
+      setError('Enter the SDDA registration or confirmation number and the email used for the entry.');
       return;
     }
     setLookupBusy(true);
@@ -385,7 +385,7 @@ export default function Page() {
             receipt_token: receipt?.receipt_token || receiptToken,
             submission,
           })
-        : await client.rpc('sdda_submit_public_entry_v2', {
+        : await client.rpc('sdda_submit_public_entry_v3', {
             target_trial_id: trialId,
             submission,
           });
@@ -562,11 +562,12 @@ export default function Page() {
             <form className={`${box} mb-4`} onSubmit={lookupExistingEntry}>
               <h2 className="font-serif text-2xl text-[#225f45]">Already entered this trial?</h2>
               <p className="mt-1 text-sm text-[#68736c]">
-                Enter the dog’s SDDA registration number and the same email used on the entry. We’ll
-                load the current information and selections so you can make changes.
+                Enter the dog’s SDDA registration number—or the confirmation number from the
+                receipt—and the same email used on the entry. We’ll load the current information
+                and selections so you can make changes.
               </p>
               <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
-                <F label="SDDA registration number">
+                <F label="SDDA registration or confirmation number">
                   <input
                     className={field}
                     value={lookupNumber}

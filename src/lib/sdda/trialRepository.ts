@@ -327,15 +327,46 @@ export async function saveSddaTrialOfferings(
 }
 
 export async function listSddaEntries(client: SupabaseClient, trialId: string) {
-  const { data, error } = await client
+  const { data: entries, error } = await client
     .from('sdda_entries')
     .select(
-      'id,handler_name,handler_email,handler_phone,handler_address,participant_number,stream,formal_alerts,reactivity,title_watch_note,reported_advanced_gold_count,reported_excellent_gold_count,reported_elite_gold_count,reported_gold_acknowledged,reported_gold_declared_at,entry_status,confirmation_status,confirmation_code,submitted_at,source,created_at,sdda_dogs(id,call_name,registered_name,sdda_registration_number,registration_pending,breed),sdda_runs(id,trial_day_id,level,component,stream,run_group,running_position,move_up_from_level,move_up_approved_at),sdda_game_runs(id,trial_day_id,offering_id,entry_type,requested_team_partner,aerial_division,sdda_game_offerings(game_type))'
+      'id,dog_id,handler_name,handler_email,handler_phone,handler_address,participant_number,stream,formal_alerts,reactivity,title_watch_note,reported_advanced_gold_count,reported_excellent_gold_count,reported_elite_gold_count,reported_gold_acknowledged,reported_gold_declared_at,entry_status,confirmation_status,confirmation_code,submitted_at,source,created_at'
     )
     .eq('trial_id', trialId)
     .order('created_at');
   if (error) throw new Error(error.message);
-  return data || [];
+  if (!entries?.length) return [];
+
+  const dogIds = [...new Set(entries.map((entry) => entry.dog_id))];
+  const entryIds = entries.map((entry) => entry.id);
+  const [{ data: dogs, error: dogsError }, { data: runs, error: runsError }, { data: gameRuns, error: gamesError }] = await Promise.all([
+    client.from('sdda_dogs').select('id,call_name,registered_name,sdda_registration_number,registration_pending,breed').in('id', dogIds),
+    client.from('sdda_runs').select('id,entry_id,trial_day_id,level,component,stream,run_group,running_position,move_up_from_level,move_up_approved_at').in('entry_id', entryIds),
+    client.from('sdda_game_runs').select('id,entry_id,trial_day_id,offering_id,entry_type,requested_team_partner,aerial_division').in('entry_id', entryIds),
+  ]);
+  if (dogsError) throw new Error(`Entry dogs could not be loaded: ${dogsError.message}`);
+  if (runsError) throw new Error(`Entry Scent selections could not be loaded: ${runsError.message}`);
+  if (gamesError) throw new Error(`Entry Games selections could not be loaded: ${gamesError.message}`);
+
+  const offeringIds = [...new Set((gameRuns || []).map((run) => run.offering_id))];
+  const { data: gameOfferings, error: offeringsError } = offeringIds.length
+    ? await client.from('sdda_game_offerings').select('id,game_type').in('id', offeringIds)
+    : { data: [], error: null };
+  if (offeringsError) throw new Error(`Entry Games could not be identified: ${offeringsError.message}`);
+
+  const dogById = new Map((dogs || []).map((dog) => [dog.id, dog]));
+  const gameOfferingById = new Map((gameOfferings || []).map((offering) => [offering.id, offering]));
+  const runsByEntry = new Map<string, typeof runs>();
+  const gamesByEntry = new Map<string, Array<(NonNullable<typeof gameRuns>)[number] & { sdda_game_offerings: (NonNullable<typeof gameOfferings>)[number] | null }>>();
+  for (const run of runs || []) runsByEntry.set(run.entry_id, [...(runsByEntry.get(run.entry_id) || []), run]);
+  for (const run of gameRuns || []) gamesByEntry.set(run.entry_id, [...(gamesByEntry.get(run.entry_id) || []), { ...run, sdda_game_offerings: gameOfferingById.get(run.offering_id) || null }]);
+
+  return entries.map((entry) => ({
+    ...entry,
+    sdda_dogs: dogById.get(entry.dog_id) || null,
+    sdda_runs: runsByEntry.get(entry.id) || [],
+    sdda_game_runs: gamesByEntry.get(entry.id) || [],
+  }));
 }
 
 export async function listSddaEntryFinancials(client: SupabaseClient, trialId: string) {
