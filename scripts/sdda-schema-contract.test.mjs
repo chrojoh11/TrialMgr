@@ -621,3 +621,12 @@ test('disambiguates the public registry lookup parameter', () => {
   assert.match(sql, /grant execute on function public\.sdda_lookup_registry_dog\(text\) to anon,authenticated/i);
   assert.doesNotMatch(sql, /service_role|cwags|c-wags/i);
 });
+
+test('keeps administrator registry search authenticated and non-public', () => {
+  const sql = readFileSync(new URL('../supabase/sdda-migrations/20260830_0038_administrator_registry_search.sql', import.meta.url), 'utf8');
+  assert.match(sql, /function public\.sdda_search_registry_dogs\(search_text text\)/i);
+  assert.match(sql, /if not public\.sdda_is_administrator\(\)/i);
+  assert.match(sql, /limit 50/i);
+  assert.match(sql, /grant execute on function public\.sdda_search_registry_dogs\(text\) to authenticated/i);
+  assert.doesNotMatch(sql, /grant execute on function public\.sdda_search_registry_dogs\(text\) to anon/i);
+});

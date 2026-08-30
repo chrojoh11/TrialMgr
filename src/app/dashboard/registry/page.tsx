@@ -1,12 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Database, Loader2, RefreshCw } from 'lucide-react';
+import { CheckCircle2, Database, Loader2, RefreshCw, Search } from 'lucide-react';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { parseSddaHistoryWorkbook } from '@/lib/sdda/titleHistoryWorkbook';
 
@@ -19,6 +20,11 @@ type RegistryStatus = {
   row_count?: number;
 };
 
+type RegistryDog = {
+  registration_number: string; call_name: string; breed: string; sex: string;
+  owner_number: string | null; owner_name: string | null;
+};
+
 const chunk = <T,>(rows: T[], size: number) => Array.from({ length: Math.ceil(rows.length / size) }, (_, index) => rows.slice(index * size, (index + 1) * size));
 
 export default function SddaRegistryPage() {
@@ -28,6 +34,10 @@ export default function SddaRegistryPage() {
   const [progress, setProgress] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [results, setResults] = useState<RegistryDog[]>([]);
 
   const load = useCallback(async () => {
     const client = getSupabaseBrowser();
@@ -91,6 +101,16 @@ export default function SddaRegistryPage() {
     }
   };
 
+  const search = async () => {
+    const query = searchText.trim();
+    if (query.length < 2) { setError('Enter at least two characters to search the registry.'); return; }
+    setSearching(true); setSearched(false); setError('');
+    const result = await getSupabaseBrowser().rpc('sdda_search_registry_dogs', { search_text: query });
+    if (result.error) { setError(result.error.message); setResults([]); }
+    else { setResults((result.data || []) as RegistryDog[]); setSearched(true); }
+    setSearching(false);
+  };
+
   return <MainLayout title="SDDA dog registry" breadcrumbItems={[{ label: 'Registry' }]}>
     <div className="mx-auto max-w-4xl space-y-5">
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
@@ -102,6 +122,18 @@ export default function SddaRegistryPage() {
         {progress && <p className="text-sm font-semibold text-[#225f45]">{progress}</p>}
         <p className="text-xs text-[#68736c]">A refresh is staged completely before it becomes active, so a failed download or partial import cannot replace the working registry.</p>
       </CardContent></Card>
+      {allowed === true && <Card><CardHeader><CardTitle>Search official dogs</CardTitle><CardDescription>Search by SDDA number, dog call name, owner name or registered participant number.</CardDescription></CardHeader><CardContent className="space-y-4">
+        <form className="flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); void search(); }}>
+          <Input value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Example: 4429, Fizzgig, or Marla Williamson" aria-label="Registry search" />
+          <Button type="submit" disabled={searching}>{searching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}Search</Button>
+        </form>
+        {searched && results.length === 0 && <p className="rounded-lg border bg-[#f7f8f4] p-4 text-sm">No matching dogs were found in the active official registry.</p>}
+        {results.length > 0 && <div className="overflow-x-auto rounded-lg border"><table className="w-full min-w-[720px] text-left text-sm">
+          <thead className="bg-[#e9efe9] text-[#173f31]"><tr><th className="px-3 py-2">SDDA #</th><th className="px-3 py-2">Dog</th><th className="px-3 py-2">Breed</th><th className="px-3 py-2">Sex</th><th className="px-3 py-2">Owner</th><th className="px-3 py-2">Participant #</th></tr></thead>
+          <tbody>{results.map((dog) => <tr key={`${dog.registration_number}-${dog.owner_number || ''}`} className="border-t bg-white"><td className="px-3 py-2 font-semibold text-[#225f45]">{dog.registration_number}</td><td className="px-3 py-2 font-semibold">{dog.call_name}</td><td className="px-3 py-2">{dog.breed || '—'}</td><td className="px-3 py-2">{dog.sex || '—'}</td><td className="px-3 py-2">{dog.owner_name || '—'}</td><td className="px-3 py-2">{dog.owner_number || '—'}</td></tr>)}</tbody>
+        </table></div>}
+        {results.length === 50 && <p className="text-xs text-[#68736c]">Showing the first 50 matches. Add more detail to narrow the search.</p>}
+      </CardContent></Card>}
     </div>
   </MainLayout>;
 }
