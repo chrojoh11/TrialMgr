@@ -614,3 +614,10 @@ test('loads roster dog names through a trial-authorized RLS-safe boundary', () =
   assert.match(sql, /grant execute on function public\.sdda_trial_roster_dogs\(uuid\) to authenticated/i);
   assert.doesNotMatch(sql, /service_role|cwags|c-wags/i);
 });
+
+test('disambiguates the public registry lookup parameter', () => {
+  const sql = readFileSync(new URL('../supabase/sdda-migrations/20260830_0037_registry_lookup_parameter.sql', import.meta.url), 'utf8');
+  assert.match(sql, /lower\(trim\(d\.registration_number\)\)=lower\(trim\(\$1\)\)/i);
+  assert.match(sql, /grant execute on function public\.sdda_lookup_registry_dog\(text\) to anon,authenticated/i);
+  assert.doesNotMatch(sql, /service_role|cwags|c-wags/i);
+});
