@@ -26,11 +26,14 @@ import { createSddaMailingListWorkbook } from '@/lib/sdda/mailingListWorkbook';
 import { acceptedEntryChargeCents } from '@/lib/sdda/financialSummary';
 
 type RosterEntry = Awaited<ReturnType<typeof listSddaEntries>>[number];
+type EntryFinancial = Awaited<ReturnType<typeof listSddaEntryFinancials>>[number];
+const money = (cents: number) => new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(cents / 100);
 
 export default function SddaEntriesPage() {
   const trialId = useParams<{ trialId: string }>().trialId;
   const [trial, setTrial] = useState<SddaTrialWorkspace | null>(null);
   const [entries, setEntries] = useState<RosterEntry[]>([]);
+  const [financials, setFinancials] = useState<EntryFinancial[]>([]);
   const [preview, setPreview] = useState<SddaCsvEntry[]>([]);
   const [fileErrors, setFileErrors] = useState<string[]>([]);
   const [result, setResult] = useState<string | null>(null);
@@ -111,12 +114,14 @@ export default function SddaEntriesPage() {
       setLoading(true);
       setError(null);
       const client = getSupabaseBrowser();
-      const [workspace, roster] = await Promise.all([
+      const [workspace, roster, entryFinancials] = await Promise.all([
         getSddaTrialWorkspace(client, trialId),
         listSddaEntries(client, trialId),
+        listSddaEntryFinancials(client, trialId),
       ]);
       setTrial(workspace);
       setEntries(roster);
+      setFinancials(entryFinancials);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to load SDDA entries.');
     } finally {
@@ -194,6 +199,24 @@ export default function SddaEntriesPage() {
       }),
     [entries, search, statusFilter]
   );
+  const overview = useMemo(() => {
+    const counts = { received: 0, accepted: 0, waitlisted: 0, rejected: 0 };
+    entries.forEach((entry) => {
+      const status = entry.confirmation_status as keyof typeof counts;
+      if (status in counts) counts[status] += 1;
+    });
+    if (!trial) return { ...counts, owed: 0, collected: 0, outstanding: 0 };
+    const pricing = { scentComponentFeeCents: trial.scent_component_fee_cents || 0, scentThreeComponentFeeCents: trial.scent_three_component_fee_cents || 0, eliteFeeCents: trial.elite_fee_cents || 0 };
+    const owed = entries.reduce((total, entry) => total + acceptedEntryChargeCents(entry, pricing, trial.sdda_game_offerings), 0);
+    const ledger = financials.reduce((totals, item) => {
+      const amount = Number(item.amount_cents) || 0;
+      if (item.transaction_type === 'payment') totals.collected += amount;
+      if (item.transaction_type === 'refund') totals.collected -= amount;
+      if (item.transaction_type === 'entry_fee' || item.transaction_type === 'adjustment') totals.adjustments += amount;
+      return totals;
+    }, { collected: 0, adjustments: 0 });
+    return { ...counts, owed: owed + ledger.adjustments, collected: ledger.collected, outstanding: owed + ledger.adjustments - ledger.collected };
+  }, [entries, financials, trial]);
 
   const changeConfirmation = async (entryId: string, status: 'received' | 'accepted' | 'waitlisted' | 'rejected') => {
     try {
@@ -229,6 +252,17 @@ export default function SddaEntriesPage() {
             <AlertDescription>{result}</AlertDescription>
           </Alert>
         )}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+          {[
+            ['Received', overview.received, 'text-amber-800'],
+            ['Accepted', overview.accepted, 'text-emerald-800'],
+            ['Waitlisted', overview.waitlisted, 'text-blue-800'],
+            ['Rejected', overview.rejected, 'text-gray-700'],
+            ['Fees owed', money(overview.owed), 'text-[#225f45]'],
+            ['Collected', money(overview.collected), 'text-emerald-800'],
+            ['Outstanding', money(overview.outstanding), overview.outstanding > 0 ? 'text-orange-800' : 'text-emerald-800'],
+          ].map(([label, value, color]) => <Card key={String(label)}><CardContent className="p-4"><p className="text-xs font-bold uppercase tracking-wide text-gray-500">{label}</p><p className={`mt-1 text-2xl font-bold ${color}`}>{value}</p></CardContent></Card>)}
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="relative min-w-64 max-w-md flex-1">
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />

@@ -14,6 +14,9 @@ import { Label } from '@/components/ui/label';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { SDDA_COMPONENTS, SDDA_LEVELS, SDDA_STREAMS, offeringKey } from '@/lib/sdda/offerings';
 import { formatSddaTrialStatus } from '@/lib/sdda/trialSetup';
+import { acceptedEntryChargeCents } from '@/lib/sdda/financialSummary';
+import { findSddaScheduleConflicts } from '@/lib/sdda/runningOrder';
+import { listSddaFinancialTransactions } from '@/lib/sdda/operationsRepository';
 import { gameOfferingKey, getSddaTrialWorkspace, listSddaEntries, listSddaGameScoringRuns, listSddaScoringRuns, saveSddaGameOfferings, saveSddaTrialDayDetails, saveSddaTrialOfferings, saveSddaTrialPricing, saveSddaTrialPublicDetails, SDDA_GAME_TYPES, setSddaTrialEntryStatus, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
 
 const scentElementKey = (trialDayId: string, level: string, component: string) => `${trialDayId}|${level}|${component}`;
@@ -41,18 +44,19 @@ export default function SddaTrialWorkspacePage() {
   const [saved, setSaved] = useState(false);
   const [changingEntryStatus, setChangingEntryStatus] = useState(false);
   const [entryLinkCopied, setEntryLinkCopied] = useState(false);
-  const [workflow, setWorkflow] = useState({ entries: 0, accepted: 0, runs: 0, ordered: 0, scored: 0, requiredScores: 0 });
+  const [workflow, setWorkflow] = useState({ entries: 0, received: 0, accepted: 0, waitlisted: 0, rejected: 0, reactive: 0, runs: 0, ordered: 0, scored: 0, requiredScores: 0, conflicts: 0, outstandingCents: 0 });
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const client = getSupabaseBrowser();
-      const [workspace, roster, scentRuns, gameRuns] = await Promise.all([
+      const [workspace, roster, scentRuns, gameRuns, transactions] = await Promise.all([
         getSddaTrialWorkspace(client, trialId),
         listSddaEntries(client, trialId),
         listSddaScoringRuns(client, trialId),
         listSddaGameScoringRuns(client, trialId),
+        listSddaFinancialTransactions(client, trialId),
       ]);
       workspace.sdda_trial_days.sort((a, b) => a.day_number - b.day_number);
       setTrial(workspace);
@@ -81,13 +85,32 @@ export default function SddaTrialWorkspacePage() {
       const accepted = roster.filter((entry) => entry.confirmation_status === 'accepted').length;
       const scentRequired = scentRuns.filter((run) => run.run_group !== 'FEO');
       const gamesRequired = gameRuns.filter((run) => run.entry_type !== 'FEO');
+      const scheduled = scentRuns.map((run, index) => {
+        const entry = firstRelation(run.sdda_entries);
+        const dog = firstRelation(entry?.sdda_dogs);
+        return { id: run.id, dayIndex: workspace.sdda_trial_days.findIndex((day) => day.id === run.trial_day_id), level: run.level, component: run.component, handlerId: entry?.handler_name || '', dogId: dog?.sdda_registration_number || dog?.call_name || '', group: run.run_group, order: run.running_position ?? index + 1 };
+      });
+      const pricing = { scentComponentFeeCents: workspace.scent_component_fee_cents || 0, scentThreeComponentFeeCents: workspace.scent_three_component_fee_cents || 0, eliteFeeCents: workspace.elite_fee_cents || 0 };
+      const automaticCharges = roster.reduce((total, entry) => total + acceptedEntryChargeCents(entry, pricing, workspace.sdda_game_offerings), 0);
+      const ledgerBalance = transactions.reduce((balance, item) => {
+        const amount = Number(item.amount_cents) || 0;
+        if (item.transaction_type === 'entry_fee' || item.transaction_type === 'adjustment' || item.transaction_type === 'refund') return balance + amount;
+        if (item.transaction_type === 'payment') return balance - amount;
+        return balance;
+      }, 0);
       setWorkflow({
         entries: roster.length,
+        received: roster.filter((entry) => entry.confirmation_status === 'received').length,
         accepted,
+        waitlisted: roster.filter((entry) => entry.confirmation_status === 'waitlisted').length,
+        rejected: roster.filter((entry) => entry.confirmation_status === 'rejected').length,
+        reactive: roster.filter((entry) => entry.reactivity && entry.reactivity !== 'None').length,
         runs: scentRuns.length + gameRuns.length,
         ordered: scentRuns.filter((run) => run.running_position != null).length + gameRuns.filter((run) => run.running_position != null).length,
         scored: scentRequired.filter((run) => firstRelation(run.sdda_scores)).length + gamesRequired.filter((run) => firstRelation(run.sdda_game_scores)).length,
         requiredScores: scentRequired.length + gamesRequired.length,
+        conflicts: findSddaScheduleConflicts(scheduled).length,
+        outstandingCents: automaticCharges + ledgerBalance,
       });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to load the SDDA trial.');
@@ -298,6 +321,7 @@ export default function SddaTrialWorkspacePage() {
           setupReady={scentReady && gamesReady && scentPricingReady && gamesPricingReady && competitorDetailsReady}
           workflow={workflow}
         />
+        <OperationalSummary trialId={trial.id} workflow={workflow} />
         <Card><CardHeader><CardTitle>Secretary setup checklist</CardTitle><CardDescription>Complete the required setup first; trial numbers and judge assignments can remain pending until SDDA confirms them.</CardDescription></CardHeader><CardContent className="grid gap-3 md:grid-cols-2">{[
           { ready: scentReady && gamesReady, label: 'Offerings selected', detail: 'Required before opening entries.' },
           { ready: scentPricingReady && gamesPricingReady, label: 'Entry fees configured', detail: 'Strongly recommended before sharing the form.' },
@@ -392,4 +416,17 @@ function WorkflowStrip({ trialId, trialStatus, setupReady, workflow }: {
     { label: 'Closeout', href: `/dashboard/trials/${trialId}/closeout`, ready: trialStatus === 'completed', detail: trialStatus === 'completed' ? 'Completed' : 'Final review' },
   ];
   return <Card className="border-[#b8cbbf] bg-[#f8fbf8]"><CardHeader><CardTitle>Trial workflow</CardTitle><CardDescription>Follow the same left-to-right secretary process throughout the trial. Select any stage to open it.</CardDescription></CardHeader><CardContent><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">{steps.map((step, index) => <Link key={step.label} href={step.href} className={`group relative rounded-lg border p-3 transition hover:-translate-y-0.5 hover:shadow-sm ${step.ready ? 'border-emerald-300 bg-emerald-50' : 'border-amber-200 bg-white'}`}><div className="flex items-center justify-between"><span className="text-xs font-bold text-gray-500">{index + 1}</span>{step.ready ? <Check className="h-4 w-4 text-emerald-700" /> : <Circle className="h-4 w-4 text-amber-700" />}</div><p className="mt-2 font-semibold text-[#225f45]">{step.label}</p><p className="mt-1 text-xs text-gray-600">{step.detail}</p></Link>)}</div></CardContent></Card>;
+}
+
+function OperationalSummary({ trialId, workflow }: { trialId: string; workflow: { entries: number; received: number; accepted: number; waitlisted: number; rejected: number; reactive: number; runs: number; ordered: number; scored: number; requiredScores: number; conflicts: number; outstandingCents: number } }) {
+  const money = new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(workflow.outstandingCents / 100);
+  const items = [
+    { label: 'Entry decisions', value: `${workflow.received} awaiting · ${workflow.accepted} accepted · ${workflow.waitlisted} waitlisted`, attention: workflow.received > 0, href: `/dashboard/trials/${trialId}/entries` },
+    { label: 'Running order', value: `${workflow.ordered}/${workflow.runs} runs placed · ${workflow.conflicts} possible conflicts`, attention: workflow.runs > workflow.ordered || workflow.conflicts > 0, href: `/dashboard/trials/${trialId}/running-order` },
+    { label: 'Reactive teams', value: `${workflow.reactive} entr${workflow.reactive === 1 ? 'y' : 'ies'} flagged`, attention: workflow.reactive > 0, href: `/dashboard/trials/${trialId}/running-order` },
+    { label: 'Score completion', value: `${workflow.scored}/${workflow.requiredScores} required runs scored`, attention: workflow.requiredScores > workflow.scored, href: `/dashboard/trials/${trialId}/scoring` },
+    { label: 'Outstanding entry balances', value: money, attention: workflow.outstandingCents > 0, href: `/dashboard/trials/${trialId}/financials` },
+    { label: 'Titles and ribbons', value: 'Review title opportunities and ribbon forecast', attention: false, href: `/dashboard/trials/${trialId}/title-watch` },
+  ];
+  return <Card><CardHeader><CardTitle>Secretary operational summary</CardTitle><CardDescription>Items that may need attention before or during the trial.</CardDescription></CardHeader><CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{items.map((item) => <Link key={item.label} href={item.href} className={`rounded-lg border p-4 transition hover:shadow-sm ${item.attention ? 'border-amber-300 bg-amber-50' : 'border-emerald-200 bg-emerald-50'}`}><div className="flex items-start justify-between gap-3"><div><p className="font-semibold text-[#225f45]">{item.label}</p><p className="mt-1 text-sm text-gray-700">{item.value}</p></div>{item.attention ? <AlertTriangle className="h-5 w-5 shrink-0 text-amber-700" /> : <Check className="h-5 w-5 shrink-0 text-emerald-700" />}</div></Link>)}</CardContent></Card>;
 }
