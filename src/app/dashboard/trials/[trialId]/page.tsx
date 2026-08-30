@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import { Activity, AlertTriangle, Calendar, Check, Circle, CircleDollarSign, ClipboardList, Copy, ExternalLink, FileSpreadsheet, FileText, ListOrdered, Loader2, LockKeyhole, MapPin, Save, Trophy, Users } from 'lucide-react';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -13,9 +14,10 @@ import { Label } from '@/components/ui/label';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { SDDA_COMPONENTS, SDDA_LEVELS, SDDA_STREAMS, offeringKey } from '@/lib/sdda/offerings';
 import { formatSddaTrialStatus } from '@/lib/sdda/trialSetup';
-import { gameOfferingKey, getSddaTrialWorkspace, saveSddaGameOfferings, saveSddaTrialDayDetails, saveSddaTrialOfferings, saveSddaTrialPricing, saveSddaTrialPublicDetails, SDDA_GAME_TYPES, setSddaTrialEntryStatus, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
+import { gameOfferingKey, getSddaTrialWorkspace, listSddaEntries, listSddaGameScoringRuns, listSddaScoringRuns, saveSddaGameOfferings, saveSddaTrialDayDetails, saveSddaTrialOfferings, saveSddaTrialPricing, saveSddaTrialPublicDetails, SDDA_GAME_TYPES, setSddaTrialEntryStatus, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
 
 const scentElementKey = (trialDayId: string, level: string, component: string) => `${trialDayId}|${level}|${component}`;
+const firstRelation = <T,>(value: T | T[] | null | undefined): T | null => Array.isArray(value) ? value[0] || null : value || null;
 
 export default function SddaTrialWorkspacePage() {
   const trialId = useParams<{ trialId: string }>().trialId;
@@ -39,12 +41,19 @@ export default function SddaTrialWorkspacePage() {
   const [saved, setSaved] = useState(false);
   const [changingEntryStatus, setChangingEntryStatus] = useState(false);
   const [entryLinkCopied, setEntryLinkCopied] = useState(false);
+  const [workflow, setWorkflow] = useState({ entries: 0, accepted: 0, runs: 0, ordered: 0, scored: 0, requiredScores: 0 });
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const workspace = await getSddaTrialWorkspace(getSupabaseBrowser(), trialId);
+      const client = getSupabaseBrowser();
+      const [workspace, roster, scentRuns, gameRuns] = await Promise.all([
+        getSddaTrialWorkspace(client, trialId),
+        listSddaEntries(client, trialId),
+        listSddaScoringRuns(client, trialId),
+        listSddaGameScoringRuns(client, trialId),
+      ]);
       workspace.sdda_trial_days.sort((a, b) => a.day_number - b.day_number);
       setTrial(workspace);
       const normalizedScent = new Set<string>();
@@ -69,6 +78,17 @@ export default function SddaTrialWorkspacePage() {
       setPricingDirty(false);
       setDayDetails(Object.fromEntries(workspace.sdda_trial_days.map((day) => [day.id, { trialNumber: day.sdda_trial_number || '', judgeName: day.judge_name || '' }])));
       setPublicDetails({ secretaryName: workspace.secretary_name || '', secretaryEmail: workspace.secretary_email || '', secretaryPhone: workspace.secretary_phone || '', paymentInstructions: workspace.payment_instructions || '', cancellationPolicy: workspace.cancellation_policy || '' });
+      const accepted = roster.filter((entry) => entry.confirmation_status === 'accepted').length;
+      const scentRequired = scentRuns.filter((run) => run.run_group !== 'FEO');
+      const gamesRequired = gameRuns.filter((run) => run.entry_type !== 'FEO');
+      setWorkflow({
+        entries: roster.length,
+        accepted,
+        runs: scentRuns.length + gameRuns.length,
+        ordered: scentRuns.filter((run) => run.running_position != null).length + gameRuns.filter((run) => run.running_position != null).length,
+        scored: scentRequired.filter((run) => firstRelation(run.sdda_scores)).length + gamesRequired.filter((run) => firstRelation(run.sdda_game_scores)).length,
+        requiredScores: scentRequired.length + gamesRequired.length,
+      });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to load the SDDA trial.');
     } finally { setLoading(false); }
@@ -270,6 +290,12 @@ export default function SddaTrialWorkspacePage() {
         </div>
         {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
         {saved && <Alert><Check className="h-4 w-4" /><AlertDescription>SDDA trial setup saved.</AlertDescription></Alert>}
+        <WorkflowStrip
+          trialId={trial.id}
+          trialStatus={trial.status}
+          setupReady={scentReady && gamesReady && scentPricingReady && gamesPricingReady && competitorDetailsReady}
+          workflow={workflow}
+        />
         <Card><CardHeader><CardTitle>Secretary setup checklist</CardTitle><CardDescription>Complete the required setup first; trial numbers and judge assignments can remain pending until SDDA confirms them.</CardDescription></CardHeader><CardContent className="grid gap-3 md:grid-cols-2">{[
           { ready: scentReady && gamesReady, label: 'Offerings selected', detail: 'Required before opening entries.' },
           { ready: scentPricingReady && gamesPricingReady, label: 'Entry fees configured', detail: 'Strongly recommended before sharing the form.' },
@@ -342,4 +368,25 @@ export default function SddaTrialWorkspacePage() {
       </div>
     </MainLayout>
   );
+}
+
+function WorkflowStrip({ trialId, trialStatus, setupReady, workflow }: {
+  trialId: string;
+  trialStatus: string;
+  setupReady: boolean;
+  workflow: { entries: number; accepted: number; runs: number; ordered: number; scored: number; requiredScores: number };
+}) {
+  const allOrdered = workflow.runs > 0 && workflow.ordered === workflow.runs;
+  const allScored = workflow.requiredScores > 0 && workflow.scored === workflow.requiredScores;
+  const steps = [
+    { label: 'Setup', href: `/dashboard/trials/${trialId}`, ready: setupReady, detail: setupReady ? 'Ready' : 'Needs review' },
+    { label: 'Entries', href: `/dashboard/trials/${trialId}/entries`, ready: workflow.accepted > 0, detail: `${workflow.accepted}/${workflow.entries} accepted` },
+    { label: 'Running Order', href: `/dashboard/trials/${trialId}/running-order`, ready: allOrdered, detail: workflow.runs ? `${workflow.ordered}/${workflow.runs} placed` : 'No accepted runs' },
+    { label: 'Score Sheets', href: `/dashboard/trials/${trialId}/score-sheets`, ready: allOrdered, detail: allOrdered ? 'Ready to print' : 'Order runs first' },
+    { label: 'Score Entry', href: `/dashboard/trials/${trialId}/scoring`, ready: allScored, detail: workflow.requiredScores ? `${workflow.scored}/${workflow.requiredScores} scored` : 'No scoring runs' },
+    { label: 'Results', href: `/dashboard/trials/${trialId}/results`, ready: allScored, detail: allScored ? 'Ready to review' : 'Scores incomplete' },
+    { label: 'Workbook', href: `/dashboard/trials/${trialId}/workbook`, ready: allScored, detail: allScored ? 'Ready to export' : 'Scores incomplete' },
+    { label: 'Closeout', href: `/dashboard/trials/${trialId}/closeout`, ready: trialStatus === 'completed', detail: trialStatus === 'completed' ? 'Completed' : 'Final review' },
+  ];
+  return <Card className="border-[#b8cbbf] bg-[#f8fbf8]"><CardHeader><CardTitle>Trial workflow</CardTitle><CardDescription>Follow the same left-to-right secretary process throughout the trial. Select any stage to open it.</CardDescription></CardHeader><CardContent><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">{steps.map((step, index) => <Link key={step.label} href={step.href} className={`group relative rounded-lg border p-3 transition hover:-translate-y-0.5 hover:shadow-sm ${step.ready ? 'border-emerald-300 bg-emerald-50' : 'border-amber-200 bg-white'}`}><div className="flex items-center justify-between"><span className="text-xs font-bold text-gray-500">{index + 1}</span>{step.ready ? <Check className="h-4 w-4 text-emerald-700" /> : <Circle className="h-4 w-4 text-amber-700" />}</div><p className="mt-2 font-semibold text-[#225f45]">{step.label}</p><p className="mt-1 text-xs text-gray-600">{step.detail}</p></Link>)}</div></CardContent></Card>;
 }
