@@ -75,6 +75,43 @@ export interface SddaTrialWorkspace extends SddaTrialSummary {
   sdda_game_offerings: SddaGameOffering[];
 }
 
+export interface SddaRosterDog {
+  id: string;
+  call_name: string;
+  registered_name: string | null;
+  sdda_registration_number: string | null;
+  registration_pending: boolean;
+  breed: string | null;
+}
+
+export interface SddaRosterEntry {
+  id: string;
+  dog_id: string;
+  handler_name: string;
+  handler_email: string | null;
+  handler_phone: string | null;
+  handler_address: string | null;
+  participant_number: string | null;
+  stream: string;
+  formal_alerts: string | null;
+  reactivity: string | null;
+  title_watch_note: string | null;
+  reported_advanced_gold_count: number | null;
+  reported_excellent_gold_count: number | null;
+  reported_elite_gold_count: number | null;
+  reported_gold_acknowledged: boolean;
+  reported_gold_declared_at: string | null;
+  entry_status: string;
+  confirmation_status: string;
+  confirmation_code: string;
+  submitted_at: string | null;
+  source: string | null;
+  created_at: string;
+  sdda_dogs: SddaRosterDog | null;
+  sdda_runs: Array<{ id: string; entry_id: string; trial_day_id: string; level: string; component: string; stream: string; run_group: string; running_position: number | null; move_up_from_level: string | null; move_up_approved_at: string | null }>;
+  sdda_game_runs: Array<{ id: string; entry_id: string; trial_day_id: string; offering_id: string; entry_type: string; requested_team_partner: string | null; aerial_division: string | null; sdda_game_offerings: { id: string; game_type: string } | null }>;
+}
+
 export async function listSddaTrials(client: SupabaseClient): Promise<SddaTrialSummary[]> {
   const { data, error } = await client
     .from('sdda_trials')
@@ -326,7 +363,7 @@ export async function saveSddaTrialOfferings(
   }
 }
 
-export async function listSddaEntries(client: SupabaseClient, trialId: string) {
+export async function listSddaEntries(client: SupabaseClient, trialId: string): Promise<SddaRosterEntry[]> {
   const { data: entries, error } = await client
     .from('sdda_entries')
     .select(
@@ -354,7 +391,8 @@ export async function listSddaEntries(client: SupabaseClient, trialId: string) {
     : { data: [], error: null };
   if (offeringsError) throw new Error(`Entry Games could not be identified: ${offeringsError.message}`);
 
-  const dogById = new Map((dogs || []).filter((dog) => dogIds.includes(dog.id)).map((dog) => [dog.id, dog]));
+  const rosterDogs = (dogs || []) as SddaRosterDog[];
+  const dogById = new Map(rosterDogs.filter((dog) => dogIds.includes(dog.id)).map((dog) => [dog.id, dog]));
   const gameOfferingById = new Map((gameOfferings || []).map((offering) => [offering.id, offering]));
   const runsByEntry = new Map<string, typeof runs>();
   const gamesByEntry = new Map<string, Array<(NonNullable<typeof gameRuns>)[number] & { sdda_game_offerings: (NonNullable<typeof gameOfferings>)[number] | null }>>();
@@ -366,7 +404,7 @@ export async function listSddaEntries(client: SupabaseClient, trialId: string) {
     sdda_dogs: dogById.get(entry.dog_id) || null,
     sdda_runs: runsByEntry.get(entry.id) || [],
     sdda_game_runs: gamesByEntry.get(entry.id) || [],
-  }));
+  })) as SddaRosterEntry[];
 }
 
 export async function listSddaEntryFinancials(client: SupabaseClient, trialId: string) {
