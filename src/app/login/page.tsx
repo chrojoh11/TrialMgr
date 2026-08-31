@@ -69,7 +69,7 @@ export default function LoginPage() {
           )}
 
           {resetMessage && (
-            <p className="mb-3 text-green-600 text-sm border border-green-300 p-3 rounded bg-green-50">
+            <p className="mb-3 text-blue-600 text-sm border border-blue-300 p-3 rounded bg-blue-50">
               {resetMessage}
             </p>
           )}
@@ -83,7 +83,7 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 required
-                className="w-full border border-gray-300 p-3 sm:p-2 rounded-lg text-base sm:text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full border border-gray-300 p-3 sm:p-2 rounded-lg text-base sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -100,7 +100,7 @@ export default function LoginPage() {
                 type="password"
                 required
                 minLength={6}
-                className="w-full border border-gray-300 p-3 sm:p-2 rounded-lg text-base sm:text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full border border-gray-300 p-3 sm:p-2 rounded-lg text-base sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -110,7 +110,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="w-full bg-orange-600 text-white p-3 rounded-lg hover:bg-orange-700 transition-colors font-medium min-h-[44px] text-base"
+              className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors font-medium min-h-[44px] text-base"
             >
               Sign In
             </button>
@@ -118,7 +118,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={handlePasswordReset}
-              className="w-full text-sm text-orange-600 underline hover:text-orange-700 transition-colors min-h-[44px]"
+              className="w-full text-sm text-blue-600 underline hover:text-blue-700 transition-colors min-h-[44px]"
             >
               Forgot your password?
             </button>
@@ -126,7 +126,7 @@ export default function LoginPage() {
             <div className="text-center mt-6 pt-6 border-t">
               <a
                 href="/register"
-                className="text-orange-600 hover:text-orange-700 hover:underline transition-colors text-sm sm:text-base"
+                className="text-blue-600 hover:text-blue-700 hover:underline transition-colors text-sm sm:text-base"
               >
                 Need an account? Register here
               </a>

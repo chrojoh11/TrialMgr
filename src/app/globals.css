@@ -53,8 +53,8 @@
   /* Ensure minimum font size for readability */
   body {
     font-size: 16px; /* Prevents auto-zoom on iOS */
-    background: #f3f0e8;
-    color: #18231d;
+    background: #e9eef3;
+    color: #17212b;
   }
 }
 
@@ -83,7 +83,7 @@
   select {
     font-size: 16px; /* Prevents zoom on focus for iOS */
     background-color: #fff;
-    color: #18231d;
+    color: #17212b;
   }
 
   select option {
@@ -104,9 +104,30 @@
   input:focus-visible,
   select:focus-visible,
   textarea:focus-visible {
-    outline: 2px solid #225f45;
+    outline: 2px solid #2f6690;
     outline-offset: 2px;
   }
+}
+
+@keyframes paw-walk {
+  0%, 100% { opacity: 0.22; transform: translateY(2px) scale(0.82) rotate(-8deg); }
+  35% { opacity: 1; transform: translateY(-2px) scale(1.08) rotate(5deg); }
+  65% { opacity: 0.55; transform: translateY(0) scale(0.96) rotate(0deg); }
+}
+
+.paw-path-loader {
+  min-width: 3.75rem;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+.paw-path-step {
+  animation: paw-walk 1.05s ease-in-out infinite;
+  flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paw-path-step { animation: none; opacity: 0.75; }
 }
 
 @layer utilities {

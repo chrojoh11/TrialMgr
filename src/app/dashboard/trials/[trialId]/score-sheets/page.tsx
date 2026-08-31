@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Download, FileText, Loader2, Printer } from 'lucide-react';
+import { Download, FileText, Printer } from 'lucide-react';
+import { PawLoader } from '@/components/ui/pawLoader';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -228,7 +229,7 @@ export default function SddaScoreSheetsPage() {
               disabled={loading || !runs.length || exporting !== null}
             >
               {exporting === 'complete' ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <PawLoader className="mr-2 h-4 w-4" />
               ) : (
                 <Download className="mr-2 h-4 w-4" />
               )}
@@ -252,7 +253,7 @@ export default function SddaScoreSheetsPage() {
             <CardContent className="flex flex-wrap gap-3">
               <Button onClick={() => void exportGamesPacket()} disabled={exporting !== null}>
                 {exporting === 'games-complete' ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <PawLoader className="mr-2 h-4 w-4" />
                 ) : (
                   <Download className="mr-2 h-4 w-4" />
                 )}
@@ -277,7 +278,7 @@ export default function SddaScoreSheetsPage() {
         )}
         {loading ? (
           <div className="flex justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin" />
+            <PawLoader className="h-8 w-8" />
           </div>
         ) : (
           (trial?.sdda_trial_days || []).map((day) => (
@@ -301,7 +302,7 @@ export default function SddaScoreSheetsPage() {
                   disabled={!counts.get(day.day_number) || exporting !== null}
                 >
                   {exporting === `day-${day.day_number}` ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <PawLoader className="mr-2 h-4 w-4" />
                   ) : (
                     <Download className="mr-2 h-4 w-4" />
                   )}

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Download, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Download, FileSpreadsheet } from 'lucide-react';
+import { PawLoader } from '@/components/ui/pawLoader';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -148,13 +149,13 @@ export default function SddaOfficialWorkbookPage() {
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
       <Card><CardHeader><CardTitle className="flex items-center"><FileSpreadsheet className="mr-2 h-5 w-5" />SDDA Trial Results Workbook</CardTitle><CardDescription>Downloads the newest official SDDA workbook and fills its designated Scent and Games input cells. Official formulas, validation, print areas, Summary, High-in-Trial, fees, labels, and formatted-results sheets remain in place.</CardDescription></CardHeader><CardContent className="flex flex-wrap gap-2"><Badge variant="outline">{enteredRuns.length} entered scent runs</Badge><Badge variant="outline">{gameRuns.length} Games runs</Badge>{excludedRuns > 0 && <Badge variant="outline">{excludedRuns} waitlisted/withdrawn runs excluded</Badge>}</CardContent></Card>
       <Alert><AlertDescription>Open the downloaded workbook in Excel so its original formulas recalculate. Review the official results before submission. SDDA Games sheets are preserved exactly and use their dedicated Games entry and scoring workflow.</AlertDescription></Alert>
-      {loading ? <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div> : dayGroups.map((days, index) => {
+      {loading ? <div className="flex justify-center py-16"><PawLoader className="h-8 w-8" /></div> : dayGroups.map((days, index) => {
         const selected = new Set(days.map((day) => day.day_number));
         const count = enteredRuns.filter((run) => selected.has(run.dayNumber)).length;
         const input = groupInput(index);
         const issues = input ? reviewOfficialSddaWorkbook(input, registryNumbers || undefined) : [];
         const blockers = issues.filter((issue) => issue.severity === 'blocker');
-        return <Card key={index}><CardHeader><CardTitle>Days {days.map((day) => day.day_number).join('–')}</CardTitle><CardDescription>{days.map((day) => `${day.trial_date}${day.sdda_trial_number ? ` · ${day.sdda_trial_number}` : ' · trial number pending'}`).join(' | ')}</CardDescription></CardHeader><CardContent className="space-y-4"><div className="flex items-center gap-3"><Button onClick={() => void exportGroup(index)} disabled={exporting !== null || count === 0 || blockers.length > 0}>{exporting === index ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}Export official workbook</Button><Badge variant="outline">{count} runs</Badge></div>{issues.length > 0 ? <div className="space-y-2">{issues.map((issue) => <div key={issue.message} className={`rounded-md border px-3 py-2 text-sm ${issue.severity === 'blocker' ? 'border-red-300 bg-red-50 text-red-900' : 'border-amber-300 bg-amber-50 text-amber-900'}`}><strong>{issue.severity === 'blocker' ? 'Required: ' : 'Review: '}</strong>{issue.message}</div>)}</div> : <div className="rounded-md border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-900">Workbook data checks passed.</div>}</CardContent></Card>;
+        return <Card key={index}><CardHeader><CardTitle>Days {days.map((day) => day.day_number).join('–')}</CardTitle><CardDescription>{days.map((day) => `${day.trial_date}${day.sdda_trial_number ? ` · ${day.sdda_trial_number}` : ' · trial number pending'}`).join(' | ')}</CardDescription></CardHeader><CardContent className="space-y-4"><div className="flex items-center gap-3"><Button onClick={() => void exportGroup(index)} disabled={exporting !== null || count === 0 || blockers.length > 0}>{exporting === index ? <PawLoader className="mr-2 h-4 w-4" /> : <Download className="mr-2 h-4 w-4" />}Export official workbook</Button><Badge variant="outline">{count} runs</Badge></div>{issues.length > 0 ? <div className="space-y-2">{issues.map((issue) => <div key={issue.message} className={`rounded-md border px-3 py-2 text-sm ${issue.severity === 'blocker' ? 'border-red-300 bg-red-50 text-red-900' : 'border-sky-300 bg-sky-50 text-sky-900'}`}><strong>{issue.severity === 'blocker' ? 'Required: ' : 'Review: '}</strong>{issue.message}</div>)}</div> : <div className="rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm text-blue-900">Workbook data checks passed.</div>}</CardContent></Card>;
       })}
     </div>
   </MainLayout>;

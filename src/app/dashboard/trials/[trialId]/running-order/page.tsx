@@ -8,12 +8,12 @@ import {
   Download,
   GripVertical,
   ListOrdered,
-  Loader2,
   Save,
   TrendingUp,
   Undo2,
   Wand2,
 } from 'lucide-react';
+import { PawLoader } from '@/components/ui/pawLoader';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -316,7 +316,7 @@ export default function RunningOrderPage() {
                 </Button>
                 <Button onClick={save} disabled={saving || !ordered.length}>
                   {saving ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <PawLoader className="mr-2 h-4 w-4" />
                   ) : (
                     <Save className="mr-2 h-4 w-4" />
                   )}
@@ -327,7 +327,7 @@ export default function RunningOrderPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {loading ? (
-              <Loader2 className="mx-auto h-8 w-8 animate-spin" />
+              <PawLoader className="mx-auto h-8 w-8" />
             ) : ordered.length === 0 ? (
               <p className="py-8 text-center text-gray-500">No runs for this offering.</p>
             ) : (
@@ -347,7 +347,7 @@ export default function RunningOrderPage() {
                     }}
                     onDrop={(event) => dropRun(event, index)}
                     className={`flex flex-wrap items-center gap-3 rounded-md border bg-white p-3 transition ${
-                      draggingIndex === index ? 'opacity-50 ring-2 ring-[#225f45]' : ''
+                      draggingIndex === index ? 'opacity-50 ring-2 ring-[#294f73]' : ''
                     }`}
                   >
                     <span
@@ -397,7 +397,7 @@ export default function RunningOrderPage() {
                         onClick={() => void moveUp(run)}
                       >
                         {movingRunId === run.id ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <PawLoader className="mr-2 h-4 w-4" />
                         ) : run.move_up_approved_at ? (
                           <Undo2 className="mr-2 h-4 w-4" />
                         ) : (
@@ -433,7 +433,7 @@ export default function RunningOrderPage() {
           <CardContent className="space-y-4">{SDDA_GAME_TYPES.map((gameType) => {
             const rows = selectedDayGames.filter((run: any) => { const offering = Array.isArray(run.sdda_game_offerings) ? run.sdda_game_offerings[0] : run.sdda_game_offerings; return offering?.game_type === gameType; });
             if (!rows.length) return null;
-            return <section key={gameType}><h3 className="mb-2 font-semibold text-[#225f45]">{gameType}</h3><div className="space-y-2">{rows.map((run: any, index) => { const entry = Array.isArray(run.sdda_entries) ? run.sdda_entries[0] : run.sdda_entries; const dog = Array.isArray(entry?.sdda_dogs) ? entry.sdda_dogs[0] : entry?.sdda_dogs; const allowedGroups = SDDA_RUN_GROUPS.filter((name) => (gameType === 'Aerial' || gameType === 'Distance') || name !== 'Second dog'); return <div key={run.id} className="flex flex-wrap items-center gap-3 rounded-md border bg-white p-3"><span className="w-8 text-center font-bold">{run.running_position || index + 1}</span><div className="min-w-48 flex-1"><p className="font-medium">{dog?.call_name} - {entry?.handler_name}</p><p className="text-sm text-gray-500">{dog?.sdda_registration_number || 'Registration pending'}{run.requested_team_partner ? ` · Partner: ${run.requested_team_partner}` : ''}</p></div><Select value={run.run_group || (run.entry_type === 'FEO' ? 'FEO' : 'Regular')} onValueChange={(value) => void changeGameRunGroup(run.id, value as SddaRunGroup)} disabled={changingGameGroupRunId === run.id || run.entry_type === 'FEO'}><SelectTrigger className="w-36 bg-white" aria-label={`Games running-order group for ${dog?.call_name}`}><SelectValue /></SelectTrigger><SelectContent>{allowedGroups.map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}</SelectContent></Select><Badge variant={run.entry_type === 'FEO' ? 'outline' : 'default'}>{run.entry_type}</Badge></div>; })}</div></section>;
+            return <section key={gameType}><h3 className="mb-2 font-semibold text-[#294f73]">{gameType}</h3><div className="space-y-2">{rows.map((run: any, index) => { const entry = Array.isArray(run.sdda_entries) ? run.sdda_entries[0] : run.sdda_entries; const dog = Array.isArray(entry?.sdda_dogs) ? entry.sdda_dogs[0] : entry?.sdda_dogs; const allowedGroups = SDDA_RUN_GROUPS.filter((name) => (gameType === 'Aerial' || gameType === 'Distance') || name !== 'Second dog'); return <div key={run.id} className="flex flex-wrap items-center gap-3 rounded-md border bg-white p-3"><span className="w-8 text-center font-bold">{run.running_position || index + 1}</span><div className="min-w-48 flex-1"><p className="font-medium">{dog?.call_name} - {entry?.handler_name}</p><p className="text-sm text-gray-500">{dog?.sdda_registration_number || 'Registration pending'}{run.requested_team_partner ? ` · Partner: ${run.requested_team_partner}` : ''}</p></div><Select value={run.run_group || (run.entry_type === 'FEO' ? 'FEO' : 'Regular')} onValueChange={(value) => void changeGameRunGroup(run.id, value as SddaRunGroup)} disabled={changingGameGroupRunId === run.id || run.entry_type === 'FEO'}><SelectTrigger className="w-36 bg-white" aria-label={`Games running-order group for ${dog?.call_name}`}><SelectValue /></SelectTrigger><SelectContent>{allowedGroups.map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}</SelectContent></Select><Badge variant={run.entry_type === 'FEO' ? 'outline' : 'default'}>{run.entry_type}</Badge></div>; })}</div></section>;
           })}</CardContent>
         </Card>}
       </div>

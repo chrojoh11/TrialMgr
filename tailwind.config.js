@@ -7,11 +7,11 @@ const config = {
   theme: {
     extend: {
       colors: {
-        'fall-gold': '#D99A2B',
-        'fall-orange': '#C96A2B',
-        'fall-red': '#A63D33',
-        'fall-purple': '#5C3B2E',   // ✅ FIXED — no broken string
-        'fall-tan': '#F2E2C4',
+        'trial-blue': '#294F73',
+        'trial-navy': '#1D3B57',
+        'trial-steel': '#6688A6',
+        'trial-mist': '#E5EDF5',
+        'trial-slate': '#475569',
       },
     }
   },

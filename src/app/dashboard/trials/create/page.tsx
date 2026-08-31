@@ -2,7 +2,8 @@
 
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, Loader2, Plus, X } from 'lucide-react';
+import { ArrowLeft, Calendar, Plus, X } from 'lucide-react';
+import { PawLoader } from '@/components/ui/pawLoader';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -63,8 +64,8 @@ export default function CreateTrialPage() {
                 ['games', 'Games', 'Aerial, Distance, Speed, and Team games.'],
                 ['combined', 'Combined', 'Scent classes and Games in the same trial.'],
               ] as const).map(([value, title, description]) => (
-                <Label key={value} htmlFor={`format-${value}`} className={`cursor-pointer rounded-lg border p-4 ${trialFormat === value ? 'border-amber-700 bg-amber-50 ring-1 ring-amber-700' : 'bg-white'}`}>
-                  <span className="flex items-center gap-2"><input id={`format-${value}`} type="radio" name="trial-format" value={value} checked={trialFormat === value} onChange={() => setTrialFormat(value)} className="h-4 w-4 accent-amber-800" /><span className="font-semibold">{title}</span></span>
+                <Label key={value} htmlFor={`format-${value}`} className={`cursor-pointer rounded-lg border p-4 ${trialFormat === value ? 'border-sky-700 bg-sky-50 ring-1 ring-sky-700' : 'bg-white'}`}>
+                  <span className="flex items-center gap-2"><input id={`format-${value}`} type="radio" name="trial-format" value={value} checked={trialFormat === value} onChange={() => setTrialFormat(value)} className="h-4 w-4 accent-sky-800" /><span className="font-semibold">{title}</span></span>
                   <span className="mt-2 block text-sm font-normal text-gray-600">{description}</span>
                 </Label>
               ))}
@@ -86,7 +87,7 @@ export default function CreateTrialPage() {
         <Alert><AlertDescription>Create the draft with the information you know now. On the next screen you will choose offerings and fees for each day. SDDA trial numbers and judges may be entered later and can be replaced if an assignment changes.</AlertDescription></Alert>
         <div className="flex justify-between">
           <Button type="button" variant="outline" onClick={() => router.push('/dashboard/trials')}><ArrowLeft className="mr-2 h-4 w-4" />Cancel</Button>
-          <Button type="submit" disabled={saving}>{saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating…</> : 'Create Draft Trial'}</Button>
+          <Button type="submit" disabled={saving}>{saving ? <><PawLoader className="mr-2 h-4 w-4" />Creating…</> : 'Create Draft Trial'}</Button>
         </div>
       </form>
     </MainLayout>

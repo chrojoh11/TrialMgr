@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { ArrowRight, Loader2, Printer, Search } from 'lucide-react';
+import { ArrowRight, Printer, Search } from 'lucide-react';
+import { PawLoader } from '@/components/ui/pawLoader';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
@@ -47,15 +48,15 @@ export default function SddaActivityPage() {
   }), [displayRecords, entries, initialSetupIds, search, type]);
 
   return <MainLayout title="Activity journal" breadcrumbItems={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Trials', href: '/dashboard/trials' }, { label: trial?.name || 'Trial', href: `/dashboard/trials/${trialId}` }, { label: 'Activity' }]}>
-    <div className="activity-journal-print-root mx-auto max-w-5xl bg-[#fffdf7] print:max-w-none">
-      <header className="border-b-[3px] border-[#225f45] pb-4 print:flex print:items-end print:justify-between">
-        <div><p className="text-xs font-bold uppercase tracking-[.15em] text-[#68736c]">SDDA TrialDesk</p><h1 className="font-serif text-4xl font-semibold text-[#18231d]">Activity journal</h1><p className="text-gray-600">{trial?.name || 'Trial'} · Permanent secretary-facing operational history</p></div>
-        <div className="mt-3 flex gap-3 print:hidden"><button type="button" onClick={() => window.print()} className="flex items-center rounded-md border border-[#bac5bd] bg-white px-4 py-2 font-semibold text-[#225f45]"><Printer className="mr-2 h-4 w-4" />Print journal</button></div>
+    <div className="activity-journal-print-root mx-auto max-w-5xl bg-[#f8fafc] print:max-w-none">
+      <header className="border-b-[3px] border-[#294f73] pb-4 print:flex print:items-end print:justify-between">
+        <div><p className="text-xs font-bold uppercase tracking-[.15em] text-[#64748b]">SDDA TrialDesk</p><h1 className="font-serif text-4xl font-semibold text-[#17212b]">Activity journal</h1><p className="text-gray-600">{trial?.name || 'Trial'} · Permanent secretary-facing operational history</p></div>
+        <div className="mt-3 flex gap-3 print:hidden"><button type="button" onClick={() => window.print()} className="flex items-center rounded-md border border-[#94a3b8] bg-white px-4 py-2 font-semibold text-[#294f73]"><Printer className="mr-2 h-4 w-4" />Print journal</button></div>
         <div className="hidden text-right text-sm text-gray-600 print:block"><p>Printed {new Date().toLocaleDateString('en-CA')}</p><p>{filtered.length} secretary-relevant event{filtered.length === 1 ? '' : 's'}</p></div>
       </header>
       {error && <Alert variant="destructive" className="mt-5"><AlertDescription>{error}</AlertDescription></Alert>}
       <div className="mt-5 flex flex-wrap gap-3 print:hidden"><div className="relative min-w-72 flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" /><Input className="pl-10" placeholder="Search action, person, or record" value={search} onChange={(e) => setSearch(e.target.value)} /></div><select className="h-10 rounded-md border border-input bg-white px-3" value={type} onChange={(e) => setType(e.target.value)}><option value="all">All record types</option>{types.map((value) => <option key={value} value={value}>{title(value)}</option>)}</select></div>
-      {loading ? <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin" /></div> : <div className="mt-3 divide-y divide-[#d9d8cf]">{filtered.map((item) => <ActivityEvent key={item.id} item={item} trial={trial} entries={entries} />)}{!filtered.length && <Card className="my-5"><CardContent className="py-12 text-center text-gray-500">No matching secretary-facing activity.</CardContent></Card>}</div>}
+      {loading ? <div className="flex justify-center py-20"><PawLoader className="h-8 w-8" /></div> : <div className="mt-3 divide-y divide-[#cbd5e1]">{filtered.map((item) => <ActivityEvent key={item.id} item={item} trial={trial} entries={entries} />)}{!filtered.length && <Card className="my-5"><CardContent className="py-12 text-center text-gray-500">No matching secretary-facing activity.</CardContent></Card>}</div>}
       <footer className="mt-6 hidden justify-between border-t pt-3 text-xs text-gray-500 print:flex"><span>SDDA TrialDesk · {trial?.name}</span><span>{filtered.length} events</span></footer>
     </div>
   </MainLayout>;
@@ -81,14 +82,14 @@ function ActivityEvent({ item, trial, entries }: { item: DisplayAudit; trial: Sd
   const changes = (setupSummary ? [...secretaryActivityChanges(item.before_state, item.after_state), ...setupSummary] : secretaryActivityChanges(item.before_state, item.after_state)).filter((change) => !change.field.startsWith('runs') && !change.field.startsWith('game_runs'));
   return <article className="grid gap-4 py-5 sm:grid-cols-[9rem_1fr] print:grid-cols-[8rem_1fr] print:py-3">
     <div className="text-sm"><time className="font-semibold">{new Date(item.created_at).toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' })}</time><p className="text-gray-500">{new Date(item.created_at).toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' })}</p></div>
-    <div><div className="mb-2 flex flex-wrap items-baseline justify-between gap-2"><h2 className="font-serif text-2xl font-semibold text-[#18231d]">{eventTitle(item)}</h2><span className="text-sm text-gray-600">by {actor}</span></div>
+    <div><div className="mb-2 flex flex-wrap items-baseline justify-between gap-2"><h2 className="font-serif text-2xl font-semibold text-[#17212b]">{eventTitle(item)}</h2><span className="text-sm text-gray-600">by {actor}</span></div>
       {offeringTree.length ? <div className="space-y-3"><OfferingBatchCounts records={offeringBatch || []} />{offeringTree.map(({ day, levels }) => <section key={day.id} className="border-l-4 border-[#8ba99a] pl-4"><p className="font-semibold">Day {day.day_number} · {day.trial_date} · Judge: {day.judge_name || 'Pending assignment'}</p>{levels.map(({ level, components }) => <p key={level} className="text-sm"><b>{level}</b> → {components.join(', ')}</p>)}</section>)}</div> : offeringBatch ? <OfferingBatchCounts records={offeringBatch} /> : importBatch ? <ImportBatchSummary records={importBatch} entries={entries} trial={trial} /> : item.entity_type === 'sdda_entry' ? <EntryActivitySummary item={item} entry={entry} trial={trial} changes={changes} /> : <ChangeRows changes={changes} />}
     </div>
   </article>;
 }
 
 function ChangeRows({ changes }: { changes: ReturnType<typeof secretaryActivityChanges> }) {
-  return <div className="space-y-1">{changes.map((change) => <div key={change.field} className="grid gap-2 py-1 text-sm sm:grid-cols-[minmax(12rem,1fr)_minmax(7rem,.55fr)_1.5rem_minmax(7rem,.55fr)] print:grid-cols-[minmax(12rem,1fr)_minmax(7rem,.55fr)_1.5rem_minmax(7rem,.55fr)]"><span className="font-semibold">{activityFieldLabel(change.field)}</span><span className="text-red-800 line-through">{displayActivityFieldValue(change.field, change.before)}</span><ArrowRight className="h-4 w-4 text-[#b98935]" /><span className="font-semibold text-green-800">{displayActivityFieldValue(change.field, change.after)}</span></div>)}</div>;
+  return <div className="space-y-1">{changes.map((change) => <div key={change.field} className="grid gap-2 py-1 text-sm sm:grid-cols-[minmax(12rem,1fr)_minmax(7rem,.55fr)_1.5rem_minmax(7rem,.55fr)] print:grid-cols-[minmax(12rem,1fr)_minmax(7rem,.55fr)_1.5rem_minmax(7rem,.55fr)]"><span className="font-semibold">{activityFieldLabel(change.field)}</span><span className="text-red-800 line-through">{displayActivityFieldValue(change.field, change.before)}</span><ArrowRight className="h-4 w-4 text-[#6688a6]" /><span className="font-semibold text-blue-800">{displayActivityFieldValue(change.field, change.after)}</span></div>)}</div>;
 }
 
 function OfferingBatchCounts({ records }: { records: Audit[] }) {
@@ -136,7 +137,7 @@ function EntryActivitySummary({ item, entry, trial, changes }: { item: DisplayAu
   const removed = beforeSelections.filter((selection) => !afterSelections.includes(selection));
   return <div className="space-y-3 text-sm">
     <div className="border-l-4 border-[#8ba99a] pl-4"><p className="text-base font-semibold">{identity.dog} · {identity.handler}</p><p className="text-gray-600">SDDA {identity.registration}</p></div>
-    {(added.length > 0 || removed.length > 0) && <div><p className="font-semibold">Selection changes</p>{added.map((selection) => <p key={`added-${selection}`} className="text-green-800">Added: {selection}</p>)}{removed.map((selection) => <p key={`removed-${selection}`} className="text-red-800">Removed: {selection}</p>)}</div>}
+    {(added.length > 0 || removed.length > 0) && <div><p className="font-semibold">Selection changes</p>{added.map((selection) => <p key={`added-${selection}`} className="text-blue-800">Added: {selection}</p>)}{removed.map((selection) => <p key={`removed-${selection}`} className="text-red-800">Removed: {selection}</p>)}</div>}
     {!added.length && !removed.length && selections.length > 0 && <div><p className="font-semibold">Entered selections</p>{selections.map((selection) => <p key={selection}>{selection}</p>)}</div>}
     {changes.length > 0 && <ChangeRows changes={changes} />}
   </div>;

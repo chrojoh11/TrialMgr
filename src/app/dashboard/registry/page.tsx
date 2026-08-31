@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Database, Loader2, RefreshCw, Search } from 'lucide-react';
+import { CheckCircle2, Database, RefreshCw, Search } from 'lucide-react';
+import { PawLoader } from '@/components/ui/pawLoader';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -114,25 +115,25 @@ export default function SddaRegistryPage() {
   return <MainLayout title="SDDA dog registry" breadcrumbItems={[{ label: 'Registry' }]}>
     <div className="mx-auto max-w-4xl space-y-5">
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
-      {message && <Alert className="border-green-300 bg-green-50 text-green-900"><CheckCircle2 className="h-4 w-4" /><AlertDescription>{message}</AlertDescription></Alert>}
+      {message && <Alert className="border-blue-300 bg-blue-50 text-blue-900"><CheckCircle2 className="h-4 w-4" /><AlertDescription>{message}</AlertDescription></Alert>}
       <Card><CardHeader><CardTitle className="flex items-center gap-2"><Database className="h-5 w-5" />Official SDDA dog registry</CardTitle><CardDescription>Refreshes registration numbers, call names, breeds and component history from the SDDA Dogs sheet in the newest official Trial Workbook.</CardDescription></CardHeader><CardContent className="space-y-4">
         {allowed === false && <Alert variant="destructive"><AlertDescription>Only a database-appointed TrialDesk administrator can replace the registry snapshot.</AlertDescription></Alert>}
-        {status?.available ? <div className="rounded-lg border bg-[#f7f8f4] p-4"><div className="flex flex-wrap items-center gap-2"><strong>{status.source_name}</strong><Badge className="bg-[#225f45] text-white">{status.row_count?.toLocaleString()} dogs</Badge></div><p className="mt-2 text-sm text-[#526057]">Imported {status.imported_at ? new Date(status.imported_at).toLocaleString() : 'recently'}{status.source_refreshed_at ? ` · source reference ${status.source_refreshed_at}` : ''}</p></div> : <p className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900">No registry snapshot has been activated. Entry numbers cannot yet be checked against the official list.</p>}
-        <Button onClick={() => void refresh()} disabled={busy || allowed !== true}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}Refresh from SDDA</Button>
-        {progress && <p className="text-sm font-semibold text-[#225f45]">{progress}</p>}
-        <p className="text-xs text-[#68736c]">A refresh is staged completely before it becomes active, so a failed download or partial import cannot replace the working registry.</p>
+        {status?.available ? <div className="rounded-lg border bg-[#f1f5f9] p-4"><div className="flex flex-wrap items-center gap-2"><strong>{status.source_name}</strong><Badge className="bg-[#294f73] text-white">{status.row_count?.toLocaleString()} dogs</Badge></div><p className="mt-2 text-sm text-[#475569]">Imported {status.imported_at ? new Date(status.imported_at).toLocaleString() : 'recently'}{status.source_refreshed_at ? ` · source reference ${status.source_refreshed_at}` : ''}</p></div> : <p className="rounded-lg border border-sky-300 bg-sky-50 p-4 text-sky-900">No registry snapshot has been activated. Entry numbers cannot yet be checked against the official list.</p>}
+        <Button onClick={() => void refresh()} disabled={busy || allowed !== true}>{busy ? <PawLoader className="mr-2 h-4 w-4" /> : <RefreshCw className="mr-2 h-4 w-4" />}Refresh from SDDA</Button>
+        {progress && <p className="text-sm font-semibold text-[#294f73]">{progress}</p>}
+        <p className="text-xs text-[#64748b]">A refresh is staged completely before it becomes active, so a failed download or partial import cannot replace the working registry.</p>
       </CardContent></Card>
       {allowed === true && <Card><CardHeader><CardTitle>Search official dogs</CardTitle><CardDescription>Search by SDDA number, dog call name, owner name or registered participant number.</CardDescription></CardHeader><CardContent className="space-y-4">
         <form className="flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); void search(); }}>
           <Input value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Example: 4429, Fizzgig, or Marla Williamson" aria-label="Registry search" />
-          <Button type="submit" disabled={searching}>{searching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}Search</Button>
+          <Button type="submit" disabled={searching}>{searching ? <PawLoader className="mr-2 h-4 w-4" /> : <Search className="mr-2 h-4 w-4" />}Search</Button>
         </form>
-        {searched && results.length === 0 && <p className="rounded-lg border bg-[#f7f8f4] p-4 text-sm">No matching dogs were found in the active official registry.</p>}
+        {searched && results.length === 0 && <p className="rounded-lg border bg-[#f1f5f9] p-4 text-sm">No matching dogs were found in the active official registry.</p>}
         {results.length > 0 && <div className="overflow-x-auto rounded-lg border"><table className="w-full min-w-[720px] text-left text-sm">
           <thead className="bg-[#e9efe9] text-[#173f31]"><tr><th className="px-3 py-2">SDDA #</th><th className="px-3 py-2">Dog</th><th className="px-3 py-2">Breed</th><th className="px-3 py-2">Sex</th><th className="px-3 py-2">Owner</th><th className="px-3 py-2">Participant #</th></tr></thead>
-          <tbody>{results.map((dog) => <tr key={`${dog.registration_number}-${dog.owner_number || ''}`} className="border-t bg-white"><td className="px-3 py-2 font-semibold text-[#225f45]">{dog.registration_number}</td><td className="px-3 py-2 font-semibold">{dog.call_name}</td><td className="px-3 py-2">{dog.breed || '—'}</td><td className="px-3 py-2">{dog.sex || '—'}</td><td className="px-3 py-2">{dog.owner_name || '—'}</td><td className="px-3 py-2">{dog.owner_number || '—'}</td></tr>)}</tbody>
+          <tbody>{results.map((dog) => <tr key={`${dog.registration_number}-${dog.owner_number || ''}`} className="border-t bg-white"><td className="px-3 py-2 font-semibold text-[#294f73]">{dog.registration_number}</td><td className="px-3 py-2 font-semibold">{dog.call_name}</td><td className="px-3 py-2">{dog.breed || '—'}</td><td className="px-3 py-2">{dog.sex || '—'}</td><td className="px-3 py-2">{dog.owner_name || '—'}</td><td className="px-3 py-2">{dog.owner_number || '—'}</td></tr>)}</tbody>
         </table></div>}
-        {results.length === 50 && <p className="text-xs text-[#68736c]">Showing the first 50 matches. Add more detail to narrow the search.</p>}
+        {results.length === 50 && <p className="text-xs text-[#64748b]">Showing the first 50 matches. Add more detail to narrow the search.</p>}
       </CardContent></Card>}
     </div>
   </MainLayout>;

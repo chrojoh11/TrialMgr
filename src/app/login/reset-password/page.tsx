@@ -152,7 +152,7 @@ function ResetPasswordForm() {
           <button
             type="button"
             onClick={() => router.replace('/login')}
-            className="mt-4 text-orange-600 underline hover:text-orange-700"
+            className="mt-4 text-blue-600 underline hover:text-blue-700"
           >
             Return to sign in
           </button>
@@ -178,14 +178,14 @@ function ResetPasswordForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full bg-orange-600 text-white py-2 rounded hover:bg-orange-700 disabled:bg-gray-400"
+        className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
       >
         {loading ? 'Updating...' : 'Set New Password'}
       </button>
 
       {message && (
         <p
-          className={`text-center ${message.includes('Error') ? 'text-red-600' : 'text-green-600'}`}
+          className={`text-center ${message.includes('Error') ? 'text-red-600' : 'text-blue-600'}`}
         >
           {message}
         </p>

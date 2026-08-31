@@ -57,7 +57,7 @@ export const Header: React.FC<HeaderProps> = ({ user, onMenuClick }) => {
       case 'administrator':
         return 'bg-red-100 text-red-800';
       case 'trial_secretary':
-        return 'bg-orange-100 text-orange-800';
+        return 'bg-blue-100 text-blue-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -68,7 +68,7 @@ export const Header: React.FC<HeaderProps> = ({ user, onMenuClick }) => {
   };
 
   return (
-    <header className="z-30 border-b border-[#174733] bg-[#225f45] text-white shadow-sm">
+    <header className="z-30 border-b border-[#1d3b57] bg-[#294f73] text-white shadow-sm">
       <div className="flex items-center justify-between h-14 sm:h-16 px-2 sm:px-4 lg:px-6">
         {/* Left Section */}
         <div className="flex items-center space-x-2 sm:space-x-4">
@@ -84,7 +84,7 @@ export const Header: React.FC<HeaderProps> = ({ user, onMenuClick }) => {
 
           {/* SDDA identity */}
           <Link href="/dashboard" className="flex items-center space-x-2 sm:space-x-5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#b98935] text-sm font-bold text-white sm:h-12 sm:w-12">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#6688a6] text-sm font-bold text-white sm:h-12 sm:w-12">
               SDDA
             </div>
 
@@ -105,7 +105,7 @@ export const Header: React.FC<HeaderProps> = ({ user, onMenuClick }) => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center space-x-2 min-h-[44px] p-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#b98935] font-semibold text-white sm:h-10 sm:w-10">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#6688a6] font-semibold text-white sm:h-10 sm:w-10">
                   {user.first_name[0]}
                   {user.last_name[0]}
                 </div>

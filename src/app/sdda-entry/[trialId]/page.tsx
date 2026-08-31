@@ -57,7 +57,7 @@ type EditData = typeof empty & {
   }>;
 };
 type RegistryDog = { found: boolean; registration_number?: string; call_name?: string; breed?: string; snapshot_source?: string; snapshot_refreshed_at?: string };
-const box = 'rounded-2xl border border-[#d9d8cf] bg-[#fffdf7] p-5 shadow-sm';
+const box = 'rounded-2xl border border-[#cbd5e1] bg-[#f8fafc] p-5 shadow-sm';
 const field = 'w-full rounded-lg border border-[#bfc8c1] bg-white px-3 py-2';
 const levelOrder = ['Started', 'Advanced', 'Excellent', 'Elite'];
 const empty = {
@@ -488,7 +488,7 @@ export default function Page() {
       <Shell title="Entry received" subtitle={setup?.name}>
         <section className={box}>
           <small className="font-bold uppercase">Confirmation number</small>
-          <p className="my-2 font-mono text-3xl font-bold text-[#225f45]">
+          <p className="my-2 font-mono text-3xl font-bold text-[#294f73]">
             {receipt.confirmation_code}
           </p>
           <div className="my-5 rounded-xl border border-[#d4b778] bg-[#fff5d8] p-4">
@@ -497,12 +497,12 @@ export default function Page() {
               The secretary must confirm your entry and payment instructions. Keep this receipt.
             </p>
           </div>
-          {canEdit && receipt.receipt_token && <div className="my-5 rounded-xl border-2 border-[#b98935] bg-white p-4"><b>Return to this entry</b><p className="mt-1 text-sm">You may keep this private link, or return to the public entry form and use the dog’s SDDA registration number plus the entry email.</p><p className="mt-3 break-all rounded bg-[#f7f8f4] p-3 font-mono text-xs">{typeof window !== 'undefined' ? window.location.href : ''}</p><p className="mt-2 text-sm font-semibold text-[#7a5718]">Keep the private link confidential. Anyone with it can edit the entry while online editing remains open.</p></div>}
+          {canEdit && receipt.receipt_token && <div className="my-5 rounded-xl border-2 border-[#6688a6] bg-white p-4"><b>Return to this entry</b><p className="mt-1 text-sm">You may keep this private link, or return to the public entry form and use the dog’s SDDA registration number plus the entry email.</p><p className="mt-3 break-all rounded bg-[#f1f5f9] p-3 font-mono text-xs">{typeof window !== 'undefined' ? window.location.href : ''}</p><p className="mt-2 text-sm font-semibold text-[#294f73]">Keep the private link confidential. Anyone with it can edit the entry while online editing remains open.</p></div>}
           <p>
             {form.handler_name} with {form.dog_call_name} · {chosen.size + gameChosen.size} runs
             requested
           </p>
-          {(chosen.size > 0 || gameChosen.size > 0) && <div className="mt-4 rounded-xl border border-[#b9ceb9] bg-[#edf6ef] p-4"><small className="font-bold uppercase text-[#526057]">Amount owing when accepted</small><p className="text-3xl font-bold text-[#225f45]">{money(configuredEntryFeesCents)}</p><p className="mt-1 text-sm text-gray-600">Scent {money(configuredScentFeesCents)} · Games {money(configuredGameFeesCents)}</p></div>}
+          {(chosen.size > 0 || gameChosen.size > 0) && <div className="mt-4 rounded-xl border border-[#b6c8d8] bg-[#edf6ef] p-4"><small className="font-bold uppercase text-[#475569]">Amount owing when accepted</small><p className="text-3xl font-bold text-[#294f73]">{money(configuredEntryFeesCents)}</p><p className="mt-1 text-sm text-gray-600">Scent {money(configuredScentFeesCents)} · Games {money(configuredGameFeesCents)}</p></div>}
           <div className="mt-4 rounded-xl border bg-white p-4">
             <h2 className="mb-2 font-bold">Selections received</h2>
             <ul className="list-disc space-y-1 pl-5">
@@ -514,14 +514,14 @@ export default function Page() {
           <div className="mt-5 flex flex-wrap gap-3 print:hidden">
             <button
               type="button"
-              className="rounded-lg border border-[#225f45] bg-white px-5 py-3 font-bold text-[#225f45]"
+              className="rounded-lg border border-[#294f73] bg-white px-5 py-3 font-bold text-[#294f73]"
               onClick={() => window.print()}
             >
               Print receipt
             </button>
             <button
               type="button"
-              className="rounded-lg bg-[#225f45] px-5 py-3 font-bold text-white"
+              className="rounded-lg bg-[#294f73] px-5 py-3 font-bold text-white"
               onClick={() => void downloadReceipt()}
             >
               Download receipt PDF
@@ -530,7 +530,7 @@ export default function Page() {
               <>
                 <button
                   type="button"
-                  className="rounded-lg border border-[#225f45] bg-white px-5 py-3 font-bold text-[#225f45]"
+                  className="rounded-lg border border-[#294f73] bg-white px-5 py-3 font-bold text-[#294f73]"
                   onClick={() => {
                     setReceipt(null);
                     setEditing(true);
@@ -542,7 +542,7 @@ export default function Page() {
                 {receipt.receipt_token && (
                   <button
                     type="button"
-                    className="rounded-lg border border-[#225f45] bg-white px-5 py-3 font-bold text-[#225f45]"
+                    className="rounded-lg border border-[#294f73] bg-white px-5 py-3 font-bold text-[#294f73]"
                     onClick={async () => {
                       await navigator.clipboard.writeText(window.location.href);
                       setLinkCopied(true);
@@ -565,7 +565,7 @@ export default function Page() {
       <div className="mb-4 grid grid-cols-4 gap-2 text-center text-xs font-bold">
         {['Competitor & dog', 'Runs', 'Policies', 'Review'].map((x, i) => (
           <div
-            className={`rounded-lg p-3 ${step === i + 1 ? 'bg-[#b98935] text-white' : 'bg-white'}`}
+            className={`rounded-lg p-3 ${step === i + 1 ? 'bg-[#6688a6] text-white' : 'bg-white'}`}
             key={x}
           >
             {i + 1}. {x}
@@ -582,8 +582,8 @@ export default function Page() {
         <>
           {!editing && !secretaryEntryId && !entryCode && (
             <form className={`${box} mb-4`} onSubmit={lookupExistingEntry}>
-              <h2 className="font-serif text-2xl text-[#225f45]">Already entered this trial?</h2>
-              <p className="mt-1 text-sm text-[#68736c]">
+              <h2 className="font-serif text-2xl text-[#294f73]">Already entered this trial?</h2>
+              <p className="mt-1 text-sm text-[#64748b]">
                 Enter the dog’s SDDA registration number—or the confirmation number from the
                 receipt—and the same email used on the entry. We’ll load the current information
                 and selections so you can make changes.
@@ -607,7 +607,7 @@ export default function Page() {
                 <button
                   type="submit"
                   disabled={lookupBusy}
-                  className="rounded-lg border border-[#225f45] bg-white px-5 py-2 font-bold text-[#225f45] disabled:opacity-60"
+                  className="rounded-lg border border-[#294f73] bg-white px-5 py-2 font-bold text-[#294f73] disabled:opacity-60"
                 >
                   {lookupBusy ? 'Looking up…' : 'Load my entry'}
                 </button>
@@ -688,13 +688,13 @@ export default function Page() {
                       Registration pending
                     </label>
                     {!form.registration_pending && <div className="mt-2 space-y-2">
-                      <button type="button" disabled={registryBusy || !form.dog_registration_number.trim()} onClick={() => void verifyRegistryNumber()} className="rounded-md border border-[#8ba99a] bg-white px-3 py-1.5 text-sm font-semibold text-[#225f45] disabled:opacity-50">{registryBusy ? 'Checking…' : 'Check SDDA registry'}</button>
+                      <button type="button" disabled={registryBusy || !form.dog_registration_number.trim()} onClick={() => void verifyRegistryNumber()} className="rounded-md border border-[#8ba99a] bg-white px-3 py-1.5 text-sm font-semibold text-[#294f73] disabled:opacity-50">{registryBusy ? 'Checking…' : 'Check SDDA registry'}</button>
                       {registryDog?.found && (() => {
                         const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
                         const matches = !form.dog_call_name.trim() || normalize(form.dog_call_name) === normalize(registryDog.call_name || '');
-                        return <p className={`rounded-md border px-3 py-2 text-sm ${matches ? 'border-green-300 bg-green-50 text-green-900' : 'border-red-300 bg-red-50 text-red-900'}`}>{matches ? `Verified: ${registryDog.call_name}${registryDog.breed ? ` · ${registryDog.breed}` : ''}` : `This number is registered to ${registryDog.call_name}. Correct the dog call name before submitting.`}</p>;
+                        return <p className={`rounded-md border px-3 py-2 text-sm ${matches ? 'border-blue-300 bg-blue-50 text-blue-900' : 'border-red-300 bg-red-50 text-red-900'}`}>{matches ? `Verified: ${registryDog.call_name}${registryDog.breed ? ` · ${registryDog.breed}` : ''}` : `This number is registered to ${registryDog.call_name}. Correct the dog call name before submitting.`}</p>;
                       })()}
-                      {registryDog && !registryDog.found && <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">This number is not in the current official workbook snapshot. You may continue, but the secretary must verify it manually.</p>}
+                      {registryDog && !registryDog.found && <p className="rounded-md border border-sky-300 bg-sky-50 px-3 py-2 text-sm text-sky-900">This number is not in the current official workbook snapshot. You may continue, but the secretary must verify it manually.</p>}
                     </div>}
                   </F>
                   <F label="Breed (Mixed Breed put All Canadian) *">
@@ -711,7 +711,7 @@ export default function Page() {
           )}
           {step === 2 && (
             <Section title="Choose offered runs">
-              <p className="mb-5 text-sm text-[#68736c]">
+              <p className="mb-5 text-sm text-[#64748b]">
                 Select each Scent component or Game requested. The secretary will confirm
                 availability and capacity.
               </p>
@@ -722,7 +722,7 @@ export default function Page() {
                   </h3>
                   {choices.some((c) => c.trial_day_id === d.id) && (
                     <div className="mt-4">
-                      <h4 className="font-bold text-[#225f45]">Scent classes</h4>
+                      <h4 className="font-bold text-[#294f73]">Scent classes</h4>
                       <p className="mb-3 text-sm">
                         Choose Amateur or Working separately for each component. Instructors and
                         professionals must choose Working. Elite has no stream.
@@ -755,7 +755,7 @@ export default function Page() {
                                     {chosen.has(c.key) && (
                                       <div className="mt-3 space-y-3">
                                         {c.level !== 'Elite' && (
-                                          <label className="block rounded-lg border border-[#b98935] bg-[#fff9e9] p-2">
+                                          <label className="block rounded-lg border border-[#6688a6] bg-[#fff9e9] p-2">
                                             <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-[#76591f]">
                                               Stream — choose one
                                             </span>
@@ -780,7 +780,7 @@ export default function Page() {
                                             </select>
                                           </label>
                                         )}
-                                        {c.offerings.some((o) => o.feo_allowed) && <label className="flex items-center gap-2 rounded-lg border border-[#9eb7aa] bg-[#f1f7f3] p-3 font-semibold"><input type="checkbox" checked={runGroup[c.key] === 'FEO'} onChange={(e) => setRunGroup((current) => ({ ...current, [c.key]: e.target.checked ? 'FEO' : 'Regular' }))} />Enter this component For Exhibition Only (FEO)</label>}
+                                        {c.offerings.some((o) => o.feo_allowed) && <label className="flex items-center gap-2 rounded-lg border border-[#9eb7aa] bg-[#f1f5f9] p-3 font-semibold"><input type="checkbox" checked={runGroup[c.key] === 'FEO'} onChange={(e) => setRunGroup((current) => ({ ...current, [c.key]: e.target.checked ? 'FEO' : 'Regular' }))} />Enter this component For Exhibition Only (FEO)</label>}
                                       </div>
                                     )}
                                   </div>
@@ -792,7 +792,7 @@ export default function Page() {
                   )}
                   {setup.game_offerings.some((g) => g.trial_day_id === d.id) && (
                     <div className="mt-6">
-                      <h4 className="font-bold text-[#225f45]">SDDA Games</h4>
+                      <h4 className="font-bold text-[#294f73]">SDDA Games</h4>
                       <p className="mb-3 text-sm">
                         Select each Game requested. FEO is shown only when the trial secretary permits it.
                       </p>
@@ -818,9 +818,9 @@ export default function Page() {
                               </label>
                               {gameChosen.has(g.id) && (
                                 <div className="mt-3 space-y-3">
-                                  {g.feo_allowed && <label className="flex items-center gap-2 rounded-lg border border-[#9eb7aa] bg-[#f1f7f3] p-3 font-semibold"><input type="checkbox" checked={gameEntryType[g.id] === 'FEO'} onChange={(e) => setGameEntryType((current) => ({ ...current, [g.id]: e.target.checked ? 'FEO' : 'Regular' }))} />Enter this Game For Exhibition Only (FEO) · ${(g.feo_fee_cents / 100).toFixed(2)}</label>}
+                                  {g.feo_allowed && <label className="flex items-center gap-2 rounded-lg border border-[#9eb7aa] bg-[#f1f5f9] p-3 font-semibold"><input type="checkbox" checked={gameEntryType[g.id] === 'FEO'} onChange={(e) => setGameEntryType((current) => ({ ...current, [g.id]: e.target.checked ? 'FEO' : 'Regular' }))} />Enter this Game For Exhibition Only (FEO) · ${(g.feo_fee_cents / 100).toFixed(2)}</label>}
                                   {g.game_type === 'Aerial' && (
-                                    <label className="block rounded-lg border border-[#b98935] bg-[#fff9e9] p-2">
+                                    <label className="block rounded-lg border border-[#6688a6] bg-[#fff9e9] p-2">
                                       <span className="mb-1 block text-xs font-bold uppercase">
                                         Aerial category — choose one *
                                       </span>
@@ -909,7 +909,7 @@ export default function Page() {
                   <p>I certify that I am the owner or authorized agent of the actual owner of the dog entered in this SDDA sanctioned Sporting Detection Trial. I accept full responsibility for all statements made in this entry and for the dog’s participation in this trial. In consideration of the acceptance of this entry I agree to be bound by the rules and regulations of the Sporting Detection Dogs Association and any additional rules and regulations put forth regarding this specific event.</p>
                   <p>I agree to hold harmless the SDDA, host club, and their agents and employees, for any loss, damage, or injury sustained by spectators or by exhibitors and handlers, or to any of their dogs or property. I agree to assume sole responsibility and agree to indemnify and hold harmless the SDDA, host club, and their agents and employees for loss, accidents or theft and I hold the SDDA, the host and any approved SDDA Judge harmless from any claims, actions or lawsuits resulting from my participation in this event.</p>
                 </div>
-                <p className="mt-3 text-xs text-gray-600">Declaration from the official SDDA Sample Trial Entry Form. The trial’s premium list and current SDDA rules also apply. <a className="font-semibold text-[#225f45] underline" href="https://www.sdda.ca/sdda-forms/" target="_blank" rel="noreferrer">View official SDDA forms</a>.</p>
+                <p className="mt-3 text-xs text-gray-600">Declaration from the official SDDA Sample Trial Entry Form. The trial’s premium list and current SDDA rules also apply. <a className="font-semibold text-[#294f73] underline" href="https://www.sdda.ca/sdda-forms/" target="_blank" rel="noreferrer">View official SDDA forms</a>.</p>
               </Section>
               <Section title="Payment and cancellation">
                 <p className="whitespace-pre-wrap">
@@ -944,7 +944,7 @@ export default function Page() {
                 {form.dog_registration_number || 'registration pending'}
                 <br />
                 {chosen.size + gameChosen.size} runs
-                {(chosen.size > 0 || gameChosen.size > 0) && <><br /><span className="text-[#225f45]"><b>Amount owing when accepted:</b> {money(configuredEntryFeesCents)}</span></>}
+                {(chosen.size > 0 || gameChosen.size > 0) && <><br /><span className="text-[#294f73]"><b>Amount owing when accepted:</b> {money(configuredEntryFeesCents)}</span></>}
               </div>
               <div className="mt-4 space-y-2">
                 {choices
@@ -985,7 +985,7 @@ export default function Page() {
             {step < 4 ? (
               <button
                 type="button"
-                className="rounded-lg bg-[#225f45] px-5 py-3 font-bold text-white"
+                className="rounded-lg bg-[#294f73] px-5 py-3 font-bold text-white"
                 onClick={advance}
               >
                 Continue
@@ -993,7 +993,7 @@ export default function Page() {
             ) : (
               <button
                 disabled={busy}
-                className="rounded-lg bg-[#225f45] px-5 py-3 font-bold text-white"
+                className="rounded-lg bg-[#294f73] px-5 py-3 font-bold text-white"
               >
                 {busy ? 'Saving…' : editing ? 'Save entry changes' : 'Submit entry'}
               </button>
@@ -1015,9 +1015,9 @@ function Shell({
   children: React.ReactNode;
 }) {
   return (
-    <main className="min-h-screen bg-[#f3f0e8] p-4 text-[#18231d]">
+    <main className="min-h-screen bg-[#e9eef3] p-4 text-[#17212b]">
       <div className="mx-auto max-w-4xl">
-        <header className="rounded-t-3xl bg-[#225f45] p-7 text-white">
+        <header className="rounded-t-3xl bg-[#294f73] p-7 text-white">
           <small className="font-bold uppercase tracking-[.18em]">SDDA TrialDesk</small>
           <h1 className="font-serif text-4xl">{title}</h1>
           {subtitle && <p>{subtitle}</p>}
@@ -1030,7 +1030,7 @@ function Shell({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className={box}>
-      <h2 className="mb-4 font-serif text-3xl text-[#225f45]">{title}</h2>
+      <h2 className="mb-4 font-serif text-3xl text-[#294f73]">{title}</h2>
       {children}
     </section>
   );

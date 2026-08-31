@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Calendar, Loader2, MapPin, Plus, Search, Trash2 } from 'lucide-react';
+import { Calendar, MapPin, Plus, Search, Trash2 } from 'lucide-react';
+import { PawLoader } from '@/components/ui/pawLoader';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -74,7 +75,7 @@ export default function TrialsPage() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+          <div className="flex justify-center py-16"><PawLoader className="h-8 w-8 text-blue-600" /></div>
         ) : filtered.length === 0 ? (
           <Card><CardContent className="py-14 text-center"><Calendar className="mx-auto mb-3 h-10 w-10 text-gray-400" /><p>No SDDA trials found.</p></CardContent></Card>
         ) : (
@@ -98,7 +99,7 @@ export default function TrialsPage() {
                       <Link href={`/dashboard/trials/${trial.id}`}><Button size="sm">Open trial</Button></Link>
                       {trial.status === 'draft' && (
                         <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={deletingId === trial.id} onClick={() => void removeDraft(trial)}>
-                          {deletingId === trial.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}Delete draft
+                          {deletingId === trial.id ? <PawLoader className="mr-2 h-4 w-4" /> : <Trash2 className="mr-2 h-4 w-4" />}Delete draft
                         </Button>
                       )}
                     </div>

@@ -2,7 +2,8 @@
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Dog, Download, FileUp, Loader2, Pencil, Search } from 'lucide-react';
+import { Dog, Download, FileUp, Pencil, Search } from 'lucide-react';
+import { PawLoader } from '@/components/ui/pawLoader';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -254,13 +255,13 @@ export default function SddaEntriesPage() {
         )}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
           {[
-            ['Received', overview.received, 'text-amber-800'],
-            ['Accepted', overview.accepted, 'text-emerald-800'],
+            ['Received', overview.received, 'text-sky-800'],
+            ['Accepted', overview.accepted, 'text-blue-800'],
             ['Waitlisted', overview.waitlisted, 'text-blue-800'],
             ['Rejected', overview.rejected, 'text-gray-700'],
-            ['Fees owed', money(overview.owed), 'text-[#225f45]'],
-            ['Collected', money(overview.collected), 'text-emerald-800'],
-            ['Outstanding', money(overview.outstanding), overview.outstanding > 0 ? 'text-orange-800' : 'text-emerald-800'],
+            ['Fees owed', money(overview.owed), 'text-[#294f73]'],
+            ['Collected', money(overview.collected), 'text-blue-800'],
+            ['Outstanding', money(overview.outstanding), overview.outstanding > 0 ? 'text-blue-800' : 'text-blue-800'],
           ].map(([label, value, color]) => <Card key={String(label)}><CardContent className="p-4"><p className="text-xs font-bold uppercase tracking-wide text-gray-500">{label}</p><p className={`mt-1 text-2xl font-bold ${color}`}>{value}</p></CardContent></Card>)}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -291,7 +292,7 @@ export default function SddaEntriesPage() {
           </Button>
         </div>
         <details className="rounded-lg border bg-white">
-          <summary className="flex cursor-pointer list-none items-center px-5 py-4 font-semibold text-[#225f45]">
+          <summary className="flex cursor-pointer list-none items-center px-5 py-4 font-semibold text-[#294f73]">
             <FileUp className="mr-2 h-5 w-5" />
             Import Google Form CSV
           </summary>
@@ -306,7 +307,7 @@ export default function SddaEntriesPage() {
                 <div className="flex items-center justify-between gap-3">
                   <p>{preview.length} valid rows ready to import.</p>
                   <Button onClick={runImport} disabled={importing}>
-                    {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
+                    {importing ? <PawLoader className="mr-2 h-4 w-4" /> : <FileUp className="mr-2 h-4 w-4" />}
                     Import entries
                   </Button>
                 </div>
@@ -319,7 +320,7 @@ export default function SddaEntriesPage() {
         </details>
         {loading ? (
           <div className="flex justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin" />
+            <PawLoader className="h-8 w-8" />
           </div>
         ) : filtered.length === 0 ? (
           <Card>
@@ -350,7 +351,7 @@ export default function SddaEntriesPage() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {entry.formal_alerts && (
-                      <p className="rounded-md border border-[#d9d8cf] bg-white px-3 py-2 text-sm">
+                      <p className="rounded-md border border-[#cbd5e1] bg-white px-3 py-2 text-sm">
                         <strong>Formal alerts:</strong> {entry.formal_alerts}
                       </p>
                     )}
@@ -377,7 +378,7 @@ export default function SddaEntriesPage() {
                         Edit entry
                       </Link>
                     </Button>
-                    <div className="flex flex-wrap items-center gap-2 border-t pt-3"><span className="text-sm font-semibold">Secretary decision:</span><select aria-label={`Confirmation status for ${dog?.call_name || 'entry'}`} disabled={savingEntryId === entry.id} className="h-9 rounded-md border border-input bg-white px-3 text-sm" value={entry.confirmation_status} onChange={(event) => void changeConfirmation(entry.id, event.target.value as 'received' | 'accepted' | 'waitlisted' | 'rejected')}><option value="received">Received - awaiting review</option><option value="accepted">Accepted</option><option value="waitlisted">Waitlisted</option><option value="rejected">Rejected</option></select>{savingEntryId === entry.id && <Loader2 className="h-4 w-4 animate-spin" />}</div>
+                    <div className="flex flex-wrap items-center gap-2 border-t pt-3"><span className="text-sm font-semibold">Secretary decision:</span><select aria-label={`Confirmation status for ${dog?.call_name || 'entry'}`} disabled={savingEntryId === entry.id} className="h-9 rounded-md border border-input bg-white px-3 text-sm" value={entry.confirmation_status} onChange={(event) => void changeConfirmation(entry.id, event.target.value as 'received' | 'accepted' | 'waitlisted' | 'rejected')}><option value="received">Received - awaiting review</option><option value="accepted">Accepted</option><option value="waitlisted">Waitlisted</option><option value="rejected">Rejected</option></select>{savingEntryId === entry.id && <PawLoader className="h-4 w-4" />}</div>
                   </CardContent>
                 </Card>
               );
