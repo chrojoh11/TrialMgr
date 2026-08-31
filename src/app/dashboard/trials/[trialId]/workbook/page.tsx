@@ -17,11 +17,12 @@ import {
 } from '@/lib/sdda/officialWorkbook';
 import {
   getSddaTrialWorkspace,
+  listSddaGameScoringRuns,
   listSddaOfficialWorkbookRuns,
   type SddaTrialWorkspace,
 } from '@/lib/sdda/trialRepository';
 
-const templatePath = '/templates/sdda/TrialWorkbook-20260729.xlsx';
+const templatePath = '/api/sdda/latest-workbook';
 const safeName = (value: string) => value.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '');
 const first = <T,>(value: T | T[] | null | undefined): T | undefined => Array.isArray(value) ? value[0] : value || undefined;
 
@@ -31,6 +32,7 @@ export default function SddaOfficialWorkbookPage() {
   const trialId = useParams<{ trialId: string }>().trialId;
   const [trial, setTrial] = useState<SddaTrialWorkspace | null>(null);
   const [runs, setRuns] = useState<PreparedRun[]>([]);
+  const [gameRuns, setGameRuns] = useState<Awaited<ReturnType<typeof listSddaGameScoringRuns>>>([]);
   const [registryNumbers, setRegistryNumbers] = useState<Set<string> | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState<number | null>(null);
@@ -41,9 +43,10 @@ export default function SddaOfficialWorkbookPage() {
       setLoading(true);
       setError(null);
       const client = getSupabaseBrowser();
-      const [workspace, records, templateResponse] = await Promise.all([
+      const [workspace, records, games, templateResponse] = await Promise.all([
         getSddaTrialWorkspace(client, trialId),
         listSddaOfficialWorkbookRuns(client, trialId),
+        listSddaGameScoringRuns(client, trialId),
         fetch(templatePath),
       ]);
       if (!templateResponse.ok) throw new Error('The untouched official SDDA workbook template could not be loaded.');
@@ -51,7 +54,8 @@ export default function SddaOfficialWorkbookPage() {
       workspace.sdda_trial_days.sort((a, b) => a.day_number - b.day_number);
       const days = new Map(workspace.sdda_trial_days.map((day) => [day.id, day.day_number]));
       setTrial(workspace);
-      setRuns(records.map((record: any) => {
+      setGameRuns(games);
+      setRuns(records.map((record) => {
         const entry = first(record.sdda_entries);
         const dog = first(entry?.sdda_dogs);
         const score = first(record.sdda_scores);
@@ -96,7 +100,17 @@ export default function SddaOfficialWorkbookPage() {
         judgeName: day.judge_name || undefined,
       })),
       venue: trial.venue || '',
+      trialEmail: trial.secretary_email || undefined,
       runs: enteredRuns.filter((run) => selectedDays.has(run.dayNumber)),
+      gameRuns: gameRuns.flatMap((record) => {
+        const entry = first(record.sdda_entries);
+        const dog = first(entry?.sdda_dogs);
+        const score = first(record.sdda_game_scores);
+        const offering = first(record.sdda_game_offerings);
+        const dayNumber = trial.sdda_trial_days.find((day) => day.id === record.trial_day_id)?.day_number || 0;
+        if (!offering || entry?.confirmation_status !== 'accepted' || !selectedDays.has(dayNumber)) return [];
+        return [{ dayNumber, gameType: offering.game_type, dogNumber: dog?.sdda_registration_number || '', entryType: record.entry_type, result: score?.result, timeSeconds: score?.time_seconds == null ? null : Number(score.time_seconds), runningPosition: record.running_position }];
+      }),
     };
   };
 
@@ -132,7 +146,7 @@ export default function SddaOfficialWorkbookPage() {
   return <MainLayout title="Official SDDA workbook" breadcrumbItems={[{ label: 'Trials', href: '/dashboard/trials' }, { label: trial?.name || 'Trial', href: `/dashboard/trials/${trialId}` }, { label: 'Official workbook' }]}>
     <div className="mx-auto max-w-5xl space-y-6">
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
-      <Card><CardHeader><CardTitle className="flex items-center"><FileSpreadsheet className="mr-2 h-5 w-5" />SDDA Trial Results Workbook</CardTitle><CardDescription>Creates a fresh copy of the untouched July 2026 official workbook and fills its designated trial, dog-number, stream, score, time, and judge cells. Official formulas, validation, print areas, Games, Summary, High-in-Trial, fees, labels, and formatted-results sheets remain in place.</CardDescription></CardHeader><CardContent className="flex flex-wrap gap-2"><Badge variant="outline">{enteredRuns.length} entered scent runs</Badge>{excludedRuns > 0 && <Badge variant="outline">{excludedRuns} waitlisted/withdrawn runs excluded</Badge>}</CardContent></Card>
+      <Card><CardHeader><CardTitle className="flex items-center"><FileSpreadsheet className="mr-2 h-5 w-5" />SDDA Trial Results Workbook</CardTitle><CardDescription>Downloads the newest official SDDA workbook and fills its designated Scent and Games input cells. Official formulas, validation, print areas, Summary, High-in-Trial, fees, labels, and formatted-results sheets remain in place.</CardDescription></CardHeader><CardContent className="flex flex-wrap gap-2"><Badge variant="outline">{enteredRuns.length} entered scent runs</Badge><Badge variant="outline">{gameRuns.length} Games runs</Badge>{excludedRuns > 0 && <Badge variant="outline">{excludedRuns} waitlisted/withdrawn runs excluded</Badge>}</CardContent></Card>
       <Alert><AlertDescription>Open the downloaded workbook in Excel so its original formulas recalculate. Review the official results before submission. SDDA Games sheets are preserved exactly and use their dedicated Games entry and scoring workflow.</AlertDescription></Alert>
       {loading ? <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div> : dayGroups.map((days, index) => {
         const selected = new Set(days.map((day) => day.day_number));

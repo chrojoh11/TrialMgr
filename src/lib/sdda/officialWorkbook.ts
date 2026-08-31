@@ -20,17 +20,35 @@ export type OfficialWorkbookRun = {
   timeSeconds?: number | null;
 };
 
+export type OfficialWorkbookGameRun = {
+  dayNumber: number;
+  gameType: 'Aerial' | 'Distance' | 'Speed' | 'Team';
+  dogNumber: string;
+  entryType: string;
+  result?: 'pass' | 'fail' | 'absent' | 'withdrawn' | 'excused';
+  timeSeconds?: number | null;
+  runningPosition?: number | null;
+};
+
 export type OfficialWorkbookInput = {
   days: OfficialWorkbookDay[];
   venue: string;
   trialEmail?: string;
   defaultJudge?: string;
   runs: OfficialWorkbookRun[];
+  gameRuns?: OfficialWorkbookGameRun[];
 };
 
 export type OfficialWorkbookReviewIssue = {
   severity: 'blocker' | 'warning';
   message: string;
+};
+
+const SCENT_LIMITS: Record<SddaLevel, Record<SddaComponent, { maximum: number; minimum: number; seconds: number }>> = {
+  Started: { Container: { maximum: 30, minimum: 15, seconds: 180 }, Interior: { maximum: 40, minimum: 20, seconds: 300 }, Exterior: { maximum: 30, minimum: 15, seconds: 300 } },
+  Advanced: { Container: { maximum: 60, minimum: 30, seconds: 180 }, Interior: { maximum: 80, minimum: 40, seconds: 300 }, Exterior: { maximum: 60, minimum: 30, seconds: 300 } },
+  Excellent: { Container: { maximum: 60, minimum: 30, seconds: 180 }, Interior: { maximum: 80, minimum: 40, seconds: 900 }, Exterior: { maximum: 60, minimum: 30, seconds: 300 } },
+  Elite: { Container: { maximum: 60, minimum: 30, seconds: 180 }, Interior: { maximum: 80, minimum: 40, seconds: 600 }, Exterior: { maximum: 60, minimum: 30, seconds: 300 } },
 };
 
 export function reviewOfficialSddaWorkbook(
@@ -44,16 +62,43 @@ export function reviewOfficialSddaWorkbook(
     if (!day.judgeName?.trim() && !input.defaultJudge?.trim()) issues.push({ severity: 'blocker', message: `Day ${day.dayNumber} judge is missing.` });
   }
   const relevantRuns = input.runs.filter((run) => input.days.some((day) => day.dayNumber === run.dayNumber));
+  const relevantGames = (input.gameRuns || []).filter((run) => input.days.some((day) => day.dayNumber === run.dayNumber));
   const missingNumbers = relevantRuns.filter((run) => !run.dogNumber.trim()).length;
   if (missingNumbers) issues.push({ severity: 'blocker', message: `${missingNumbers} ${missingNumbers === 1 ? 'run has' : 'runs have'} no SDDA dog number.` });
+  const missingGameNumbers = relevantGames.filter((run) => !run.dogNumber.trim()).length;
+  if (missingGameNumbers) issues.push({ severity: 'blocker', message: `${missingGameNumbers} Games ${missingGameNumbers === 1 ? 'run has' : 'runs have'} no SDDA dog number.` });
   if (registeredDogNumbers) {
-    const unknown = new Set(relevantRuns.map((run) => run.dogNumber.trim()).filter((number) => number && !registeredDogNumbers.has(number)));
+    const unknown = new Set([...relevantRuns, ...relevantGames].map((run) => run.dogNumber.trim()).filter((number) => number && !registeredDogNumbers.has(number)));
     if (unknown.size) issues.push({ severity: 'warning', message: `${unknown.size} dog ${unknown.size === 1 ? 'number is' : 'numbers are'} not present in the official workbook’s SDDA Dogs registry snapshot.` });
   }
   const unscored = relevantRuns.filter((run) => !run.result && run.runGroup !== 'FEO').length;
   if (unscored) issues.push({ severity: 'warning', message: `${unscored} ${unscored === 1 ? 'run is' : 'runs are'} not scored yet and will be marked Entered.` });
   const incomplete = relevantRuns.filter((run) => (run.result === 'qualifying' || run.result === 'non_qualifying') && (run.score == null || run.timeSeconds == null)).length;
   if (incomplete) issues.push({ severity: 'warning', message: `${incomplete} scored ${incomplete === 1 ? 'run is' : 'runs are'} missing a score or time.` });
+  for (const run of relevantRuns.filter((candidate) => candidate.result === 'qualifying' || candidate.result === 'non_qualifying')) {
+    const limit = SCENT_LIMITS[run.level][run.component];
+    const label = `Day ${run.dayNumber} ${run.level} ${run.component} dog ${run.dogNumber || 'pending'}`;
+    if (run.score != null && run.score > limit.maximum) issues.push({ severity: 'blocker', message: `${label} score ${run.score} exceeds the official maximum of ${limit.maximum}.` });
+    if (run.result === 'qualifying' && (run.score == null || run.score < limit.minimum || run.timeSeconds == null || run.timeSeconds > limit.seconds)) {
+      issues.push({ severity: 'blocker', message: `${label} is marked Qualifying but does not meet the official ${limit.minimum}-point minimum and ${limit.seconds}-second time limit.` });
+    }
+    if (run.result === 'non_qualifying' && run.score != null && run.score >= limit.minimum && run.timeSeconds != null && run.timeSeconds <= limit.seconds) {
+      issues.push({ severity: 'blocker', message: `${label} is marked Non-qualifying, but its score and time would calculate as Pass in the official workbook. Enter the judge's official failed score.` });
+    }
+  }
+  for (const run of relevantRuns.filter((candidate) => candidate.result === 'qualifying' || candidate.result === 'non_qualifying')) {
+    const limit = SCENT_LIMITS[run.level][run.component];
+    const label = `Day ${run.dayNumber} ${run.level} ${run.component} dog ${run.dogNumber || 'pending'}`;
+    if (run.score != null && run.score > limit.maximum) issues.push({ severity: 'blocker', message: `${label} score ${run.score} exceeds the official maximum of ${limit.maximum}.` });
+    if (run.result === 'qualifying' && (run.score == null || run.score < limit.minimum || run.timeSeconds == null || run.timeSeconds > limit.seconds)) {
+      issues.push({ severity: 'blocker', message: `${label} is marked Qualifying but does not meet the official ${limit.minimum}-point minimum and ${limit.seconds}-second time limit.` });
+    }
+    if (run.result === 'non_qualifying' && run.score != null && run.score >= limit.minimum && run.timeSeconds != null && run.timeSeconds <= limit.seconds) {
+      issues.push({ severity: 'blocker', message: `${label} is marked Non-qualifying, but its score and time would calculate as Pass in the official workbook. Enter the judge's official failed score.` });
+    }
+  }
+  const unscoredGames = relevantGames.filter((run) => !run.result && run.entryType.toLowerCase() !== 'feo').length;
+  if (unscoredGames) issues.push({ severity: 'warning', message: `${unscoredGames} Games ${unscoredGames === 1 ? 'run is' : 'runs are'} not scored yet and will be marked Entered.` });
   return issues;
 }
 
@@ -108,6 +153,14 @@ function cellValue(run: OfficialWorkbookRun): string | number {
   if (run.result === 'excused' || run.result === 'withdrawn') return 'E';
   if (run.result === 'absent') return 'NE';
   return run.score ?? '';
+}
+
+function gameCellValue(run: OfficialWorkbookGameRun) {
+  if (run.entryType.toLowerCase() === 'feo') return 'FEO';
+  if (!run.result) return 'E';
+  if (run.result === 'pass') return 'P';
+  if (run.result === 'fail') return 'F';
+  return 'E';
 }
 
 export function buildOfficialSddaWorkbook(template: Uint8Array, input: OfficialWorkbookInput) {
@@ -176,6 +229,33 @@ export function buildOfficialSddaWorkbook(template: Uint8Array, input: OfficialW
     if (!judge) continue;
     for (const name of names.keys()) {
       if (new RegExp(`^JudgeD${index + 1}(CSS|ISS|ESS|CSA|ISA|ESA|CSE|ISE|ESE|CSL|ISL|ESL)$`).test(name)) setName(name, judge);
+    }
+    for (const game of ['Aerial', 'Distance', 'Speed', 'Team']) setName(`JudgeD${index + 1}Games${game}`, judge);
+  }
+
+
+  const gameColumns = {
+    Aerial: { result: 'O', time: 'P', order: 'R' },
+    Distance: { result: 'V', time: 'W', order: 'Y' },
+    Speed: { result: 'AC', time: 'AD', order: 'AF' },
+    Team: { result: 'AJ', time: 'AK', order: 'AM' },
+  } as const;
+  for (const day of input.days) {
+    const byDog = new Map<string, OfficialWorkbookGameRun[]>();
+    for (const run of (input.gameRuns || []).filter((item) => item.dayNumber === day.dayNumber)) {
+      byDog.set(run.dogNumber, [...(byDog.get(run.dogNumber) || []), run]);
+    }
+    if (byDog.size > 50) throw new Error(`Games day ${day.dayNumber} exceeds the official workbook capacity of 50 dogs.`);
+    let row = day === input.days[0] ? 7 : 67;
+    for (const games of byDog.values()) {
+      setCell('Games', `D${row}`, /^\d+$/.test(games[0].dogNumber) ? Number(games[0].dogNumber) : games[0].dogNumber);
+      for (const [position, run] of games.entries()) {
+        const columns = gameColumns[run.gameType];
+        setCell('Games', `${columns.result}${row}`, gameCellValue(run));
+        if (run.timeSeconds != null && run.result === 'pass') setCell('Games', `${columns.time}${row}`, run.timeSeconds / 86400, true);
+        setCell('Games', `${columns.order}${row}`, run.runningPosition || position + 1);
+      }
+      row += 1;
     }
   }
 
