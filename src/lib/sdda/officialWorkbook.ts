@@ -86,17 +86,6 @@ export function reviewOfficialSddaWorkbook(
       issues.push({ severity: 'blocker', message: `${label} is marked Non-qualifying, but its score and time would calculate as Pass in the official workbook. Enter the judge's official failed score.` });
     }
   }
-  for (const run of relevantRuns.filter((candidate) => candidate.result === 'qualifying' || candidate.result === 'non_qualifying')) {
-    const limit = SCENT_LIMITS[run.level][run.component];
-    const label = `Day ${run.dayNumber} ${run.level} ${run.component} dog ${run.dogNumber || 'pending'}`;
-    if (run.score != null && run.score > limit.maximum) issues.push({ severity: 'blocker', message: `${label} score ${run.score} exceeds the official maximum of ${limit.maximum}.` });
-    if (run.result === 'qualifying' && (run.score == null || run.score < limit.minimum || run.timeSeconds == null || run.timeSeconds > limit.seconds)) {
-      issues.push({ severity: 'blocker', message: `${label} is marked Qualifying but does not meet the official ${limit.minimum}-point minimum and ${limit.seconds}-second time limit.` });
-    }
-    if (run.result === 'non_qualifying' && run.score != null && run.score >= limit.minimum && run.timeSeconds != null && run.timeSeconds <= limit.seconds) {
-      issues.push({ severity: 'blocker', message: `${label} is marked Non-qualifying, but its score and time would calculate as Pass in the official workbook. Enter the judge's official failed score.` });
-    }
-  }
   const unscoredGames = relevantGames.filter((run) => !run.result && run.entryType.toLowerCase() !== 'feo').length;
   if (unscoredGames) issues.push({ severity: 'warning', message: `${unscoredGames} Games ${unscoredGames === 1 ? 'run is' : 'runs are'} not scored yet and will be marked Entered.` });
   return issues;

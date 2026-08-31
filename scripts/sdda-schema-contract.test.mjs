@@ -650,3 +650,13 @@ test('enforces official Scent score limits before database persistence', () => {
   assert.match(sql, /level='Elite'.*component='Interior'.*600/is);
   assert.match(sql, /sdda_scores_validate_rules before insert or update/i);
 });
+
+test('enforces SDDA Games running-order groups and second-dog restrictions', () => {
+  const sql = readFileSync(new URL('../supabase/sdda-migrations/20260830_0041_games_running_order_groups.sql', import.meta.url), 'utf8');
+  assert.match(sql, /add column if not exists run_group text not null default 'Regular'/i);
+  for (const value of ['Official', 'Regular', 'Second dog', 'FEO', 'BIS'])
+    assert.match(sql, new RegExp(`'${value}'`, 'i'));
+  assert.match(sql, /requested_game_type not in \('Aerial','Distance'\)/i);
+  assert.match(sql, /Only an FEO entry may use the FEO running-order group/i);
+  assert.match(sql, /new\.run_group:='FEO'/i);
+});
