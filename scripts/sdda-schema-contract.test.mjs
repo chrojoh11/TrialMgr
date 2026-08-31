@@ -639,3 +639,14 @@ test('matches registry search words regardless of owner-name order', () => {
   assert.match(sql, /concat_ws\(' ',d\.registration_number,d\.call_name,d\.owner_name,d\.owner_number\)/i);
   assert.match(sql, /grant execute on function public\.sdda_search_registry_dogs\(text\) to authenticated/i);
 });
+
+test('enforces official Scent score limits before database persistence', () => {
+  const sql = readFileSync(new URL('../supabase/sdda-migrations/20260830_0040_scent_score_rule_validation.sql', import.meta.url), 'utf8');
+  assert.match(sql, /function public\.sdda_validate_scent_score_rules\(\)/i);
+  assert.match(sql, /FEO runs cannot receive official scores/i);
+  assert.match(sql, /maximum_score := case/i);
+  assert.match(sql, /minimum_score := maximum_score \/ 2/i);
+  assert.match(sql, /level='Excellent'.*component='Interior'.*900/is);
+  assert.match(sql, /level='Elite'.*component='Interior'.*600/is);
+  assert.match(sql, /sdda_scores_validate_rules before insert or update/i);
+});
