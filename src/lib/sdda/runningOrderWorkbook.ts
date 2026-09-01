@@ -150,7 +150,7 @@ export function buildSddaRunningOrderWorkbook(trial: SddaTrialWorkspace, runs: a
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws['!ref'] = `A1:O${rows.length}`;
     ws['!merges'] = merges;
-    ws['!cols'] = [4, 19, 8, 14, 4, 4, 19, 8, 14, 4, 4, 19, 8, 14, 4].map((wch) => ({
+    ws['!cols'] = [4, 17, 6, 12, 10, 4, 17, 6, 12, 10, 4, 17, 6, 12, 10].map((wch) => ({
       wch,
     }));
     ws['!rows'] = rows.map(() => ({ hpt: 20 }));

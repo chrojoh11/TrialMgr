@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { createEntryReceiptPdf } from '@/lib/sdda/entryReceiptPdf';
+import { joinFormalAlerts, splitFormalAlerts } from '@/lib/sdda/formalAlerts';
 type Day = { id: string; day_number: number; trial_date: string };
 type Offer = { id: string; trial_day_id: string; level: string; component: string; stream: string; feo_allowed: boolean };
 type Choice = {
@@ -42,7 +43,8 @@ type SetupRow = Omit<Setup, 'days' | 'offerings' | 'game_offerings'> & {
   sdda_trial_offerings?: Offer[];
   sdda_game_offerings?: GameOffer[];
 };
-type EditData = typeof empty & {
+type EditData = Omit<typeof empty, 'formal_alert_1' | 'formal_alert_2'> & {
+  formal_alerts: string;
   entry_id: string;
   confirmation_code: string;
   confirmation_status: string;
@@ -71,7 +73,8 @@ const empty = {
   dog_registration_number: '',
   registration_pending: false,
   breed: '',
-  formal_alerts: '',
+  formal_alert_1: '',
+  formal_alert_2: '',
   title_watch_note: '',
   reactivity: 'None',
   waiver_accepted: false,
@@ -169,10 +172,17 @@ export default function Page() {
     startEditing = secretary
   ) {
     const formKeys = Object.keys(empty) as Array<keyof typeof empty>;
+    const editValues = data as unknown as Record<string, unknown>;
     const loadedForm = Object.fromEntries(
-      formKeys.map((key) => [key, data[key] ?? empty[key]])
+      formKeys.map((key) => [key, editValues[key] ?? empty[key]])
     ) as typeof empty;
-    setForm({ ...loadedForm, waiver_accepted: true });
+    const [formalAlert1, formalAlert2] = splitFormalAlerts(data.formal_alerts);
+    setForm({
+      ...loadedForm,
+      formal_alert_1: formalAlert1,
+      formal_alert_2: formalAlert2,
+      waiver_accepted: true,
+    });
     const scentSelections = data.runs.map((run) => {
       const offering = activeSetup.offerings.find((item) => item.id === run.offering_id)!;
       return {
@@ -387,7 +397,13 @@ export default function Page() {
         aerial_division: game.game_type === 'Aerial' ? aerialDivision[game.id] : undefined,
       }));
     setBusy(true);
-    const submission = { ...form, runs, game_runs };
+    const { formal_alert_1, formal_alert_2, ...formFields } = form;
+    const submission = {
+      ...formFields,
+      formal_alerts: joinFormalAlerts(formal_alert_1, formal_alert_2),
+      runs,
+      game_runs,
+    };
     const client = getSupabaseBrowser();
     const { data, error } = secretaryEntryId
       ? await client.rpc('sdda_update_entry_as_secretary', {
@@ -876,11 +892,18 @@ export default function Page() {
             <div className="space-y-4">
               <Section title="Safety and title notes">
                 <Grid>
-                  <F label="Formal alert(s) — Started teams leave blank">
-                    <textarea
+                  <F label="Formal Alert 1 — Started teams leave blank">
+                    <input
                       className={field}
-                      value={form.formal_alerts}
-                      onChange={(e) => set('formal_alerts', e.target.value)}
+                      value={form.formal_alert_1}
+                      onChange={(e) => set('formal_alert_1', e.target.value)}
+                    />
+                  </F>
+                  <F label="Formal Alert 2 (optional) — Started teams leave blank">
+                    <input
+                      className={field}
+                      value={form.formal_alert_2}
+                      onChange={(e) => set('formal_alert_2', e.target.value)}
                     />
                   </F>
                   <F label="Championship title watch">

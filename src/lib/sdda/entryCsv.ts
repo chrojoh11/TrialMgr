@@ -32,6 +32,8 @@ const aliases: Record<string, string[]> = {
   registrationPending: ['registration_pending', 'sdda_registration_pending'], breed: ['breed'], stream: ['stream', 'division', 'amateur_or_working_stream'],
   level: ['level'], components: ['components', 'component'], trialDay: ['trial_day', 'day', 'day_number'],
   formalAlerts: ['formal_alerts', 'formal_alert_s_started_teams_leave_blank'],
+  formalAlert1: ['formal_alert_1', 'formal_alert_one'],
+  formalAlert2: ['formal_alert_2', 'formal_alert_two'],
   reactivity: ['reactivity', 'is_your_dog_reactive'],
 };
 
@@ -65,6 +67,8 @@ function parseGoogleFormEntries(rows: string[][], headers: string[]) {
     if (fieldIndex(field) < 0) throw new Error(`CSV is missing required column: ${aliases[field][0]}`);
   }
   const get = (row: string[], field: string) => row[fieldIndex(field)]?.trim() || '';
+  const getFormalAlerts = (row: string[]) =>
+    [get(row, 'formalAlert1'), get(row, 'formalAlert2')].filter(Boolean).join('\n') || get(row, 'formalAlerts');
   const entries: SddaCsvEntry[] = []; const errors: string[] = [];
 
   rows.slice(1).forEach((row, offset) => {
@@ -97,7 +101,7 @@ function parseGoogleFormEntries(rows: string[][], headers: string[]) {
         const registration = get(row, 'registrationNumber');
         entries.push({ rowNumber, handlerName: handler, handlerEmail: get(row, 'handlerEmail'), handlerPhone: get(row, 'handlerPhone'), dogCallName: dog,
           dogRegisteredName: get(row, 'dogRegisteredName'), registrationNumber: registration, registrationPending: !registration, breed: get(row, 'breed'),
-          stream, level, components, trialDay: weekdays.indexOf(weekday) + 1, formalAlerts: get(row, 'formalAlerts'), reactivity: parseReactivity(get(row, 'reactivity')) });
+          stream, level, components, trialDay: weekdays.indexOf(weekday) + 1, formalAlerts: getFormalAlerts(row), reactivity: parseReactivity(get(row, 'reactivity')) });
       } catch (error) { errors.push(`Row ${rowNumber}: ${error instanceof Error ? error.message : 'invalid row'}`); }
     }
   });
@@ -114,6 +118,8 @@ export function parseSddaEntryCsv(text: string) {
     if (indexOf(field) < 0) throw new Error(`CSV is missing required column: ${aliases[field][0]}`);
   }
   const get = (row: string[], field: string) => row[indexOf(field)]?.trim() || '';
+  const getFormalAlerts = (row: string[]) =>
+    [get(row, 'formalAlert1'), get(row, 'formalAlert2')].filter(Boolean).join('\n') || get(row, 'formalAlerts');
   const entries: SddaCsvEntry[] = []; const errors: string[] = [];
   rows.slice(1).forEach((row, offset) => {
     const rowNumber = offset + 2;
@@ -129,7 +135,7 @@ export function parseSddaEntryCsv(text: string) {
       if (!pending && !registration) throw new Error('registration number required unless pending');
       const trialDay = Number(get(row, 'trialDay')); if (!Number.isInteger(trialDay) || trialDay < 1 || trialDay > 4) throw new Error('trial_day must be 1 through 4');
       entries.push({ rowNumber, handlerName: handler, handlerEmail: get(row, 'handlerEmail'), handlerPhone: get(row, 'handlerPhone'), dogCallName: dog,
-        dogRegisteredName: get(row, 'dogRegisteredName'), registrationNumber: registration, registrationPending: pending, breed: get(row, 'breed'), stream, level, components, trialDay, formalAlerts: get(row, 'formalAlerts'), reactivity: parseReactivity(get(row, 'reactivity')) });
+        dogRegisteredName: get(row, 'dogRegisteredName'), registrationNumber: registration, registrationPending: pending, breed: get(row, 'breed'), stream, level, components, trialDay, formalAlerts: getFormalAlerts(row), reactivity: parseReactivity(get(row, 'reactivity')) });
     } catch (error) { errors.push(`Row ${rowNumber}: ${error instanceof Error ? error.message : 'invalid row'}`); }
   });
   return { entries, errors };

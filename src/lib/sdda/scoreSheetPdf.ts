@@ -1,6 +1,7 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import type { SddaComponent, SddaLevel, SddaStream } from './offerings';
 import { toPdfStandardText } from './pdfText';
+import { splitFormalAlerts } from './formalAlerts';
 
 type Field = [number, number, number];
 type SheetFields = {
@@ -232,7 +233,7 @@ export async function buildSddaJudgePacket(
     drawFit(run.breed, fields.breed);
     drawFit(run.dogNumber, fields.dogNumber);
     if (fields.alerts) {
-      const parts = (run.alerts || '').split(/[,/]/).map((item) => item.trim());
+      const parts = splitFormalAlerts(run.alerts);
       drawFit(parts[0] || '', fields.alerts[0]);
       drawFit(parts[1] || '', fields.alerts[1]);
     }

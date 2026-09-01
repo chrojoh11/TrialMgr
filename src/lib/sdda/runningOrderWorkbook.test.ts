@@ -40,6 +40,7 @@ test('matches the original SDDA running-order workbook structure', () => {
   assert.equal(sheet.N1.v, 'DAY TOTAL\n1 RUNS');
   assert.equal(sheet.C7.v, 'A');
   assert.equal(sheet.E6.v, 'Reactive');
+  assert.equal(sheet['!cols']?.[4]?.wch, 10);
   assert.equal(sheet.E7.v, 'Dogs');
   assert.equal(sheet['!cols']?.length, 15);
   assert.equal(sheet['!merges']?.some((range) => XLSX.utils.encode_range(range) === 'A1:M2'), true);

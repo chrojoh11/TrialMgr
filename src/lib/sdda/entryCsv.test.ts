@@ -9,6 +9,13 @@ test('parses Google Forms-style quoted SDDA CSV responses', () => {
   assert.deepEqual(result.entries[0].components, ['Container', 'Interior']);
 });
 
+test('imports two dedicated formal alert columns', () => {
+  const csv = 'handler_name,dog_call_name,sdda_registration_number,registration_pending,stream,level,components,trial_day,formal_alert_1,formal_alert_2\nChris,Finn,42,No,Amateur,Advanced,Container,1,Dogs,People';
+  const result = parseSddaEntryCsv(csv);
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.entries[0].formalAlerts, 'Dogs\nPeople');
+});
+
 test('reports invalid rows without accepting them', () => {
   const csv = 'handler_name,dog_call_name,sdda_registration_number,registration_pending,stream,level,components,trial_day\nChris,Finn,,No,Pro,Patrol,Vehicle,5';
   const result = parseSddaEntryCsv(csv); assert.equal(result.entries.length, 0); assert.match(result.errors[0], /stream/);
