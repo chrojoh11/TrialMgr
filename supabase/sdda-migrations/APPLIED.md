@@ -310,3 +310,15 @@ No legacy C-WAGS migration was applied.
 - Capability: trial secretary contact, payment instructions, cancellation policy, and Scent pricing are available to the public entry workflow
 - Security: public setup remains available only through the narrow entry-setup function; writes require trial-management access
 - Audit: every competitor-facing detail change retains before/after values
+
+## `20260901_0042_day_entries_and_trial_team.sql`
+
+- Applied: 2026-09-01 (America/Edmonton)
+- Project: `SDDA-Trialdesk`
+- Project reference: `hsxwwtvzfulxdqimkgcc`
+- Database branch: `main` / Production
+- Reported execution result: success, no rows returned
+- Capability: authorized trial managers can close or reopen individual trial days, and owners or database-appointed administrators can manage the trial team
+- Team roles: Secretary, Assistant, and Viewer access use existing registered SDDA TrialDesk accounts
+- Public entries: new submissions are rejected at the database boundary when they request a closed day
+- Audit: day-entry status and trial-team membership changes are retained in `sdda_audit_records`
