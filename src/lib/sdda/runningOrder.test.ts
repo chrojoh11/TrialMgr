@@ -25,6 +25,23 @@ test('finds same-day duplicate dogs and adjacent handler runs', () => {
   assert.deepEqual(conflicts.map(({ kind }) => kind).sort(), ['duplicate-dog', 'handler-overlap']);
 });
 
+test('does not flag one team entered in all three components as three conflicts', () => {
+  const conflicts = findSddaScheduleConflicts([
+    run({ id: 'container', component: 'Container', order: 1 }),
+    run({ id: 'interior', component: 'Interior', order: 1 }),
+    run({ id: 'exterior', component: 'Exterior', order: 1 }),
+  ]);
+  assert.deepEqual(conflicts, []);
+});
+
+test('does not treat the same dog at different levels as a duplicate entry', () => {
+  const conflicts = findSddaScheduleConflicts([
+    run({ id: 'started', level: 'Started', component: 'Container' }),
+    run({ id: 'advanced', level: 'Advanced', component: 'Container' }),
+  ]);
+  assert.deepEqual(conflicts, []);
+});
+
 test('moves a run without losing entries', () => {
   assert.deepEqual(moveSddaRun(['a', 'b', 'c'], 2, 0), ['c', 'a', 'b']);
 });

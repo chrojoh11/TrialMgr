@@ -57,7 +57,11 @@ export function findSddaScheduleConflicts(
       for (let rightIndex = leftIndex + 1; rightIndex < dayRuns.length; rightIndex += 1) {
         const left = dayRuns[leftIndex];
         const right = dayRuns[rightIndex];
-        if (left.dogId === right.dogId && left.component === right.component) {
+        if (
+          left.dogId === right.dogId &&
+          left.level === right.level &&
+          left.component === right.component
+        ) {
           conflicts.push({
             kind: 'duplicate-dog',
             runIds: [left.id, right.id],
@@ -65,6 +69,7 @@ export function findSddaScheduleConflicts(
           });
         } else if (
           left.handlerId === right.handlerId &&
+          left.dogId !== right.dogId &&
           left.level === right.level &&
           Math.abs(left.order - right.order) <= 1
         ) {
