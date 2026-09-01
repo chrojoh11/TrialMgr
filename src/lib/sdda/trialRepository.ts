@@ -84,6 +84,42 @@ export interface SddaRosterDog {
   breed: string | null;
 }
 
+type RunWithEntry = Record<string, unknown> & {
+  sdda_entries?: Record<string, unknown> | Array<Record<string, unknown>> | null;
+};
+
+async function attachRosterDogsToRuns<T>(
+  client: SupabaseClient,
+  trialId: string,
+  runs: T[]
+): Promise<T[]> {
+  if (!runs.length) return runs;
+  const { data: dogs, error } = await client.rpc('sdda_trial_roster_dogs', {
+    target_trial_id: trialId,
+  });
+  if (error) throw new Error(`Run dogs could not be loaded: ${error.message}`);
+  const dogById = new Map(
+    ((dogs || []) as SddaRosterDog[]).map((dog) => [dog.id, dog])
+  );
+
+  return runs.map((run) => {
+    const runRecord = run as RunWithEntry;
+    const entries = Array.isArray(runRecord.sdda_entries)
+      ? runRecord.sdda_entries
+      : runRecord.sdda_entries
+        ? [runRecord.sdda_entries]
+        : [];
+    const hydrated = entries.map((entry) => ({
+      ...entry,
+      sdda_dogs: dogById.get(String(entry.dog_id)) || null,
+    }));
+    return {
+      ...runRecord,
+      sdda_entries: Array.isArray(runRecord.sdda_entries) ? hydrated : hydrated[0] || null,
+    } as T;
+  });
+}
+
 export interface SddaRosterEntry {
   id: string;
   dog_id: string;
@@ -481,7 +517,7 @@ export async function listSddaRunningOrderRuns(client: SupabaseClient, trialId: 
     .eq('sdda_entries.confirmation_status', 'accepted')
     .order('created_at');
   if (error) throw new Error(error.message);
-  return data || [];
+  return attachRosterDogsToRuns(client, trialId, data || []);
 }
 
 export async function listSddaGameRuns(client: SupabaseClient, trialId: string) {
@@ -494,7 +530,7 @@ export async function listSddaGameRuns(client: SupabaseClient, trialId: string) 
     .eq('sdda_entries.confirmation_status', 'accepted')
     .order('created_at');
   if (error) throw new Error(error.message);
-  return data || [];
+  return attachRosterDogsToRuns(client, trialId, data || []);
 }
 
 export async function setSddaGameRunGroup(
@@ -509,23 +545,23 @@ export async function setSddaGameRunGroup(
 export async function listSddaScoringRuns(client: SupabaseClient, trialId: string) {
   const { data, error } = await client
     .from('sdda_runs')
-    .select('id,trial_day_id,level,component,stream,run_group,running_position,sdda_trial_days(day_number,trial_date),sdda_scores(id,result,score,time_seconds,faults,judge_notes,recorded_at,amended_at),sdda_entries!inner(id,handler_name,confirmation_status,sdda_dogs(call_name,registered_name,sdda_registration_number))')
+    .select('id,trial_day_id,level,component,stream,run_group,running_position,sdda_trial_days(day_number,trial_date),sdda_scores(id,result,score,time_seconds,faults,judge_notes,recorded_at,amended_at),sdda_entries!inner(id,handler_name,dog_id,confirmation_status,sdda_dogs(call_name,registered_name,sdda_registration_number))')
     .eq('trial_id', trialId)
     .eq('sdda_entries.confirmation_status', 'accepted')
     .order('created_at');
   if (error) throw new Error(error.message);
-  return data || [];
+  return attachRosterDogsToRuns(client, trialId, data || []);
 }
 
 export async function listSddaGameScoringRuns(client: SupabaseClient, trialId: string) {
   const { data, error } = await client
     .from('sdda_game_runs')
-    .select('id,trial_day_id,entry_type,aerial_division,running_position,sdda_game_offerings(game_type,judge_name),sdda_game_scores(id,result,time_seconds,judge_notes,recorded_at,amended_at),sdda_entries!inner(id,handler_name,confirmation_status,sdda_dogs(call_name,registered_name,sdda_registration_number)),sdda_trial_days(day_number,trial_date)')
+    .select('id,trial_day_id,entry_type,aerial_division,running_position,sdda_game_offerings(game_type,judge_name),sdda_game_scores(id,result,time_seconds,judge_notes,recorded_at,amended_at),sdda_entries!inner(id,handler_name,dog_id,confirmation_status,sdda_dogs(call_name,registered_name,sdda_registration_number)),sdda_trial_days(day_number,trial_date)')
     .eq('trial_id', trialId)
     .eq('sdda_entries.confirmation_status', 'accepted')
     .order('created_at');
   if (error) throw new Error(error.message);
-  return data || [];
+  return attachRosterDogsToRuns(client, trialId, data || []);
 }
 
 export async function recordSddaScentScore(client: SupabaseClient, input: { runId: string; result: string; score: number | null; timeSeconds: number | null; faults: number; notes: string }) {
@@ -568,13 +604,13 @@ export async function listSddaOfficialWorkbookRuns(client: SupabaseClient, trial
   const { data, error } = await client
     .from('sdda_runs')
     .select(
-      'id,trial_day_id,level,component,stream,run_group,feo,sdda_scores(result,score,time_seconds),sdda_entries!inner(id,entry_status,confirmation_status,sdda_dogs(call_name,registered_name,breed,sdda_registration_number))'
+      'id,trial_day_id,level,component,stream,run_group,feo,sdda_scores(result,score,time_seconds),sdda_entries!inner(id,dog_id,entry_status,confirmation_status,sdda_dogs(call_name,registered_name,breed,sdda_registration_number))'
     )
     .eq('trial_id', trialId)
     .eq('sdda_entries.confirmation_status', 'accepted')
     .order('created_at');
   if (error) throw new Error(error.message);
-  return data || [];
+  return attachRosterDogsToRuns(client, trialId, data || []);
 }
 
 export async function saveSddaRunningOrder(

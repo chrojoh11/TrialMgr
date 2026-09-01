@@ -1,9 +1,34 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { importSddaCsvEntries, SDDA_RUNNING_ORDER_RUN_SELECT } from './trialRepository';
+import { importSddaCsvEntries, listSddaRunningOrderRuns, SDDA_RUNNING_ORDER_RUN_SELECT } from './trialRepository';
 
 test('running-order records include formal alerts required by score-sheet packets', () => {
   assert.match(SDDA_RUNNING_ORDER_RUN_SELECT, /sdda_entries!inner\([^)]*formal_alerts/);
+});
+
+test('running orders hydrate dog identity through the authorized trial roster', async () => {
+  const query: any = {
+    select: () => query,
+    eq: () => query,
+    order: async () => ({
+      data: [{ id: 'run-1', sdda_entries: { id: 'entry-1', dog_id: 'dog-1', sdda_dogs: null } }],
+      error: null,
+    }),
+  };
+  const client: any = {
+    from: () => query,
+    rpc: async (name: string) => {
+      assert.equal(name, 'sdda_trial_roster_dogs');
+      return {
+        data: [{ id: 'dog-1', call_name: 'Fizzgig', sdda_registration_number: '4429' }],
+        error: null,
+      };
+    },
+  };
+
+  const runs: any = await listSddaRunningOrderRuns(client, 'trial-1');
+  assert.equal(runs[0].sdda_entries.sdda_dogs.call_name, 'Fizzgig');
+  assert.equal(runs[0].sdda_entries.sdda_dogs.sdda_registration_number, '4429');
 });
 
 test('CSV import stores reactivity for the running-order export', async () => {
