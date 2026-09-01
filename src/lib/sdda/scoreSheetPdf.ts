@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import type { SddaComponent, SddaLevel, SddaStream } from './offerings';
+import { toPdfStandardText } from './pdfText';
 
 type Field = [number, number, number];
 type SheetFields = {
@@ -219,7 +220,7 @@ export async function buildSddaJudgePacket(
     const fields = SDDA_SCORE_SHEET_FIELDS[run.level][run.component];
     const height = page.getHeight();
     const drawFit = (text: string, [x, y, maxWidth]: Field, preferredSize = 10, minSize = 7) => {
-      const value = (text || '').slice(0, 80);
+      const value = toPdfStandardText(text, 80);
       let size = preferredSize;
       while (size > minSize && font.widthOfTextAtSize(value, size) > maxWidth) size -= 0.5;
       if (value)

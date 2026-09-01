@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import type { SddaGameType } from './trialRepository';
+import { toPdfStandardText } from './pdfText';
 
 type Field = [number, number, number];
 type GameFields = {
@@ -111,7 +112,7 @@ export async function buildSddaGamesJudgePacket(
     page.drawImage(background, { x: 0, y: 0, width: 612, height: 792 });
     const fields = SDDA_GAME_SCORE_SHEET_FIELDS[run.gameType];
     const draw = (value: string | undefined, [x, top, maxWidth]: Field, size = 10) => {
-      const text = (value || '').slice(0, 100);
+      const text = toPdfStandardText(value, 100);
       let fitted = size;
       while (fitted > 6.5 && font.widthOfTextAtSize(text, fitted) > maxWidth) fitted -= 0.5;
       if (text)
