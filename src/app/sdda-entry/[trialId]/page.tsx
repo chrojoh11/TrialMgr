@@ -4,7 +4,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { createEntryReceiptPdf } from '@/lib/sdda/entryReceiptPdf';
 import { joinFormalAlerts, splitFormalAlerts } from '@/lib/sdda/formalAlerts';
-type Day = { id: string; day_number: number; trial_date: string };
+type Day = { id: string; day_number: number; trial_date: string; entries_open: boolean };
 type Offer = { id: string; trial_day_id: string; level: string; component: string; stream: string; feo_allowed: boolean };
 type Choice = {
   key: string;
@@ -120,7 +120,7 @@ export default function Page() {
         client
           .from('sdda_trials')
           .select(
-            'name,host_club,venue,trial_format,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,sdda_trial_days(id,day_number,trial_date),sdda_trial_offerings(id,trial_day_id,level,component,stream,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,entry_fee_cents,feo_fee_cents,feo_allowed)'
+            'name,host_club,venue,trial_format,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,sdda_trial_days(id,day_number,trial_date,entries_open),sdda_trial_offerings(id,trial_day_id,level,component,stream,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,entry_fee_cents,feo_fee_cents,feo_allowed)'
           )
           .eq('id', trialId)
           .single(),
@@ -423,7 +423,7 @@ export default function Page() {
             receipt_token: receipt?.receipt_token || receiptToken,
             submission,
           })
-        : await client.rpc('sdda_submit_public_entry_v4', {
+        : await client.rpc('sdda_submit_public_entry_v5', {
             target_trial_id: trialId,
             submission,
           });
@@ -734,8 +734,9 @@ export default function Page() {
               {setup.days.map((d) => (
                 <div className="mb-7" key={d.id}>
                   <h3 className="border-b pb-2 font-serif text-2xl">
-                    Day {d.day_number} · {d.trial_date}
+                    Day {d.day_number} · {d.trial_date}{!d.entries_open && <span className="ml-3 rounded-full border border-slate-300 bg-slate-100 px-3 py-1 align-middle font-sans text-xs font-bold uppercase text-slate-600">Entries closed</span>}
                   </h3>
+                  {!d.entries_open && <p className="mt-3 rounded-md border border-slate-300 bg-slate-50 p-3 text-sm text-slate-700">The secretary has closed this trial day. Existing selections remain on previously submitted entries, but new selections are unavailable.</p>}
                   {choices.some((c) => c.trial_day_id === d.id) && (
                     <div className="mt-4">
                       <h4 className="font-bold text-[#294f73]">Scent classes</h4>
@@ -763,6 +764,7 @@ export default function Page() {
                                     <label className="flex items-center gap-3 font-semibold">
                                       <input
                                         type="checkbox"
+                                        disabled={!d.entries_open}
                                         checked={chosen.has(c.key)}
                                         onChange={() => toggle(c.key)}
                                       />
@@ -820,6 +822,7 @@ export default function Page() {
                               <label className="flex items-center gap-3 font-semibold">
                                 <input
                                   type="checkbox"
+                                  disabled={!d.entries_open}
                                   checked={gameChosen.has(g.id)}
                                   onChange={() =>
                                     setGameChosen((current) => {

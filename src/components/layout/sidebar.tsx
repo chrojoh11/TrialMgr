@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, Calendar, Check, ChevronDown, ChevronRight, CircleDollarSign, ClipboardCheck, ClipboardList, Copy, Database, ExternalLink, FileSpreadsheet, FileText, Home, ListOrdered, LockKeyhole, Plus, Trophy, Users, X } from 'lucide-react';
+import { Activity, Calendar, Check, ChevronDown, ChevronRight, CircleDollarSign, ClipboardCheck, ClipboardList, Copy, Database, ExternalLink, FileSpreadsheet, FileText, Home, ListOrdered, LockKeyhole, Plus, Trophy, UserPlus, Users, X } from 'lucide-react';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { listSddaTrials, type SddaTrialSummary } from '@/lib/sdda/trialRepository';
 
@@ -12,6 +12,7 @@ const beforeEntryLinks = (id: string) => [
   { label: 'Trial Details', href: `/dashboard/trials/${id}`, icon: ClipboardList },
   { label: 'Activity Journal', href: `/dashboard/trials/${id}/activity`, icon: Activity },
   { label: 'Entries', href: `/dashboard/trials/${id}/entries`, icon: Users },
+  { label: 'Trial Team', href: `/dashboard/trials/${id}/team`, icon: UserPlus },
 ];
 const afterEntryLinks = (id: string) => [
   { label: 'Close to Titles', href: `/dashboard/trials/${id}/title-watch`, icon: Trophy },

@@ -660,3 +660,17 @@ test('enforces SDDA Games running-order groups and second-dog restrictions', () 
   assert.match(sql, /Only an FEO entry may use the FEO running-order group/i);
   assert.match(sql, /new\.run_group:='FEO'/i);
 });
+
+test('supports audited per-day entry controls and owner-managed trial teams', () => {
+  const sql = readFileSync(new URL('../supabase/sdda-migrations/20260901_0042_day_entries_and_trial_team.sql', import.meta.url), 'utf8');
+  assert.match(sql, /add column if not exists entries_open boolean not null default true/i);
+  assert.match(sql, /function public\.sdda_set_trial_day_entries_open/i);
+  assert.match(sql, /trial_day\.entries_closed/i);
+  assert.match(sql, /function public\.sdda_list_trial_team/i);
+  assert.match(sql, /function public\.sdda_add_trial_team_member/i);
+  assert.match(sql, /No registered TrialDesk user was found for that email/i);
+  assert.match(sql, /Only the trial owner or an administrator can manage the trial team/i);
+  assert.match(sql, /function public\.sdda_submit_public_entry_v5/i);
+  assert.match(sql, /One or more selected trial days are closed for entries/i);
+  assert.doesNotMatch(sql, /service_role|cwags|c-wags/i);
+});

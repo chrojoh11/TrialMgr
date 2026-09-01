@@ -70,6 +70,7 @@ export interface SddaTrialWorkspace extends SddaTrialSummary {
     trial_date: string;
     sdda_trial_number: string | null;
     judge_name: string | null;
+    entries_open: boolean;
   }>;
   sdda_trial_offerings: SddaTrialOffering[];
   sdda_game_offerings: SddaGameOffering[];
@@ -231,11 +232,63 @@ export async function setSddaTrialEntryStatus(
     throw new Error(`Entry status changed, but audit recording failed: ${auditError.message}`);
 }
 
+export async function setSddaTrialDayEntriesOpen(
+  client: SupabaseClient,
+  trialDayId: string,
+  open: boolean
+) {
+  const { error } = await client.rpc('sdda_set_trial_day_entries_open', {
+    target_trial_day_id: trialDayId,
+    requested_open: open,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export interface SddaTrialTeamMember {
+  user_id: string;
+  email: string | null;
+  display_name: string | null;
+  role: 'owner' | 'secretary' | 'assistant' | 'viewer';
+  is_owner: boolean;
+}
+
+export async function listSddaTrialTeam(client: SupabaseClient, trialId: string) {
+  const { data, error } = await client.rpc('sdda_list_trial_team', { target_trial_id: trialId });
+  if (error) throw new Error(error.message);
+  return (data || []) as SddaTrialTeamMember[];
+}
+
+export async function addSddaTrialTeamMember(
+  client: SupabaseClient,
+  trialId: string,
+  email: string,
+  role: 'secretary' | 'assistant' | 'viewer'
+) {
+  const { error } = await client.rpc('sdda_add_trial_team_member', {
+    target_trial_id: trialId,
+    member_email: email,
+    requested_role: role,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function removeSddaTrialTeamMember(
+  client: SupabaseClient,
+  trialId: string,
+  userId: string
+) {
+  const { error } = await client.rpc('sdda_remove_trial_team_member', {
+    target_trial_id: trialId,
+    member_user_id: userId,
+  });
+  if (error) throw new Error(error.message);
+}
+
 export async function getSddaTrialWorkspace(client: SupabaseClient, trialId: string) {
   const { data, error } = await client
     .from('sdda_trials')
     .select(
-      'id,name,host_club,venue,timezone,status,created_at,trial_format,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,judge_name,capacity,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,judge_name,capacity,entry_fee_cents,feo_fee_cents,feo_allowed)'
+      'id,name,host_club,venue,timezone,status,created_at,trial_format,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name,entries_open),sdda_trial_offerings(id,trial_day_id,level,component,stream,judge_name,capacity,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,judge_name,capacity,entry_fee_cents,feo_fee_cents,feo_allowed)'
     )
     .eq('id', trialId)
     .single();

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Activity, AlertTriangle, Calendar, Check, Circle, CircleDollarSign, ClipboardList, Copy, ExternalLink, FileSpreadsheet, FileText, ListOrdered, LockKeyhole, MapPin, Save, Trophy, Users } from 'lucide-react';
+import { Activity, AlertTriangle, Calendar, Check, Circle, CircleDollarSign, ClipboardList, Copy, ExternalLink, FileSpreadsheet, FileText, ListOrdered, LockKeyhole, MapPin, Save, Trophy, UserPlus, Users } from 'lucide-react';
 import { PawLoader } from '@/components/ui/pawLoader';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -18,7 +18,7 @@ import { formatSddaTrialStatus } from '@/lib/sdda/trialSetup';
 import { acceptedEntryChargeCents } from '@/lib/sdda/financialSummary';
 import { findSddaScheduleConflicts } from '@/lib/sdda/runningOrder';
 import { listSddaFinancialTransactions } from '@/lib/sdda/operationsRepository';
-import { gameOfferingKey, getSddaTrialWorkspace, listSddaEntries, listSddaGameScoringRuns, listSddaScoringRuns, saveSddaGameOfferings, saveSddaTrialDayDetails, saveSddaTrialOfferings, saveSddaTrialPricing, saveSddaTrialPublicDetails, SDDA_GAME_TYPES, setSddaTrialEntryStatus, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
+import { gameOfferingKey, getSddaTrialWorkspace, listSddaEntries, listSddaGameScoringRuns, listSddaScoringRuns, saveSddaGameOfferings, saveSddaTrialDayDetails, saveSddaTrialOfferings, saveSddaTrialPricing, saveSddaTrialPublicDetails, SDDA_GAME_TYPES, setSddaTrialDayEntriesOpen, setSddaTrialEntryStatus, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
 
 const scentElementKey = (trialDayId: string, level: string, component: string) => `${trialDayId}|${level}|${component}`;
 const firstRelation = <T,>(value: T | T[] | null | undefined): T | null => Array.isArray(value) ? value[0] || null : value || null;
@@ -44,6 +44,7 @@ export default function SddaTrialWorkspacePage() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [changingEntryStatus, setChangingEntryStatus] = useState(false);
+  const [changingDayId, setChangingDayId] = useState<string | null>(null);
   const [entryLinkCopied, setEntryLinkCopied] = useState(false);
   const [workflow, setWorkflow] = useState({ entries: 0, received: 0, accepted: 0, waitlisted: 0, rejected: 0, reactive: 0, runs: 0, ordered: 0, scored: 0, requiredScores: 0, conflicts: 0, outstandingCents: 0 });
 
@@ -304,6 +305,19 @@ export default function SddaTrialWorkspacePage() {
     window.setTimeout(() => setEntryLinkCopied(false), 2500);
   };
 
+  const changeDayEntryStatus = async (dayId: string, open: boolean) => {
+    try {
+      setChangingDayId(dayId);
+      setError(null);
+      await setSddaTrialDayEntriesOpen(getSupabaseBrowser(), dayId, open);
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to change this day’s entry status.');
+    } finally {
+      setChangingDayId(null);
+    }
+  };
+
   if (loading) return <MainLayout title="SDDA Trial"><div className="flex justify-center py-20"><PawLoader className="h-8 w-8" /></div></MainLayout>;
   if (!trial) return <MainLayout title="SDDA Trial"><Alert variant="destructive"><AlertDescription>{error || 'Trial not found.'}</AlertDescription></Alert></MainLayout>;
 
@@ -345,6 +359,7 @@ export default function SddaTrialWorkspacePage() {
         </CardContent></Card>}
         <Card><CardHeader><CardTitle>Trial operations</CardTitle><CardDescription>Open every secretary workflow for this trial, including its financial ledger.</CardDescription></CardHeader><CardContent className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/entries`)}><Users className="mr-2 h-4 w-4" />Entries & CSV import</Button>
+          <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/team`)}><UserPlus className="mr-2 h-4 w-4" />Trial team</Button>
           {trial.status === 'entries_open' ? <><Button onClick={() => window.open(`/sdda-entry/${trial.id}`, '_blank')}><ExternalLink className="mr-2 h-4 w-4" />Competitor entry form</Button><Button variant="outline" onClick={() => void copyEntryFormLink()}>{entryLinkCopied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}{entryLinkCopied ? 'Link copied' : 'Copy entry form link'}</Button><Button variant="outline" disabled={changingEntryStatus} onClick={() => void changeEntryStatus('entries_closed')}><LockKeyhole className="mr-2 h-4 w-4" />Close entries</Button></> : <Button disabled={changingEntryStatus} onClick={() => void changeEntryStatus('entries_open')}><ExternalLink className="mr-2 h-4 w-4" />Open entries & enable form</Button>}
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/running-order`)}><ListOrdered className="mr-2 h-4 w-4" />Running orders</Button>
           <Button variant="outline" onClick={() => location.assign(`/dashboard/trials/${trial.id}/score-sheets`)}><FileText className="mr-2 h-4 w-4" />Print score sheets</Button>
@@ -357,7 +372,7 @@ export default function SddaTrialWorkspacePage() {
         </CardContent></Card>
         {trial.sdda_trial_days.map((day) => (
           <Card key={day.id}>
-            <CardHeader><CardTitle className="flex items-center"><Calendar className="mr-2 h-5 w-5" />Day {day.day_number}: {day.trial_date}</CardTitle><CardDescription>{day.sdda_trial_number ? `SDDA trial ${day.sdda_trial_number}` : 'SDDA trial number pending'}{day.judge_name ? ` • Judge: ${day.judge_name}` : ' • Judge pending'}</CardDescription></CardHeader>
+            <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between"><div><CardTitle className="flex items-center"><Calendar className="mr-2 h-5 w-5" />Day {day.day_number}: {day.trial_date}</CardTitle><CardDescription>{day.sdda_trial_number ? `SDDA trial ${day.sdda_trial_number}` : 'SDDA trial number pending'}{day.judge_name ? ` • Judge: ${day.judge_name}` : ' • Judge pending'}</CardDescription></div><div className="flex items-center gap-2"><Badge variant={day.entries_open ? 'default' : 'outline'}>{day.entries_open ? 'Entries open' : 'Entries closed'}</Badge><Button type="button" size="sm" variant="outline" disabled={changingDayId === day.id} onClick={() => void changeDayEntryStatus(day.id, !day.entries_open)}>{changingDayId === day.id ? <PawLoader className="mr-2 h-4 w-4" /> : <LockKeyhole className="mr-2 h-4 w-4" />}{day.entries_open ? 'Close this day' : 'Open this day'}</Button></div></CardHeader>
             <CardContent className="space-y-5">
               <div className="grid gap-3 rounded-md border border-[#d7ddd8] bg-[#f1f5f9] p-4 sm:grid-cols-[1fr_1fr_2fr_auto] sm:items-end">
                 <div><Label htmlFor={`${day.id}-trial-date`}>Trial date</Label><Input id={`${day.id}-trial-date`} type="date" className="mt-1 bg-white" value={dayDetails[day.id]?.trialDate || ''} onChange={(event) => setDayDetails((current) => ({ ...current, [day.id]: { trialDate: event.target.value, trialNumber: current[day.id]?.trialNumber || '', judgeName: current[day.id]?.judgeName || '' } }))} /></div>
