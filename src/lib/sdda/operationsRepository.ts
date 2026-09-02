@@ -1,14 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const SDDA_FINANCIAL_TYPES = [
-  'entry_fee', 'payment', 'refund', 'expense', 'judge', 'volunteer', 'adjustment',
+  'entry_fee', 'payment', 'refund', 'expense', 'judge', 'volunteer', 'adjustment', 'waiver', 'waiver_restore', 'sdda_fee',
 ] as const;
 export type SddaFinancialType = (typeof SDDA_FINANCIAL_TYPES)[number];
 
 export async function listSddaFinancialTransactions(client: SupabaseClient, trialId: string) {
   const { data, error } = await client
     .from('sdda_financial_transactions')
-    .select('id,trial_id,entry_id,transaction_type,amount_cents,payment_method,reference,notes,occurred_on,created_at,sdda_entries(handler_name,sdda_dogs(call_name))')
+    .select('id,trial_id,entry_id,transaction_type,amount_cents,payment_method,reference,notes,occurred_on,created_at,payee,reverses_id,sdda_entries(handler_name,sdda_dogs(call_name))')
     .eq('trial_id', trialId)
     .order('occurred_on', { ascending: false })
     .order('created_at', { ascending: false });
@@ -19,8 +19,9 @@ export async function listSddaFinancialTransactions(client: SupabaseClient, tria
 export async function recordSddaFinancialTransaction(client: SupabaseClient, input: {
   trialId: string; entryId?: string; type: SddaFinancialType; amountCents: number;
   paymentMethod?: string; reference?: string; notes?: string; occurredOn: string;
+  transactionId?: string; payee?: string; reversesId?: string;
 }) {
-  const { error } = await client.rpc('sdda_record_financial_transaction', {
+  const { error } = await client.rpc('sdda_save_financial_transaction_v2', {
     target_trial_id: input.trialId,
     target_entry_id: input.entryId || null,
     requested_type: input.type,
@@ -29,12 +30,27 @@ export async function recordSddaFinancialTransaction(client: SupabaseClient, inp
     requested_reference: input.reference || '',
     requested_notes: input.notes || '',
     requested_occurred_on: input.occurredOn,
+    target_transaction_id: input.transactionId || null,
+    requested_payee: input.payee || null,
+    requested_reverses_id: input.reversesId || null,
   });
   if (error) throw new Error(error.message);
 }
 
 export async function deleteSddaFinancialTransaction(client: SupabaseClient, transactionId: string) {
   const { error } = await client.rpc('sdda_delete_financial_transaction', { target_transaction_id: transactionId });
+  if (error) throw new Error(error.message);
+}
+
+export async function recordSddaHandlerPayment(client: SupabaseClient, input: {
+  trialId: string; allocations: { entryId: string; amountCents: number }[];
+  paymentMethod: string; reference: string; notes: string; occurredOn: string;
+}) {
+  const { error } = await client.rpc('sdda_record_payment_batch', {
+    target_trial_id: input.trialId, allocations: input.allocations,
+    requested_payment_method: input.paymentMethod, requested_reference: input.reference,
+    requested_notes: input.notes, requested_occurred_on: input.occurredOn,
+  });
   if (error) throw new Error(error.message);
 }
 

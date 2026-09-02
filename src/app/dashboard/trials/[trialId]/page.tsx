@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { SDDA_COMPONENTS, SDDA_LEVELS, SDDA_STREAMS, offeringKey } from '@/lib/sdda/offerings';
 import { formatSddaTrialStatus } from '@/lib/sdda/trialSetup';
-import { acceptedEntryChargeCents } from '@/lib/sdda/financialSummary';
+import { acceptedEntryChargeCents, financialBalanceDelta } from '@/lib/sdda/financialSummary';
 import { findSddaScheduleConflicts } from '@/lib/sdda/runningOrder';
 import { listSddaFinancialTransactions } from '@/lib/sdda/operationsRepository';
 import { gameOfferingKey, getSddaTrialWorkspace, listSddaEntries, listSddaGameScoringRuns, listSddaScoringRuns, saveSddaGameOfferings, saveSddaTrialDayDetails, saveSddaTrialOfferings, saveSddaTrialPricing, saveSddaTrialPublicDetails, SDDA_GAME_TYPES, setSddaTrialDayEntriesOpen, setSddaTrialEntryStatus, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
@@ -95,10 +95,7 @@ export default function SddaTrialWorkspacePage() {
       const pricing = { scentComponentFeeCents: workspace.scent_component_fee_cents || 0, scentThreeComponentFeeCents: workspace.scent_three_component_fee_cents || 0, eliteFeeCents: workspace.elite_fee_cents || 0 };
       const automaticCharges = roster.reduce((total, entry) => total + acceptedEntryChargeCents(entry, pricing, workspace.sdda_game_offerings), 0);
       const ledgerBalance = transactions.reduce((balance, item) => {
-        const amount = Number(item.amount_cents) || 0;
-        if (item.transaction_type === 'entry_fee' || item.transaction_type === 'adjustment' || item.transaction_type === 'refund') return balance + amount;
-        if (item.transaction_type === 'payment') return balance - amount;
-        return balance;
+        return balance + financialBalanceDelta(item);
       }, 0);
       setWorkflow({
         entries: roster.length,

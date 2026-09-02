@@ -24,7 +24,7 @@ import {
 } from '@/lib/sdda/trialRepository';
 import { offeringKey } from '@/lib/sdda/offerings';
 import { createSddaMailingListWorkbook } from '@/lib/sdda/mailingListWorkbook';
-import { acceptedEntryChargeCents } from '@/lib/sdda/financialSummary';
+import { acceptedEntryChargeCents, financialBalanceDelta, financialLedgerTotals } from '@/lib/sdda/financialSummary';
 
 type RosterEntry = Awaited<ReturnType<typeof listSddaEntries>>[number];
 type EntryFinancial = Awaited<ReturnType<typeof listSddaEntryFinancials>>[number];
@@ -53,15 +53,7 @@ export default function SddaEntriesPage() {
       const byEntry = new Map<string, number>();
       financials.forEach((item: any) => {
         const current = byEntry.get(item.entry_id) || 0;
-        const cents = Number(item.amount_cents) || 0;
-        const delta =
-          item.transaction_type === 'payment'
-            ? -cents
-            : item.transaction_type === 'refund'
-              ? cents
-              : item.transaction_type === 'entry_fee' || item.transaction_type === 'adjustment'
-                ? cents
-                : 0;
+        const delta = financialBalanceDelta(item);
         byEntry.set(item.entry_id, current + delta);
       });
       const dayMap = new Map(trial.sdda_trial_days.map((day) => [day.id, day.day_number]));
@@ -209,14 +201,10 @@ export default function SddaEntriesPage() {
     if (!trial) return { ...counts, owed: 0, collected: 0, outstanding: 0 };
     const pricing = { scentComponentFeeCents: trial.scent_component_fee_cents || 0, scentThreeComponentFeeCents: trial.scent_three_component_fee_cents || 0, eliteFeeCents: trial.elite_fee_cents || 0 };
     const owed = entries.reduce((total, entry) => total + acceptedEntryChargeCents(entry, pricing, trial.sdda_game_offerings), 0);
-    const ledger = financials.reduce((totals, item) => {
-      const amount = Number(item.amount_cents) || 0;
-      if (item.transaction_type === 'payment') totals.collected += amount;
-      if (item.transaction_type === 'refund') totals.collected -= amount;
-      if (item.transaction_type === 'entry_fee' || item.transaction_type === 'adjustment') totals.adjustments += amount;
-      return totals;
-    }, { collected: 0, adjustments: 0 });
-    return { ...counts, owed: owed + ledger.adjustments, collected: ledger.collected, outstanding: owed + ledger.adjustments - ledger.collected };
+    const ledger = financialLedgerTotals(financials);
+    const charges = owed + ledger.adjustments - ledger.waived;
+    const collected = ledger.payments - ledger.refunds;
+    return { ...counts, owed: charges, collected, outstanding: charges - collected };
   }, [entries, financials, trial]);
 
   const changeConfirmation = async (entryId: string, status: 'received' | 'accepted' | 'waitlisted' | 'rejected') => {

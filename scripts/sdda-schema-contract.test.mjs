@@ -661,6 +661,19 @@ test('enforces SDDA Games running-order groups and second-dog restrictions', () 
   assert.match(sql, /new\.run_group:='FEO'/i);
 });
 
+test('secures payments, refunds and reversible fee waivers without rewriting old ledger data', () => {
+  const sql = readFileSync(new URL('../supabase/sdda-migrations/20260902_0043_payment_workflow.sql', import.meta.url), 'utf8');
+  assert.match(sql, /sdda_can_manage_finances\(target_trial_id\)/);
+  assert.match(sql, /from public.sdda_trials where id=target_trial_id for update/);
+  assert.match(sql, /Refund cannot exceed net payments/);
+  assert.match(sql, /Waiver cannot exceed the outstanding balance/);
+  assert.match(sql, /This waiver has already been restored/);
+  assert.match(sql, /Entry fees are automatic/);
+  assert.match(sql, /financial.transaction_updated/);
+  assert.match(sql, /sdda_record_payment_batch/);
+  assert.doesNotMatch(sql, /service_role|cwags|c-wags/i);
+});
+
 test('supports audited per-day entry controls and owner-managed trial teams', () => {
   const sql = readFileSync(new URL('../supabase/sdda-migrations/20260901_0042_day_entries_and_trial_team.sql', import.meta.url), 'utf8');
   assert.match(sql, /add column if not exists entries_open boolean not null default true/i);
