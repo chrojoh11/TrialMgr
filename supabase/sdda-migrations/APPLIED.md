@@ -322,3 +322,12 @@ No legacy C-WAGS migration was applied.
 - Team roles: Secretary, Assistant, and Viewer access use existing registered SDDA TrialDesk accounts
 - Public entries: new submissions are rejected at the database boundary when they request a closed day
 - Audit: day-entry status and trial-team membership changes are retained in `sdda_audit_records`
+
+## `20260902_0043_payment_workflow.sql`
+
+- Applied: user reported success on 2026-09-02 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Reported execution result: no rows returned
+- Capability: handler payment allocation, guarded refunds, signed adjustments, fee waivers/restorations, expense payees, and transaction editing
+- Security: audited, permission-checked RPC writes; RLS remains enabled
+- Verification: local production build, automated tests and isolated PostgreSQL checks passed; live browser acceptance testing pending

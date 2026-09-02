@@ -1,6 +1,6 @@
 # Payment workflow milestone — migration 0043
 
-Status: implemented and locally tested; not applied to live Supabase or pushed.
+Status: implemented and locally tested; user reported migration 0043 applied successfully on 2026-09-02. Deployment authorized. Live browser acceptance testing remains pending.
 
 ## Deployment order
 
