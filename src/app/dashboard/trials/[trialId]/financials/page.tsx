@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Plus, Trash2, Pencil, Printer, Download } from 'lucide-react';
 import { PawLoader } from '@/components/ui/pawLoader';
@@ -74,6 +74,8 @@ export default function SddaFinancialsPage() {
   const [method, setMethod] = useState('');
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
+  const reasonRef = useRef<HTMLTextAreaElement>(null);
+  const reasonRequired = ['waiver', 'waiver_restore', 'adjustment'].includes(type);
   const [date, setDate] = useState(today());
   const [payee, setPayee] = useState('');
   const [editingId, setEditingId] = useState<string | undefined>();
@@ -250,8 +252,9 @@ export default function SddaFinancialsPage() {
       setError('Choose the dog entry this transaction belongs to.');
       return;
     }
-    if (['waiver', 'waiver_restore', 'adjustment'].includes(type) && !notes.trim()) {
+    if (reasonRequired && !notes.trim()) {
       setError('Enter the reason for this change.');
+      reasonRef.current?.focus();
       return;
     }
     try {
@@ -747,13 +750,36 @@ export default function SddaFinancialsPage() {
                       <Input id="payee" value={payee} onChange={(e) => setPayee(e.target.value)} />
                     </div>
                   )}
-                  <div className="lg:col-span-2">
-                    <Label htmlFor="notes">Notes</Label>
-                    <Input id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+                  <div className="md:col-span-2">
+                    <Label htmlFor="financial-reason">
+                      {reasonRequired ? 'Reason for this change (required)' : 'Notes (optional)'}
+                    </Label>
+                    <textarea
+                      id="financial-reason"
+                      ref={reasonRef}
+                      rows={3}
+                      required={reasonRequired}
+                      aria-describedby={reasonRequired ? 'financial-reason-help' : undefined}
+                      aria-invalid={error === 'Enter the reason for this change.'}
+                      className="mt-1 block w-full rounded-md border border-slate-400 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-700"
+                      placeholder={reasonRequired ? 'Explain why these fees are being changed.' : 'Additional transaction details'}
+                      value={notes}
+                      onChange={(e) => {
+                        setNotes(e.target.value);
+                        if (error === 'Enter the reason for this change.' && e.target.value.trim())
+                          setError(null);
+                      }}
+                    />
+                    {reasonRequired && (
+                      <p id="financial-reason-help" className="mt-1 text-sm text-slate-600">
+                        Type the reason in the box above. It is saved with the transaction and activity journal.
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <Button disabled={saving || trial?.status === 'completed'} type="submit">
-                      {saving && <PawLoader className="mr-2 h-4 w-4" />}Save
+                      {saving && <PawLoader className="mr-2 h-4 w-4" />}
+                      {type === 'waiver' ? 'Save waiver' : type === 'waiver_restore' ? 'Restore fees' : 'Save'}
                     </Button>
                     <Button
                       type="button"
