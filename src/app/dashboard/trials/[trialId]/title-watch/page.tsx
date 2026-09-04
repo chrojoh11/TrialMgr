@@ -130,11 +130,11 @@ export default function SddaTitleWatchPage() {
     XLSX.writeFile(workbook, `SDDA-Close-to-Titles-${trial.name.replace(/[^a-z0-9]+/gi, '-')}.xlsx`);
   };
 
-  return <MainLayout title="Title watch" breadcrumbItems={[
+  return <MainLayout title="Close to Titles & Ribbon Planning" breadcrumbItems={[
     { label: 'Dashboard', href: '/dashboard' },
     { label: 'Trials', href: '/dashboard/trials' },
     { label: trial?.name || 'Trial', href: `/dashboard/trials/${trialId}` },
-    { label: 'Title watch' },
+    { label: 'Close to Titles & Ribbons' },
   ]}><div className="mx-auto max-w-6xl space-y-6 print-report-only">
     <Card className="overflow-hidden"><CardHeader className="bg-gradient-to-r from-[#294f73] to-[#1d3b57] text-white"><div className="flex flex-wrap items-center justify-between gap-4"><div className="flex items-center gap-3"><Trophy className="h-8 w-8 text-[#b9d3e8]" /><div><CardTitle className="text-2xl">Close to Titles Report</CardTitle><CardDescription className="text-blue-100">{trial?.name}</CardDescription></div></div><div className="flex flex-wrap gap-2 print:hidden"><button type="button" onClick={() => void exportTitleReport()} className="flex items-center rounded-md border border-white/50 bg-white px-3 py-2 text-sm font-semibold text-[#294f73]"><FileSpreadsheet className="mr-2 h-4 w-4" />Export Excel</button><button type="button" onClick={() => window.print()} className="flex items-center rounded-md border border-white/50 bg-white px-3 py-2 text-sm font-semibold text-[#294f73]"><Printer className="mr-2 h-4 w-4" />Print / Save PDF</button></div></div></CardHeader><CardContent className="space-y-5 p-6"><Alert className="border-blue-200 bg-blue-50"><AlertTriangle className="h-4 w-4 text-blue-700" /><AlertDescription className="text-blue-950"><strong>Maximum-outcome assumption:</strong> every required component entered at this trial qualifies. Confirm actual results before presenting titles or ribbons.</AlertDescription></Alert><div className="grid gap-4 sm:grid-cols-3"><div className="rounded-lg border-2 border-indigo-200 bg-indigo-50 p-4"><p className="text-sm text-gray-600">Possible titles</p><p className="text-3xl font-bold text-indigo-700">{potentialAwards.length}</p></div><div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4"><p className="text-sm text-gray-600">Working reviews</p><p className="text-3xl font-bold text-blue-700">{workingReview.length}</p></div><div className="rounded-lg border-2 border-sky-200 bg-sky-50 p-4"><p className="text-sm text-gray-600">Maximum ribbons</p><p className="text-3xl font-bold text-sky-700">{potentialAwards.length}</p></div></div></CardContent></Card>
     {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}

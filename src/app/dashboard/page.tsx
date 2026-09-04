@@ -15,7 +15,7 @@ const workflow = [
   ['Score sheets', 'Generate the correct official component-specific PDFs.', 'score-sheets'],
   ['Score entry', 'Record and amend audited Scent and Games results.', 'scoring'],
   ['Results', 'Review provisional class placements and print results.', 'results'],
-  ['Title watch', 'Review component move-ups and dogs approaching titles.', 'title-watch'],
+  ['Close to Titles & Ribbons', 'Review title opportunities and the maximum ribbons to prepare.', 'title-watch'],
   ['Official workbook', 'Prepare the SDDA Trial Workbook submission.', 'workbook'],
   ['Finances', 'Track fees, payments, waivers and trial expenses.', 'financials'],
   ['Trial closeout', 'Verify final records, back up, complete and lock the trial.', 'closeout'],
@@ -80,7 +80,7 @@ export default function DashboardPage() {
         <div className="flex flex-wrap justify-between gap-3 px-1 py-4 text-sm text-[#64748b]"><span><b className="text-[#294f73]">{trials.length}</b> trials available</span><span>Secure SDDA-only secretary workspace</span></div>
 
         <nav className="mb-5 flex gap-1 overflow-auto border-b border-[#cfd3cc]">{[
-          ['Trial setup', ''], ['Entries', 'entries'], ['Running orders', 'running-order'], ['Score sheets', 'score-sheets'], ['Score entry', 'scoring'], ['Results', 'results'], ['Titles', 'title-watch'], ['Finances', 'financials'], ['Export', 'workbook'], ['Closeout', 'closeout'],
+          ['Trial setup', ''], ['Entries', 'entries'], ['Running orders', 'running-order'], ['Score sheets', 'score-sheets'], ['Score entry', 'scoring'], ['Results', 'results'], ['Close to Titles & Ribbons', 'title-watch'], ['Finances', 'financials'], ['Export', 'workbook'], ['Closeout', 'closeout'],
         ].map(([item, suffix], index) => <Link key={item} href={activeHref(suffix)} className={`whitespace-nowrap border-b-4 px-5 py-4 font-bold ${index === 0 ? 'border-[#6688a6] text-[#294f73]' : 'border-transparent text-[#64748b]'}`}>{item}</Link>)}</nav>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{workflow.map(([title, description, suffix]) => <Link key={title} href={activeHref(suffix)} className="rounded-2xl border border-[#cbd5e1] bg-[#f8fafc] p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-[#294f73]"><span className="text-[11px] font-extrabold uppercase tracking-[.15em] text-[#6688a6]">Operations</span><h2 className="my-2 font-serif text-3xl">{title}</h2><p className="leading-6 text-[#64748b]">{description}</p></Link>)}</section>

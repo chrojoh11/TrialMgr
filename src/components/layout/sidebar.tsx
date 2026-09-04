@@ -15,7 +15,7 @@ const beforeEntryLinks = (id: string) => [
   { label: 'Trial Team', href: `/dashboard/trials/${id}/team`, icon: UserPlus },
 ];
 const afterEntryLinks = (id: string) => [
-  { label: 'Close to Titles', href: `/dashboard/trials/${id}/title-watch`, icon: Trophy },
+  { label: 'Close to Titles & Ribbons', href: `/dashboard/trials/${id}/title-watch`, icon: Trophy },
   { label: 'Running Orders', href: `/dashboard/trials/${id}/running-order`, icon: ListOrdered },
   { label: 'Score Sheets', href: `/dashboard/trials/${id}/score-sheets`, icon: FileText },
   { label: 'Score Entry', href: `/dashboard/trials/${id}/scoring`, icon: ClipboardCheck },
