@@ -131,20 +131,32 @@ export function createFinancialWorkbook(
       .filter((t) => t.transaction_type === type)
       .reduce((n, t) => n + t.amount_cents / 100, 0);
   const expense = sum('expense') + sum('judge') + sum('volunteer') + sum('sdda_fee');
+  const recordedJudgeExpense = sum('judge');
+  const judgeMinimum = judges.reduce((total, judge) => total + judge.minimumFeeCents / 100, 0);
+  const expenseWithJudgeMinimum = expense + Math.max(0, judgeMinimum - recordedJudgeExpense);
   addSheet(
     'Summary',
     [
       ['Trial financial summary', name],
-      ['Gross charges', sorted.reduce((n, e) => n + e.charges / 100, 0)],
+      ['Total Entry Fees', sorted.reduce((n, e) => n + e.charges / 100, 0)],
       ['Fees waived (net)', sorted.reduce((n, e) => n + e.waived / 100, 0)],
       ['Payments received', sum('payment')],
       ['Refunds issued', sum('refund')],
       ['Actual expenses recorded', expense],
+      ['Calculated judge minimum', judgeMinimum],
+      ['Expenses including calculated judge minimum', expenseWithJudgeMinimum],
       [
-        'Cash net (actual only)',
-        { t: 'n', f: 'B4-B5-B6', v: sum('payment') - sum('refund') - expense },
+        'Cash net after expenses',
+        {
+          t: 'n',
+          f: 'B4-B5-B8',
+          v: sum('payment') - sum('refund') - expenseWithJudgeMinimum,
+        },
       ],
-      ['Note', 'Estimates are not deducted from actual cash net. Waived fees are not payments.'],
+      [
+        'Note',
+        'Recorded judge expenses replace the calculated minimum rather than being counted twice. Waived fees are not payments.',
+      ],
     ],
     [34, 80],
     [1]

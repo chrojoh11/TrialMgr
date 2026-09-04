@@ -235,6 +235,12 @@ export default function SddaFinancialsPage() {
       }));
   }, [entries, trial]);
   const judgeMinimum = judgeBreakdown.reduce((sum, row) => sum + row.minimumFeeCents, 0);
+  const recordedJudgeExpenses = transactions
+    .filter((item) => item.transaction_type === 'judge')
+    .reduce((sum, item) => sum + item.amount_cents, 0);
+  // Replace the judge estimate as actual judge expenses are entered; never count both in full.
+  const judgeMinimumRemaining = Math.max(0, judgeMinimum - recordedJudgeExpenses);
+  const expensesIncludingJudgeMinimum = totals.expenses + judgeMinimumRemaining;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -382,15 +388,15 @@ export default function SddaFinancialsPage() {
         )}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            ['Gross charges', automaticCharges + totals.adjustments],
+            ['Total Entry Fees', automaticCharges + totals.adjustments],
             ['Fees waived (net)', totals.waived],
             ['Collected (net of refunds)', totals.payments - totals.refunds],
             ['Outstanding', outstanding],
             ['Credits / overpayments', credits],
-            ['Actual expenses recorded', totals.expenses],
+            ['Expenses including calculated judge minimum', expensesIncludingJudgeMinimum],
             [
-              'Cash net after recorded expenses',
-              totals.payments - totals.refunds - totals.expenses,
+              'Cash net after expenses',
+              totals.payments - totals.refunds - expensesIncludingJudgeMinimum,
             ],
           ].map(([label, value]) => (
             <Card key={String(label)}>
@@ -403,11 +409,12 @@ export default function SddaFinancialsPage() {
         </div>
         <Alert>
           <AlertDescription>
-            Automatic charges include accepted entries only. Estimates are shown separately: SDDA
-            fees {money(sddaFees)}; judge compensation {money(judgeMinimum)}. Cash net subtracts
-            actual ledger expenses only, not these estimates again. Record SDDA remittances and
-            judge payments once as expenses. Fee waivers do not remove runs or reduce these cost
-            estimates.
+            Entry fees include accepted entries only. Expenses include {money(totals.expenses)} in
+            recorded expenses plus any unrecorded portion of the {money(judgeMinimum)} calculated
+            judge minimum. As judge expenses are recorded, they replace that estimate rather than
+            being counted twice. The estimated SDDA fees are {money(sddaFees)} and are included only
+            after you record the remittance as an expense. Fee waivers do not remove runs or reduce
+            these cost estimates.
           </AlertDescription>
         </Alert>
         <Card>
@@ -762,7 +769,11 @@ export default function SddaFinancialsPage() {
                       aria-describedby={reasonRequired ? 'financial-reason-help' : undefined}
                       aria-invalid={error === 'Enter the reason for this change.'}
                       className="mt-1 block w-full rounded-md border border-slate-400 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-700"
-                      placeholder={reasonRequired ? 'Explain why these fees are being changed.' : 'Additional transaction details'}
+                      placeholder={
+                        reasonRequired
+                          ? 'Explain why these fees are being changed.'
+                          : 'Additional transaction details'
+                      }
                       value={notes}
                       onChange={(e) => {
                         setNotes(e.target.value);
@@ -772,14 +783,19 @@ export default function SddaFinancialsPage() {
                     />
                     {reasonRequired && (
                       <p id="financial-reason-help" className="mt-1 text-sm text-slate-600">
-                        Type the reason in the box above. It is saved with the transaction and activity journal.
+                        Type the reason in the box above. It is saved with the transaction and
+                        activity journal.
                       </p>
                     )}
                   </div>
                   <div className="flex gap-2">
                     <Button disabled={saving || trial?.status === 'completed'} type="submit">
                       {saving && <PawLoader className="mr-2 h-4 w-4" />}
-                      {type === 'waiver' ? 'Save waiver' : type === 'waiver_restore' ? 'Restore fees' : 'Save'}
+                      {type === 'waiver'
+                        ? 'Save waiver'
+                        : type === 'waiver_restore'
+                          ? 'Restore fees'
+                          : 'Save'}
                     </Button>
                     <Button
                       type="button"
