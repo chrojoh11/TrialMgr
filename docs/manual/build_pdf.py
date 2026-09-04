@@ -15,8 +15,8 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph as P, Spacer, PageBr
 ROOT=Path(__file__).resolve().parent
 SOURCE=ROOT/'SDDA-TrialDesk-Secretary-Manual.docx'
 OUT=ROOT/'SDDA-TrialDesk-Secretary-Manual.pdf'
-GREEN=colors.HexColor('#225F45'); GOLD=colors.HexColor('#B98935'); INK=colors.HexColor('#18231D')
-MUTED=colors.HexColor('#68736C'); LIGHT=colors.HexColor('#F7F8F4')
+GREEN=colors.HexColor('#294F73'); GOLD=colors.HexColor('#526B83'); INK=colors.HexColor('#18232F')
+MUTED=colors.HexColor('#637080'); LIGHT=colors.HexColor('#F1F4F7')
 
 styles=getSampleStyleSheet()
 body=ParagraphStyle('Body',parent=styles['BodyText'],fontName='Helvetica',fontSize=9.2,leading=11.4,textColor=INK,spaceAfter=5)
@@ -85,8 +85,9 @@ for block in iter_blocks(docx):
         story.append(P(runs_html(block),st))
     else:
         data=[]
-        for row in block.rows:
-            data.append([P(clean(cell.text),ParagraphStyle('Cell',parent=body,fontSize=7.7,leading=9.3,spaceAfter=0)) for cell in row.cells])
+        for ri,row in enumerate(block.rows):
+            is_header=ri==0 and len(block.rows)>1
+            data.append([P(clean(cell.text),ParagraphStyle('Cell',parent=body,fontSize=7.7,leading=9.3,spaceAfter=0,textColor=colors.white if is_header else INK,fontName='Helvetica-Bold' if is_header else 'Helvetica')) for cell in row.cells])
         if not data: continue
         cols=len(data[0]); widths=[6.75*inch/cols]*cols
         if cols==2: widths=[1.75*inch,5*inch]
@@ -95,7 +96,7 @@ for block in iter_blocks(docx):
         if len(data)>1:
             commands += [('BACKGROUND',(0,0),(-1,0),GREEN),('TEXTCOLOR',(0,0),(-1,0),colors.white),('FONTNAME',(0,0),(-1,0),'Helvetica-Bold')]
             for r in range(2,len(data),2): commands.append(('BACKGROUND',(0,r),(-1,r),LIGHT))
-        else: commands += [('BACKGROUND',(0,0),(-1,-1),colors.HexColor('#DFEADF'))]
+        else: commands += [('BACKGROUND',(0,0),(-1,-1),colors.HexColor('#E8EFF5'))]
         t.setStyle(TableStyle(commands)); story.append(t); story.append(Spacer(1,7))
 
 pdf=SimpleDocTemplate(str(OUT),pagesize=letter,rightMargin=.78*inch,leftMargin=.78*inch,topMargin=.62*inch,bottomMargin=.58*inch,title='SDDA TrialDesk Secretary Manual',author='SDDA TrialDesk')

@@ -11,8 +11,8 @@ ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "SDDA-TrialDesk-Secretary-Manual.docx"
 SHOTS = ROOT / "screenshots"
 
-GREEN = "225F45"; GOLD = "B98935"; PALE = "F3F0E8"; LIGHT_GREEN = "DFEADF"
-INK = "18231D"; MUTED = "68736C"; WHITE = "FFFFFF"; RED = "9B1C1C"; AMBER = "FFF5D8"
+GREEN = "294F73"; GOLD = "526B83"; PALE = "F1F4F7"; LIGHT_GREEN = "E8EFF5"
+INK = "18232F"; MUTED = "637080"; WHITE = "FFFFFF"; RED = "9B1C1C"; AMBER = "F1F4F7"
 
 doc = Document()
 sec = doc.sections[0]
@@ -124,9 +124,10 @@ doc.add_paragraph().paragraph_format.space_after=Pt(20)
 callout("Purpose", "A practical, step-by-step operating manual for trial secretaries using SDDA TrialDesk. It follows Sporting Detection Dogs Association Master Rule Book v5.1, effective July 1, 2026, and the implemented TrialDesk workflow.")
 table([
     ["Manual version", "Rules authority", "Application scope"],
-    ["1.1 • August 23, 2026", "SDDA Master Rule Book v5.1", "Scent, Games, and Combined trials"],
+    ["1.3 • September 3, 2026", "SDDA Master Rule Book v5.1", "Scent, Games, and Combined trials"],
 ], widths=[1.8,2.25,2.75])
 para("This manual explains the secretary’s administrative workflow. The current SDDA rulebook, sanction approval, premium list, judge’s instructions, and official SDDA forms remain controlling if they conflict with this guide.", italic=True)
+para("Updated in this edition: every primary TrialDesk page was re-audited, current workflow screenshots were added, Trial Team and Activity Journal instructions were expanded, and a page-and-button glossary was added. Screenshots were captured from Example Trial without saving operational changes.", bold_lead="Updated in this edition:")
 
 page_break(); heading("Contents and operating sequence",1)
 for item in [
@@ -142,6 +143,7 @@ for item in [
     "10. Review placements and Title Watch",
     "11. Finances, official workbook, backup, and closeout",
     "12. Troubleshooting and final checklists",
+    "13. Page and button glossary",
 ]: bullet(item)
 callout("Recommended practice", "Complete a full mock trial before using TrialDesk at a live event. Confirm the entry form, one score sheet from every offered class, the running-order export, scoring, placements, workbook, backup, and printing on the equipment that will be used at the trial.")
 
@@ -176,6 +178,7 @@ image("02-create-trial.png","Figure 2. Initial trial creation. Trial numbers, ju
 callout("Rule distinction", "SDDA defines a trial as a single offering of any level within a 12-hour period with a unique trial number. A consecutive set of trials is a trial event. Enter the SDDA numbers exactly as issued for each TrialDesk day.","warning")
 
 page_break(); heading("3. Configure the draft trial",1)
+image("11-trial-setup.png","Figure 3. Trial setup dashboard. The workflow row, operational summary, setup checklist, and trial operation links keep the secretary’s work in one place.",6.8)
 heading("3.1 Use the setup checklist",2)
 para("Open the trial. The setup screen tracks offerings, pricing, competitor-facing details, trial numbers, judges, and whether the entry form is open. Amber items may remain pending while the trial is a draft, but resolve them before final packets and exports.")
 heading("3.2 Enter public details",2)
@@ -203,8 +206,15 @@ step(1,"Enter SDDA trial number and day judge","They may be saved or replaced la
 step(2,"Enter Scent pricing","Set individual component, three-component package, and Elite fees. TrialDesk uses them to calculate accepted-entry balances.")
 step(3,"Save setup","Do this before opening or copying the entry form link.")
 callout("FEO", "FEO is subordinate to Regular entries. SDDA permits FEO only after regular entries are accepted and allows the organizer to limit FEO by component or level when those limits are stated on the entry form.")
+heading("3.6 Give another secretary access",2)
+image("12-trial-team.png","Figure 4. Trial Team. Add an already registered TrialDesk user as Secretary, Assistant, or Viewer.",6.4)
+step(1,"Open Trial Team","Use the trial sidebar or the Trial operations buttons on Trial Details.")
+step(2,"Enter the registered email","The person must already have registered and confirmed that exact email address.")
+step(3,"Choose a role","Secretary has operational access, Assistant supports trial work, and Viewer has read-only access.")
+step(4,"Select Add to trial","Re-enter an existing member’s email to change the role. Use the trash button only to remove a non-owner member.")
 
 page_break(); heading("4. Entries: collect, import, review, and accept",1)
+image("13-entry-roster.png","Figure 5. Entry roster. Summary totals, search, status filter, mailing-list export, CSV import, entry editing, and secretary decisions are available from one page.",6.8)
 heading("4.1 Open and share the built-in entry form",2)
 step(1,"Review the preview","Confirm dates, offerings, streams, FEO availability, prices, contact information, payment instructions, declaration, and cancellation terms.")
 step(2,"Open entries","Use the trial’s entry-status control only after the public form is ready.")
@@ -215,7 +225,7 @@ step(1,"Export the Google Form responses as CSV","Keep the header row intact.")
 step(2,"Open Entries / Entry roster","Choose the import control and select the CSV.")
 step(3,"Read every warning","TrialDesk recognizes familiar Google headings, expands all-component selections into individual runs, and rejects selections not offered for that day/level/stream.")
 step(4,"Resolve—not ignore—row errors","Correct missing identity fields, stream inconsistencies, duplicate submissions, invalid dates, or unavailable offerings before relying on the roster.")
-image("04-form-responses-headers.png","Figure 3. Sanitized Google Form response headings from the original SDDA workflow. TrialDesk imports the response selections into the unified entry roster.",6.8)
+image("04-form-responses-headers.png","Figure 6. Sanitized Google Form response headings from the original SDDA workflow. TrialDesk imports the response selections into the unified entry roster.",6.8)
 heading("4.3 Review and accept entries",2)
 for x in [
     "Open each received entry and verify contact information, call name, SDDA number/pending status, breed, stream, formal alerts, reactivity, and requested runs.",
@@ -227,6 +237,7 @@ for x in [
 callout("Check-in requirement", "On trial day, confirm the dog’s SDDA registration number and current running order before the handler briefing. Resolve registration-pending entries before final SDDA submission.","warning")
 
 page_break(); heading("5. Build and reorganize the running order",1)
+image("14-running-order.png","Figure 7. Running Orders. Select a day, class, and component; apply SDDA order, assign run groups, approve move-ups, reposition runs, and save before exporting.",6.8)
 heading("5.1 Generate the initial order",2)
 step(1,"Accept entries first","Only accepted entries become operational runs.")
 step(2,"Open Running orders","Select the trial day and generate or review the order for each level/component and Game.")
@@ -240,7 +251,7 @@ for x in [
     "If a judge approves a trial-day change in component order, Started Container still must be held first when offered.",
     "Re-check every component because the rulebook warns that a competitor’s position may change between components.",
 ]: bullet(x)
-image("03-running-order-workbook.png","Figure 4. Header from an actual TrialDesk running-order export. Each day receives its own worksheet with a day total, trial metadata, level-coloured class bands, component columns, reactive indicators, and class totals. Review the complete workbook’s names, streams, run groups, conflicts, and sequence before posting.",6.8)
+image("03-running-order-workbook.png","Figure 8. Header from an actual TrialDesk running-order export. Each day receives its own worksheet with a day total, trial metadata, level-coloured class bands, component columns, reactive indicators, and class totals. Review the complete workbook’s names, streams, run groups, conflicts, and sequence before posting.",6.8)
 heading("5.3 Export and post",2)
 step(1,"Save the running order","Resolve any on-screen conflict warnings.")
 step(2,"Export running order XLSX","Open it in Excel and inspect every day/level/component.")
@@ -266,6 +277,7 @@ step(6,"Undo only for a genuine correction","Use Undo move-up to return the run 
 callout("Do not infer titles", "Title Watch is an aid. A component move-up requires verified eligibility; a championship or Gold calculation must rely on official SDDA records, not competitor self-reporting.","warning")
 
 page_break(); heading("7. Generate official score sheets",1)
+image("15-score-sheets.png","Figure 9. Official Score Sheets. Packet controls remain disabled until accepted runs have a saved running position.",5.6)
 heading("7.1 Prerequisites",2)
 for x in ["Entries are accepted and unwanted entries are waitlisted/withdrawn/cancelled","Running order and all approved move-ups are saved","Trial number, date, judge, dog call name, breed, SDDA number, stream, and formal alerts are correct","The printer can print the official page size at 100% without fit-to-page distortion"]: bullet(x)
 heading("7.2 Export Scent sheets",2)
@@ -274,7 +286,7 @@ step(2,"Choose the required packet","Export the prefilled official PDF for the s
 step(3,"Inspect representative pages","Open at least one page for every offered level/component combination—not merely one page per level.")
 step(4,"Verify mapped fields","Check trial number/date, call name, breed, SDDA number, formal alerts, stream checkbox, FEO marker, and footer sequence.")
 step(5,"Print working and spare copies","Provide originals to the judge and copies for any shadow judge according to SDDA requirements.")
-image("05-score-sheet-example.png","Figure 5. Mapping quality-control example. Every level and component uses an independent official template and coordinate map; never assume one sheet’s coordinates apply to another.",6.3)
+image("05-score-sheet-example.png","Figure 10. Mapping quality-control example. Every level and component uses an independent official template and coordinate map; never assume one sheet’s coordinates apply to another.",4.7)
 heading("7.3 Export Games sheets",2)
 para("Use the Games packet for Aerial, Distance, Speed, and Team. Verify the separate Game mapping, FEO mark, Aerial High/Highfly selection, and Team partner block. Games are Pass/Not Pass rather than numerically scored.")
 callout("Critical print check", "If any text crosses a form line, checkbox X is outside its box, formal alert is missing, or the packet count differs from accepted runs, stop and correct the data or mapping before trial day.","warning")
@@ -306,6 +318,7 @@ heading("8.4 Between components or days",2)
 para("Record results, identify verified move-ups, change the next running order, re-run conflict checks, save, export, and repost. Never rely on handwritten changes alone when the next score packet or official workbook will be generated from TrialDesk.")
 
 page_break(); heading("9. Enter scores and corrections",1)
+image("16-score-entry.png","Figure 11. Audited Score Entry. Filter cards, use Save and next while working, and use the sticky Save all changes button before taking a break.",6.8)
 heading("9.1 Scent scoring",2)
 step(1,"Open Score entry","Only accepted runs appear.")
 step(2,"Select the exact run","Match day, level, component, stream, dog, and handler to the signed sheet.")
@@ -319,12 +332,14 @@ for x in ["Keep the signed sheet as the authority","Open the same run, amend onl
 callout("Paper control", "Retain and distribute score-sheet copies according to current SDDA instructions. TrialDesk’s digital audit supports—not replaces—the signed official sheet.")
 
 page_break(); heading("10. Placements, results, and titles",1)
+image("17-results.png","Figure 12. Results and placements. TrialDesk calculates provisional placements from recorded qualifying results and excludes FEO from placements.",6.8)
 heading("10.1 Provisional placements",2)
 para("Open Results after scoring. TrialDesk separates Scent by day, level, component, and stream. It includes qualifying runs only, ranks highest score first, then faster time, and excludes FEO. Exact score/time ties share a place. Games placements include passing Regular entries and rank faster time first; FEO is excluded.")
 step(1,"Check completion badge","Resolve missing scores before treating placements as final.")
 step(2,"Compare with signed sheets","Spot-check leaders, ties, NQs/fails, absences, withdrawals, and FEO exclusions.")
 step(3,"Print / Save PDF","Use the results page print control for posting or presentation.")
 heading("10.2 Title Watch",2)
+image("18-title-ribbons.png","Figure 13. Close to Titles and Ribbon Planning. The top summary gives the maximum possible ribbon count, with Working reviews and title details below.",4.5)
 para("Title Watch combines current accepted/scored entries with the latest public SDDA dog-history workbook snapshot. It highlights historical component Qs, possible same-trial Special titles, processed titles requiring Working at that level, and component-specific opportunities.")
 for x in [
     "A standard Started/Advanced/Excellent title requires a qualifying score in Container, Interior, and Exterior at that level.",
@@ -336,23 +351,54 @@ for x in [
 callout("Authority", "Title Watch is planning support, not SDDA title issuance. If a dog is unmatched, history is incomplete, or a title affects stream eligibility, verify with SDDA before representing the status as official.","warning")
 
 page_break(); heading("11. Finances, workbook, backup, and closeout",1)
-heading("11.1 Finances",2)
-step(1,"Review expected fees","TrialDesk calculates accepted-entry amounts from Scent and Games pricing, including separate Games FEO fees.")
-step(2,"Record payments","Enter collected amounts and payment details consistently; do not count received-but-unaccepted entries as earned entry revenue.")
-step(3,"Record expenses","Add judges, venue, supplies, ribbons, printing, mileage, meals, and other operating costs with meaningful descriptions.")
-step(4,"Review judge breakdown","Use the judge section to verify assignments and judge-related costs by day/offering.")
-step(5,"Print/export the financial statement","Reconcile expected, collected, outstanding, waived/refunded, expenses, and net before closeout.")
-heading("11.2 Official SDDA workbook",2)
+heading("11.1 Financial Summary: start here",2)
+para("Open the trial, then Financial Summary in the left menu. Amounts are Canadian dollars. Accepted entries generate charges automatically from Scent and Games pricing; do not enter the same fees again as a manual charge.")
+image("06-finances-overview.png","Figure 14. Live Example Trial financial summary, September 2, 2026. Figures demonstrate the screen layout, not recommended entry prices. Judge and SDDA estimates are separate from actual expenses.",6.3)
+para("Gross charges include adjustments. Fees waived are not money collected. Collected is payments minus refunds; Outstanding and Credits show handler balances. Cash net subtracts actual expenses from net collections, without deducting the displayed estimates again.")
+
+page_break(); heading("11.1a Record a handler payment",2)
+step(1,"Find the handler","Scroll to Handler accounts - payments and waivers. Search by handler or dog; use Owing, Credit, Settled, or All balances as needed.")
+step(2,"Review the dogs","Matching handler name and email group dogs together. Entries without email remain separate. Check the dogs' charges and balances before recording money.")
+step(3,"Select Record payment","For multiple dogs, keep All dogs - allocate payment, or choose one dog. The amount starts with the current balance; replace it with the amount actually received.")
+image("07-record-payment.png","Figure 15. Payment received dialog. This unsaved example starts at $200.00 for two dogs. No money is processed by this form; it records money already received.",6.2)
+step(4,"Enter payment details and Save","Confirm date, payment method, reference, and notes. Save once, wait for the dialog to close, and check the updated net paid and balance.")
+step(5,"Check partial or excess payments","A partial payment leaves an outstanding balance. An all-dogs payment fills positive dog balances in order; excess remains as credit on the last dog. Inspect each dog when another dog already has credit.")
+
+page_break(); heading("11.1b Waivers, restoration, refunds, and corrections",2)
+step(1,"Waive an unpaid fee","On the specific dog's row, choose Waive fees. Enter all or part of the current outstanding balance and explain why in Notes. Save and check Fees waived and the balance; collected money does not increase.")
+image("08-waive-fees.png","Figure 16. Fees waived dialog. The reason is required; a waiver cannot exceed this dog's outstanding balance. The example was opened and cancelled without saving.",6.0)
+step(2,"Restore a waiver","Locate the waiver in Ledger - transaction history and choose Restore fees. Add a reason and save. It restores the original amount once and retains both records; waivers cannot be edited or deleted.")
+step(3,"Record money returned","Choose Refund for that dog, enter the amount, date, method, reference and reason, then Save. Refund is unavailable when no net payment exists, and cannot exceed that dog's net payments.")
+para("A refund returns recorded money but does not cancel the entry charge. If the fee should no longer be owed, separately correct the entry or use an appropriate waiver/credit adjustment. A waiver is a fixed amount, not free future entries: recheck balances after adding runs or changing prices.")
+para("Use Adjust for an explained additional charge (positive) or credit (negative). In the ledger, use Edit to correct an existing transaction; it cannot switch dogs or transaction type. Use Delete only for a genuinely mistaken ordinary record. Corrections remain audited; do not clear the activity journal to fix money records.")
+
+page_break(); heading("11.1c Expenses and financial statements",2)
+step(1,"Select Add expense","Choose Trial expense, Judge expense, Volunteer expense, or SDDA remittance paid. Enter the actual amount, date, method, reference, payee, and a useful description; then Save.")
+image("09-add-expense.png","Figure 17. Add expense dialog, opened without saving. Record an actual cost once; an estimate is not a payment.",6.0)
+step(2,"Reconcile the ledger","Compare receipts, cash and transfers with recorded payments, refunds and expenses. Review each handler's Payment and waiver history. Judge estimates do not include all travel, meals or accommodation costs.")
+step(3,"Export Excel","The sticky header exports Entry balances, Ledger, Summary, and Judge estimates worksheets. Entry balances contains numeric amounts and a balance formula; retain the file with the trial records.")
+step(4,"Print statement","Use Print statement in a browser that supports printing and inspect print preview before printing or saving as PDF. Clear account search/filter controls first for a complete on-screen account list.")
+callout("Preserve the record", "Back up the trial before major corrections. Use Activity Journal to review who recorded or changed information. Completed trials must be reopened before financial changes; repeat statements and backups after corrections.")
+
+page_break(); heading("11.2 Official SDDA workbook",2)
+image("19-official-workbook.png","Figure 18. Official Workbook. Export is enabled only when required trial identity and score checks pass; open the result in Excel to recalculate the official formulas.",6.8)
 step(1,"Finish accepted-entry scoring","Resolve registration numbers, trial numbers, judges, results, scores, and times.")
 step(2,"Open Official workbook","Read blockers and warnings. Correct source data rather than editing around a blocker.")
 step(3,"Export each day group","The official workbook has two day sections. TrialDesk groups a 3–4 day event into separate one/two-day workbook exports.")
 step(4,"Open in Excel","Allow original formulas to recalculate. Review Trial Info, level sheets, Games, Summary, High-in-Trial, fees, labels, formatted results, and the embedded SDDA Dogs registry.")
 step(5,"Submit outside TrialDesk","TrialDesk downloads a completed copy; it does not upload directly to SDDA. Follow SDDA’s current submission/email instructions.")
 heading("11.3 Backup and closeout",2)
+image("21-trial-closeout.png","Figure 19. Trial Closeout. Resolve required items, review final exports, download the JSON backup, and only then complete and lock the trial.",6.8)
 step(1,"Open Trial closeout","Resolve red blockers and review amber warnings.")
 step(2,"Download complete trial backup","Store the JSON backup with the final workbook, results, running order, financial statement, and retained score-sheet records.")
 step(3,"Complete and lock","Completion prevents operational edits. Use Reopen only for an authorized correction and repeat exports afterward.")
 callout("Archive", "Keep a durable copy outside the browser. A downloaded backup is only useful if it is stored in a known, backed-up location and can be associated with the correct trial number/date.")
+heading("11.4 Activity Journal",2)
+image("20-activity-journal.png","Figure 20. Activity Journal. Search or filter the permanent secretary-facing history and print it for the closeout package.",5.6)
+para("The journal groups trial setup, pricing, offering changes, CSV import batches, entry changes, payments, waivers, score corrections, and completion. It identifies who performed the action and shows the meaningful change without unnecessary database fields.")
+step(1,"Search or filter","Use the search box for an action, person, dog, or record and the record-type list to narrow the journal.")
+step(2,"Review material changes","Confirm imports are grouped as batches and corrections name the affected entry, score, payment, or trial setting.")
+step(3,"Print journal","Save a PDF or printed copy with the final trial records before locking the trial.")
 
 page_break(); heading("12. Troubleshooting and control checklists",1)
 heading("12.1 Common problems",2)
@@ -370,20 +416,143 @@ table([
 ], widths=[2.05,4.75])
 heading("12.2 Final pre-trial checklist",2)
 for x in ["All intended entries accepted and balances reviewed","Registration-pending list resolved or actively controlled","Every run assigned to the correct day/level/component/stream/group","Officials, second dogs, FEO, and BIS sequenced correctly","Conflict checks reviewed after every move-up and manual reorder","One page from every score-sheet template visually checked","Running order exported, printed, and posted","Desk supplies, spare sheets, timers, ribbons, and backup equipment ready"]: bullet("☐ "+x)
-heading("12.3 Final closeout checklist",2)
+page_break(); heading("12.3 Final closeout checklist",2)
 for x in ["All signed sheets returned and results entered","Placements reviewed; FEO excluded","Title opportunities reviewed against official history","Payments and expenses reconciled","Official workbook exported, recalculated in Excel, and reviewed","Results, workbook, finances, activity, and running order archived","Complete JSON backup downloaded","Trial completed and locked after all required submissions are ready"]: bullet("☐ "+x)
+
+page_break(); heading("13. Page and button glossary",1)
+para("Use this section as a quick lookup when you know the control name but not where it is located. Controls that change data are disabled when prerequisites are incomplete or the trial is completed and locked.")
+heading("13.1 Dashboard and trial setup",2)
+table([
+    ["Button or control", "Location", "Function"],
+    ["Create trial / Create New Trial", "Dashboard or sidebar", "Opens the new-trial form."],
+    ["Create SDDA Trial", "All Trials", "Opens the new-trial form."],
+    ["Open trial", "All Trials card", "Opens the selected trial workspace."],
+    ["Delete draft", "Draft trial card", "Permanently removes an unused draft after confirmation; unavailable after operational use."],
+    ["Open setup", "Dashboard", "Opens Trial Details for the selected trial."],
+    ["All trials / View all", "Dashboard or sidebar", "Opens the complete trial list."],
+    ["Built-in entry form", "Dashboard", "Opens the selected trial's competitor form."],
+    ["Google Form CSV / Entry roster", "Dashboard", "Opens Entries for import or review."],
+    ["Add trial day", "Create trial", "Adds another date, up to the application limit of four."],
+    ["Remove day", "Create trial", "Removes that date before the draft is created."],
+    ["Cancel", "Create trial", "Returns to Trials without creating a draft."],
+    ["Create Draft Trial", "Create trial", "Creates the editable trial workspace; it does not open entries."],
+    ["Save setup", "Trial Details sticky header", "Saves offering, Games, and setup changes currently pending."],
+    ["Save public details", "Trial Details", "Saves secretary contact, payment, and cancellation text."],
+    ["Select all / Clear Scent", "Trial offering setup", "Selects or clears all Scent level/component offerings."],
+    ["Select all / Clear Games", "Trial offering setup", "Selects or clears all Games offerings."],
+    ["Save Scent pricing", "Scent entry pricing", "Saves component, package, and Elite fees."],
+    ["Open entries and enable form", "Trial operations", "Changes the trial to Entries Open and activates submissions."],
+    ["Close entries", "Trial operations", "Stops new public submissions for the whole trial."],
+    ["Open or Close this day", "Trial day header", "Allows or stops entries for only that day."],
+    ["Save day details", "Trial day", "Saves the date, SDDA trial number, and day judge."],
+    ["Offering tile", "Trial day offerings", "Turns that Scent component or Game on or off."],
+    ["Allow FEO entries", "Selected offering", "Shows or removes FEO for that exact public offering."],
+    ["Refresh from SDDA", "SDDA Dog Registry", "Stages and activates the newest official SDDA Dogs list; administrator only."],
+    ["Search registry", "SDDA Dog Registry", "Looks up an SDDA dog number or call name in the active registry."],
+], widths=[1.9,1.8,3.9])
+
+heading("13.2 Navigation sharing and team access",2)
+table([
+    ["Button or control", "Location", "Function"],
+    ["Trial workflow stage", "Top of Trial Details", "Opens the named stage and shows whether its prerequisite is ready."],
+    ["Competitor Entry Form", "Sidebar or Trial operations", "Opens the public form in a separate page."],
+    ["Copy Entry Link", "Sidebar or Trial operations", "Copies the public form address to the clipboard."],
+    ["Trial Team", "Sidebar or Trial operations", "Opens access management for the trial."],
+    ["Add to trial", "Trial Team", "Adds a registered user or updates an existing member's role."],
+    ["Trash icon", "Trial Team member", "Removes a non-owner member after confirmation."],
+    ["Close to Titles and Ribbons", "Dashboard, Trial Details, or sidebar", "Opens title opportunities, Working review, and maximum ribbon planning."],
+    ["Sign In", "Login", "Authenticates the secretary and opens the dashboard."],
+    ["Forgot your password", "Login", "Requests a Supabase password-reset email."],
+    ["Register here", "Login", "Opens account registration and email confirmation."],
+], widths=[1.9,1.8,3.9])
+
+heading("13.3 Competitor entry form",2)
+table([
+    ["Button or control", "Location", "Function"],
+    ["Load my entry", "Top of public form", "Loads an editable entry when registration/confirmation number and email both match."],
+    ["Check SDDA registry", "Competitor and dog step", "Checks the entered dog number and call name against the active registry."],
+    ["Back / Continue", "Entry form steps", "Moves between Competitor and dog, Runs, Policies, and Review without submitting."],
+    ["Submit entry", "Review step", "Creates the entry after required data, selections, declaration, and policies pass validation."],
+    ["Save entry changes", "Review step while editing", "Saves permitted competitor or secretary corrections."],
+    ["Print receipt", "Entry received page", "Prints the received selections, estimated amount, and return instructions."],
+    ["Download receipt PDF", "Entry received page", "Downloads a formatted receipt containing the active private edit link."],
+    ["Edit entry", "Entry received page", "Returns to step one with the submitted information populated."],
+    ["Copy private entry link", "Entry received page", "Copies the confidential edit link; share only with that competitor."],
+], widths=[1.9,1.8,3.9])
+
+heading("13.4 Entries and import",2)
+table([
+    ["Button or control", "Location", "Function"],
+    ["Search", "Entries", "Finds a handler, dog, or SDDA number."],
+    ["Status filter", "Entries", "Shows All, Received, Accepted, Waitlisted, Rejected, or other statuses."],
+    ["Export mailing list XLSX", "Entries", "Exports email, handler, received selections, and amount owing."],
+    ["Import Google Form CSV", "Entries", "Selects and previews a familiar Google response CSV."],
+    ["Import entries", "CSV import review", "Creates valid entries and reports rejected rows as one audited batch."],
+    ["Edit entry", "Entry card", "Opens the secretary edit form with the current entry repopulated."],
+    ["Secretary decision", "Entry card", "Changes Received to Accepted, Waitlisted, Rejected, Withdrawn, or another permitted status."],
+    ["Print or Save PDF", "Entry receipt/review", "Prints the entry receipt with selections, amount, and edit link."],
+], widths=[1.9,1.8,3.9])
+
+heading("13.5 Running order score sheets and scoring",2)
+table([
+    ["Button or control", "Location", "Function"],
+    ["Day Level Component filters", "Running Orders", "Select the exact order being reviewed."],
+    ["Apply SDDA order", "Running Orders", "Applies Officials, Regular, Second dog, FEO, and BIS grouping rules."],
+    ["Run group list", "Running Orders row", "Marks the run's operational group when the secretary must change it."],
+    ["Move up", "Running Orders row", "Applies a component-specific approved move-up to an offered next level."],
+    ["Drag handle / arrows", "Running Orders row", "Moves a run manually; re-check conflicts afterward."],
+    ["Save", "Running Orders", "Persists the displayed order and group changes."],
+    ["Export running order XLSX", "Running Orders", "Downloads the formatted multi-day running-order workbook."],
+    ["Export complete packet", "Score Sheets", "Downloads all eligible Scent sheets as one PDF."],
+    ["Export day packet", "Score Sheets", "Downloads one day's eligible Scent sheets."],
+    ["Export Games packet", "Score Sheets", "Downloads all or one day's Games sheets."],
+    ["Scent or Games filter", "Score Entry", "Switches scoring discipline and shows its recorded count."],
+    ["Trial day filter / Search", "Score Entry", "Narrows cards without changing scores."],
+    ["Save and next", "Score card", "Saves that run and advances to the next displayed card."],
+    ["Save all changes", "Score Entry sticky header", "Saves every changed score card before a break."],
+], widths=[1.9,1.8,3.9])
+
+heading("13.6 Results titles finances and closeout",2)
+table([
+    ["Button or control", "Location", "Function"],
+    ["Print or Save PDF", "Results", "Prints provisional placements after score review."],
+    ["Export Excel", "Close to Titles", "Exports title opportunities, ribbon totals, and Working reviews."],
+    ["Print or Save PDF", "Close to Titles", "Prints the title and ribbon-planning report."],
+    ["Refresh history", "Close to Titles", "Refreshes official SDDA workbook history used for title proximity."],
+    ["Open Entry Roster", "Close to Titles", "Opens entries requiring Working review."],
+    ["Print statement / Export Excel", "Finances", "Produces the current financial statement or workbook."],
+    ["Add expense", "Finances", "Records an operating, judge, volunteer, or SDDA remittance expense."],
+    ["Record payment", "Handler account", "Allocates money already received across selected dogs."],
+    ["Waive fees", "Dog balance", "Waives an amount with a required reason; does not remove runs."],
+    ["Refund", "Dog balance", "Records money returned against collected funds."],
+    ["Adjust", "Dog balance", "Records a documented financial correction."],
+    ["Restore waiver", "Payment and waiver history", "Reverses a prior waiver when permitted."],
+    ["Pencil / Trash", "Financial ledger", "Edits or deletes a ledger item with confirmation and audit history."],
+    ["Export official workbook", "Official Workbook", "Fills a fresh official workbook after blockers pass."],
+    ["Print journal", "Activity Journal", "Prints or saves the filtered secretary-facing audit record."],
+    ["Results Workbook Finances Activity links", "Trial Closeout", "Opens each final export for review."],
+    ["Download complete trial backup", "Trial Closeout", "Downloads the complete JSON recovery record."],
+    ["Complete and lock trial", "Trial Closeout", "Locks operational editing after required checks pass."],
+    ["Reopen for corrections", "Completed trial closeout", "Reopens a completed trial and records the action."],
+], widths=[1.9,1.8,3.9])
 
 page_break(); heading("Sources and scope notes",1)
 p=doc.add_paragraph(); hyperlink(p,"SDDA Master Rule Book v5.1 (effective July 1, 2026)","https://www.sdda.ca/wp-content/uploads/2026/06/SDDA-Rules-July-2026.pdf")
 p=doc.add_paragraph(); hyperlink(p,"SDDA Rules and Rulebook page","https://www.sdda.ca/front-page/rules-rulebook/")
 p=doc.add_paragraph(); hyperlink(p,"SDDA website","https://www.sdda.ca/")
-para("Application behavior was verified against the current K:\\TrialManager implementation, its database migrations, rule modules, score-sheet mappings, running-order export, scoring and results logic, official workbook exporter, financial ledger, activity journal, and closeout workflow as of August 23, 2026.")
+para("The operating sequence, primary pages, and visible controls were reviewed against K:\\TrialManager and the deployed Example Trial interface on September 3, 2026. Screenshots show read-only inspection and previously prepared unsaved finance dialogs; no live transactions or operational changes were submitted for this manual. The current SDDA rulebook and official forms remain controlling.")
 callout("Maintenance", "Revise this manual whenever SDDA publishes a new rulebook, official score sheet, Games form, results workbook, fee schedule, or submission instruction—or whenever TrialDesk changes a workflow shown here.")
 
 # Keep figures inline and add basic accessibility descriptions to drawings.
 for drawing, desc in zip(doc.element.body.iter(qn("w:drawing")), [
-    "TrialDesk dashboard", "Create SDDA Trial form", "Google Form response spreadsheet",
-    "Running order workbook", "Official SDDA score sheet mapping examples"
+    "TrialDesk dashboard", "Create SDDA Trial form", "Trial setup workflow and checklist",
+    "Trial Team access management", "Entry roster controls", "Google Form response spreadsheet",
+    "Running order controls", "Running order workbook", "Official score sheet packet page",
+    "Official SDDA score sheet mapping examples", "Audited score entry controls",
+    "Provisional results and placements", "Close to Titles and ribbon planning",
+    "Financial summary and judge estimates", "Record a handler payment",
+    "Waive a dog's outstanding fees", "Record an operating expense",
+    "Official SDDA workbook export page", "Trial closeout checklist", "Activity Journal"
 ]):
     docPr = drawing.find(".//" + qn("wp:docPr"))
     if docPr is not None: docPr.set("descr", desc)
