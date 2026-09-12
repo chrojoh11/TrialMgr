@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Calendar, MapPin, Plus, Search, Trash2 } from 'lucide-react';
+import { Calendar, MapPin, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { PawLoader } from '@/components/ui/pawLoader';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -95,8 +95,9 @@ export default function TrialsPage() {
                     {trial.venue && <p className="flex items-center text-gray-600"><MapPin className="mr-2 h-4 w-4" />{trial.venue}</p>}
                     <p className="flex items-center text-gray-600"><Calendar className="mr-2 h-4 w-4" />{days.map((day) => day.trial_date).join(', ')}</p>
                     <p>{days.length} trial {days.length === 1 ? 'day' : 'days'}</p>
-                    <div className="flex gap-2 pt-2">
+                    <div className="flex flex-wrap gap-2 pt-2">
                       <Link href={`/dashboard/trials/${trial.id}`}><Button size="sm">Open trial</Button></Link>
+                      <Link href={`/dashboard/trials/${trial.id}/edit`}><Button size="sm" variant="outline"><Pencil className="mr-2 h-4 w-4" />Edit trial</Button></Link>
                       {trial.status === 'draft' && (
                         <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={deletingId === trial.id} onClick={() => void removeDraft(trial)}>
                           {deletingId === trial.id ? <PawLoader className="mr-2 h-4 w-4" /> : <Trash2 className="mr-2 h-4 w-4" />}Delete draft
