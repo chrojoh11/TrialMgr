@@ -97,7 +97,7 @@ export default function TrialsPage() {
                     <p>{days.length} trial {days.length === 1 ? 'day' : 'days'}</p>
                     <div className="flex flex-wrap gap-2 pt-2">
                       <Link href={`/dashboard/trials/${trial.id}`}><Button size="sm">Open trial</Button></Link>
-                      <Link href={`/dashboard/trials/${trial.id}/edit`}><Button size="sm" variant="outline"><Pencil className="mr-2 h-4 w-4" />Edit trial</Button></Link>
+                      <Link href={`/dashboard/trials/edit/${trial.id}`}><Button size="sm" variant="outline"><Pencil className="mr-2 h-4 w-4" />Edit trial</Button></Link>
                       {trial.status === 'draft' && (
                         <Button type="button" size="sm" variant="outline" className="text-red-600 hover:text-red-700" disabled={deletingId === trial.id} onClick={() => void removeDraft(trial)}>
                           {deletingId === trial.id ? <PawLoader className="mr-2 h-4 w-4" /> : <Trash2 className="mr-2 h-4 w-4" />}Delete draft
