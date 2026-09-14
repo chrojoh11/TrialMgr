@@ -53,3 +53,33 @@ test('leaves non-reactive dogs blank in the running-order export', () => {
   const workbook = XLSX.read(buildSddaRunningOrderWorkbook(trial, [run]), { type: 'array' });
   assert.equal(workbook.Sheets['Saturday Runs'].E7.v, '');
 });
+
+test('adds a printable Games running-order sheet with all run details', () => {
+  const day = { id: 'day-1', day_number: 1, trial_date: '2026-06-06', judge_name: 'Judge' };
+  const trial: any = { name: 'Combined Trial', venue: 'Venue', sdda_trial_days: [day] };
+  const gameRun: any = {
+    trial_day_id: day.id,
+    running_position: 2,
+    run_group: 'Second dog',
+    entry_type: 'Regular',
+    aerial_division: 'Highfly',
+    sdda_game_offerings: { game_type: 'Aerial' },
+    sdda_entries: {
+      handler_name: 'Handler',
+      reactivity: 'People',
+      sdda_dogs: { call_name: 'Dog', sdda_registration_number: '4429' },
+    },
+  };
+  const workbook = XLSX.read(buildSddaRunningOrderWorkbook(trial, [], [gameRun]), { type: 'array' });
+  assert.deepEqual(workbook.SheetNames, ['Saturday Runs', 'Saturday Games']);
+  const sheet = workbook.Sheets['Saturday Games'];
+  assert.equal(sheet.A1.v, 'Saturday Games');
+  assert.equal(sheet.M1.v, 'DAY TOTAL\n1 RUNS');
+  assert.equal(sheet.A7.v, 2);
+  assert.equal(sheet.B7.v, 'Dog\nHandler');
+  assert.equal(sheet.E7.v, '4429');
+  assert.equal(sheet.F7.v, 'Second dog');
+  assert.equal(sheet.G7.v, 'Regular');
+  assert.equal(sheet.H7.v, 'Highfly');
+  assert.equal(sheet.M7.v, 'People');
+});

@@ -32,7 +32,11 @@ function reactiveValue(run: any) {
   return !reactive || reactive.toLowerCase() === 'none' ? '' : reactive;
 }
 
-export function buildSddaRunningOrderWorkbook(trial: SddaTrialWorkspace, runs: any[]) {
+export function buildSddaRunningOrderWorkbook(
+  trial: SddaTrialWorkspace,
+  runs: any[],
+  gameRuns: any[] = []
+) {
   const wb = XLSX.utils.book_new();
   wb.Props = { Author: 'SDDA TrialDesk', Company: 'SDDA', Title: `${trial.name} running orders` };
 
@@ -305,6 +309,151 @@ export function buildSddaRunningOrderWorkbook(trial: SddaTrialWorkspace, runs: a
     }
 
     XLSX.utils.book_append_sheet(wb, ws, `${label} Runs`);
+
+    const dayGameRuns = gameRuns.filter((run) => run.trial_day_id === day.id);
+    if (dayGameRuns.length) {
+      const gameRows: any[][] = [
+        [`${label} Games`],
+        [],
+        [
+          `Trial # ${day.sdda_trial_number || ''}`,
+          '',
+          '',
+          '',
+          `Date ${day.trial_date}`,
+          '',
+          '',
+          '',
+          `Venue ${trial.venue || ''}`,
+          '',
+          '',
+          '',
+          'Judge',
+          day.judge_name || '',
+          '',
+          '',
+        ],
+      ];
+      gameRows[0][12] = `DAY TOTAL\n${dayGameRuns.length} RUNS`;
+      const gameMerges: XLSX.Range[] = [
+        XLSX.utils.decode_range('A1:L2'),
+        XLSX.utils.decode_range('M1:P2'),
+        XLSX.utils.decode_range('A3:D3'),
+        XLSX.utils.decode_range('E3:H3'),
+        XLSX.utils.decode_range('I3:L3'),
+        XLSX.utils.decode_range('M3:P3'),
+      ];
+      const gameSections: Array<{ banner: number; header: number; total: number; data: number[] }> = [];
+
+      for (const gameType of ['Aerial', 'Distance', 'Speed', 'Team']) {
+        const list = dayGameRuns
+          .filter((run) => {
+            const offering = Array.isArray(run.sdda_game_offerings)
+              ? run.sdda_game_offerings[0]
+              : run.sdda_game_offerings;
+            return offering?.game_type === gameType;
+          })
+          .sort(
+            (a, b) =>
+              (a.running_position ?? Number.MAX_SAFE_INTEGER) -
+              (b.running_position ?? Number.MAX_SAFE_INTEGER)
+          );
+        if (!list.length) continue;
+
+        gameRows.push([]);
+        const banner = gameRows.length;
+        gameRows.push([`${label} — ${gameType}`]);
+        gameRows[banner][12] = `${list.length} runs`;
+        gameMerges.push(
+          { s: { r: banner, c: 0 }, e: { r: banner, c: 11 } },
+          { s: { r: banner, c: 12 }, e: { r: banner, c: 15 } }
+        );
+        const header = gameRows.length;
+        gameRows.push(['Order', 'Dog / handler', '', '', 'SDDA #', 'Group', 'Entry type', 'Division / partner', '', '', '', '', 'Reactive']);
+        gameMerges.push(
+          { s: { r: header, c: 1 }, e: { r: header, c: 3 } },
+          { s: { r: header, c: 7 }, e: { r: header, c: 11 } },
+          { s: { r: header, c: 12 }, e: { r: header, c: 15 } }
+        );
+        const data: number[] = [];
+        list.forEach((run, index) => {
+          const row = gameRows.length;
+          const entry = Array.isArray(run.sdda_entries) ? run.sdda_entries[0] : run.sdda_entries;
+          const dog = Array.isArray(entry?.sdda_dogs) ? entry.sdda_dogs[0] : entry?.sdda_dogs;
+          const detail = run.requested_team_partner
+            ? `Partner: ${run.requested_team_partner}`
+            : run.aerial_division || '';
+          gameRows.push([
+            run.running_position ?? index + 1,
+            `${dog?.call_name || ''}\n${entry?.handler_name || ''}`,
+            '',
+            '',
+            dog?.sdda_registration_number || '',
+            run.run_group || '',
+            run.entry_type || '',
+            detail,
+            '',
+            '',
+            '',
+            '',
+            reactiveValue(run),
+          ]);
+          gameMerges.push(
+            { s: { r: row, c: 1 }, e: { r: row, c: 3 } },
+            { s: { r: row, c: 7 }, e: { r: row, c: 11 } },
+            { s: { r: row, c: 12 }, e: { r: row, c: 15 } }
+          );
+          data.push(row);
+        });
+        const total = gameRows.length;
+        gameRows.push([`${gameType} total`, '', '', '', '', '', list.length]);
+        gameMerges.push({ s: { r: total, c: 0 }, e: { r: total, c: 5 } });
+        gameSections.push({ banner, header, total, data });
+      }
+
+      const gameSheet = XLSX.utils.aoa_to_sheet(gameRows);
+      gameSheet['!ref'] = `A1:P${gameRows.length}`;
+      gameSheet['!merges'] = gameMerges;
+      gameSheet['!cols'] = [7, 12, 8, 8, 11, 13, 11, 10, 8, 8, 8, 8, 11, 7, 7, 7].map((wch) => ({ wch }));
+      gameSheet['!rows'] = gameRows.map(() => ({ hpt: 21 }));
+      gameSheet['!rows'][0] = { hpt: 24 };
+      gameSheet['!rows'][1] = { hpt: 24 };
+      gameSheet['!sheetViews'] = [{ showGridLines: false, pane: { ySplit: 2, state: 'frozen' } }];
+      gameSheet['!pageSetup'] = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+      gameSheet['!margins'] = { left: 0.2, right: 0.2, top: 0.35, bottom: 0.35, header: 0.15, footer: 0.15 };
+      gameSheet['!headerFooter'] = { oddFooter: '&LGenerated by SDDA TrialDesk&C&P of &N&RSDDA Rule Book v5.1 — July 2026' };
+
+      for (let row = 0; row < gameRows.length; row++) {
+        for (let column = 0; column < 16; column++) {
+          const cell = XLSX.utils.encode_cell({ r: row, c: column });
+          if (!gameSheet[cell]) gameSheet[cell] = { t: 's', v: '' };
+          gameSheet[cell].s = {
+            fill: SOLID(row < 2 ? '294F73' : 'FFFFFF'),
+            font: { name: 'Arial', sz: 9, color: { rgb: row < 2 ? 'FFFFFF' : '17212B' } },
+            alignment: { vertical: 'center', wrapText: true },
+          };
+        }
+      }
+      gameSheet.A1.s = { fill: SOLID('294F73'), font: { name: 'Georgia', sz: 22, bold: true, color: { rgb: 'FFFFFF' } }, alignment: { vertical: 'center' } };
+      gameSheet.M1.s = { fill: SOLID('294F73'), font: { name: 'Arial', sz: 11, bold: true, color: { rgb: 'FFFFFF' } }, alignment: { horizontal: 'right', vertical: 'center', wrapText: true } };
+      for (const section of gameSections) {
+        gameSheet['!rows'][section.banner] = { hpt: 31 };
+        gameSheet['!rows'][section.header] = { hpt: 28 };
+        gameSheet['!rows'][section.total] = { hpt: 24 };
+        for (let column = 0; column < 16; column++) {
+          gameSheet[XLSX.utils.encode_cell({ r: section.banner, c: column })].s = { fill: SOLID('536DB1'), font: { name: 'Georgia', sz: 14, bold: true, color: { rgb: 'FFFFFF' } }, alignment: { vertical: 'center' } };
+          gameSheet[XLSX.utils.encode_cell({ r: section.header, c: column })].s = { fill: SOLID('E8EEF6'), font: { name: 'Arial', sz: 9, bold: true, color: { rgb: '17212B' } }, alignment: { vertical: 'center', wrapText: true }, border: THIN_BOTTOM };
+          gameSheet[XLSX.utils.encode_cell({ r: section.total, c: column })].s = { fill: SOLID('E8EEF6'), font: { name: 'Arial', sz: 9, bold: true, color: { rgb: '294F73' } }, alignment: { vertical: 'center' }, border: { top: { style: 'medium', color: { rgb: '94A3B8' } } } };
+        }
+        for (const row of section.data) {
+          gameSheet['!rows'][row] = { hpt: 34 };
+          for (let column = 0; column < 16; column++) gameSheet[XLSX.utils.encode_cell({ r: row, c: column })].s.border = THIN_BOTTOM;
+          gameSheet[XLSX.utils.encode_cell({ r: row, c: 1 })].s.font = { name: 'Arial', sz: 10, bold: true, color: { rgb: '17212B' } };
+          gameSheet[XLSX.utils.encode_cell({ r: row, c: 12 })].s.font = { name: 'Arial', sz: 8, color: { rgb: '9B433D' } };
+        }
+      }
+      XLSX.utils.book_append_sheet(wb, gameSheet, `${label} Games`);
+    }
   }
   return XLSX.write(wb, { type: 'array', bookType: 'xlsx', cellStyles: true }) as ArrayBuffer;
 }

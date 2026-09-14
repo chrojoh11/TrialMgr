@@ -149,7 +149,7 @@ export default function RunningOrderPage() {
   };
   const exportXlsx = () => {
     if (!trial) return;
-    const bytes = buildSddaRunningOrderWorkbook(trial, allRuns);
+    const bytes = buildSddaRunningOrderWorkbook(trial, allRuns, gameRuns);
     const blob = new Blob([bytes], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
@@ -240,7 +240,7 @@ export default function RunningOrderPage() {
               Move-ups are component-specific and may be approved on any trial day.
             </p>
           </div>
-          <Button onClick={exportXlsx} disabled={!trial || !allRuns.length}>
+          <Button onClick={exportXlsx} disabled={!trial || (!allRuns.length && !gameRuns.length)}>
             <Download className="mr-2 h-4 w-4" />
             Export running order XLSX
           </Button>
