@@ -196,6 +196,21 @@ export async function createSddaTrial(client: SupabaseClient, input: SddaTrialSe
   return data as string;
 }
 
+export async function copySddaTrial(
+  client: SupabaseClient,
+  sourceTrialId: string,
+  name: string,
+  dates: string[],
+) {
+  const { data, error } = await client.rpc('sdda_copy_trial', {
+    source_trial_id: sourceTrialId,
+    requested_name: name,
+    requested_dates: dates,
+  });
+  if (error || !data) throw new Error(error?.message || 'Unable to copy the SDDA trial.');
+  return data as string;
+}
+
 export async function deleteSddaDraftTrial(client: SupabaseClient, trialId: string) {
   const { error } = await client.rpc('sdda_delete_draft_trial', {
     target_trial_id: trialId,

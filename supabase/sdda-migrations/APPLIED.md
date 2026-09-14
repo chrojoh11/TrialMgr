@@ -334,8 +334,18 @@ No legacy C-WAGS migration was applied.
 
 ## `20260914_0044_edit_trial_day_structure.sql`
 
-- Status: prepared locally; must be applied to the dedicated `SDDA-Trialdesk` project before the new schedule editor is used
+- Applied: user reported success on 2026-09-14 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Reported execution result: no rows returned
 - Capability: authorized trial managers can revise dates atomically and add up to four trial days
 - Guardrails: only the final day can be removed; removal is blocked while offerings or competitor runs remain
 - Preservation: existing day IDs, offerings, entries, and scores remain attached to their original day number when dates change
 - Audit: one grouped `trial.days_updated` record captures the complete before/after schedule
+
+## `20260914_0045_copy_trial.sql`
+
+- Status: prepared locally; must be applied to the dedicated `SDDA-Trialdesk` project before Copy Trial is used
+- Capability: creates a new draft from an existing trial with new dates and copied club, venue, format, public instructions, pricing, capacity, FEO settings, and offerings
+- Clean boundary: entries, dogs, runs, scores, payments, expenses, trial numbers, and judge assignments are never copied
+- Security: requires management access to the source trial; the signed-in user owns the new draft
+- Audit: the new trial receives one `trial.copied` activity record

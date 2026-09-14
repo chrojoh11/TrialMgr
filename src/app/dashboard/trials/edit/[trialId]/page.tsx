@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, Plus, Save, X } from 'lucide-react';
+import { ArrowLeft, Calendar, Copy, Plus, Save, X } from 'lucide-react';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -227,7 +227,7 @@ export default function EditTrialPage() {
 
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
           <Button type="button" variant="outline" onClick={() => router.push(`/dashboard/trials/${trial.id}`)}><ArrowLeft className="mr-2 h-4 w-4" />Back to trial</Button>
-          <Button type="submit" disabled={saving}>{saving ? <PawLoader className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}Save trial changes</Button>
+          <div className="flex flex-wrap gap-3"><Button type="button" variant="outline" onClick={() => router.push(`/dashboard/trials/copy/${trial.id}`)}><Copy className="mr-2 h-4 w-4" />Copy trial</Button><Button type="submit" disabled={saving}>{saving ? <PawLoader className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}Save trial changes</Button></div>
         </div>
       </form>
     </MainLayout>
