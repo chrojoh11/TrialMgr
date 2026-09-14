@@ -669,8 +669,9 @@ export default function Page() {
                 </button>
               </div>
               <p className="mt-3 text-xs text-gray-600">
-                For privacy, both values must match. Accepted entries and entries with running orders
-                or scores must be changed by the trial secretary.
+                For privacy, both values must match. Received and accepted entries may be changed
+                while online entries remain open. Once a score has been recorded, changes must be
+                made by the trial secretary.
               </p>
             </form>
           )}
