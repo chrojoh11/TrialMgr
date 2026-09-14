@@ -331,3 +331,11 @@ No legacy C-WAGS migration was applied.
 - Capability: handler payment allocation, guarded refunds, signed adjustments, fee waivers/restorations, expense payees, and transaction editing
 - Security: audited, permission-checked RPC writes; RLS remains enabled
 - Verification: local production build, automated tests and isolated PostgreSQL checks passed; live browser acceptance testing pending
+
+## `20260914_0044_edit_trial_day_structure.sql`
+
+- Status: prepared locally; must be applied to the dedicated `SDDA-Trialdesk` project before the new schedule editor is used
+- Capability: authorized trial managers can revise dates atomically and add up to four trial days
+- Guardrails: only the final day can be removed; removal is blocked while offerings or competitor runs remain
+- Preservation: existing day IDs, offerings, entries, and scores remain attached to their original day number when dates change
+- Audit: one grouped `trial.days_updated` record captures the complete before/after schedule

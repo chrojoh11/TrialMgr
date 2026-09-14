@@ -324,6 +324,18 @@ export async function saveSddaTrialDayDetails(
   if (error) throw new Error(error.message);
 }
 
+export async function replaceSddaTrialDaySchedule(
+  client: SupabaseClient,
+  trialId: string,
+  dates: string[],
+) {
+  const { error } = await client.rpc('sdda_replace_trial_day_schedule', {
+    target_trial_id: trialId,
+    requested_days: dates,
+  });
+  if (error) throw new Error(error.message);
+}
+
 export async function saveSddaTrialPublicDetails(
   client: SupabaseClient,
   trialId: string,

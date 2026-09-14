@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Calendar, Plus, Save, X } from 'lucide-react';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PawLoader } from '@/components/ui/pawLoader';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
+import { replaceSddaTrialDaySchedule } from '@/lib/sdda/trialRepository';
 import type { SddaTrialFormat } from '@/lib/sdda/trialSetup';
 
 type EditableTrial = {
@@ -20,6 +21,7 @@ type EditableTrial = {
   venue: string | null;
   trial_format: SddaTrialFormat;
   status: string;
+  sdda_trial_days: Array<{ id: string; day_number: number; trial_date: string }>;
 };
 
 export default function EditTrialPage() {
@@ -30,10 +32,13 @@ export default function EditTrialPage() {
   const [hostClub, setHostClub] = useState('');
   const [venue, setVenue] = useState('');
   const [trialFormat, setTrialFormat] = useState<SddaTrialFormat>('scent');
+  const [dates, setDates] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [scheduleSaved, setScheduleSaved] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -41,7 +46,7 @@ export default function EditTrialPage() {
       setError(null);
       const { data, error: readError } = await getSupabaseBrowser()
         .from('sdda_trials')
-        .select('id,name,host_club,venue,trial_format,status')
+        .select('id,name,host_club,venue,trial_format,status,sdda_trial_days(id,day_number,trial_date)')
         .eq('id', trialId)
         .single();
       if (readError || !data) throw new Error(readError?.message || 'Trial not found.');
@@ -51,6 +56,7 @@ export default function EditTrialPage() {
       setHostClub(loaded.host_club);
       setVenue(loaded.venue || '');
       setTrialFormat(loaded.trial_format);
+      setDates([...loaded.sdda_trial_days].sort((a, b) => a.day_number - b.day_number).map((day) => day.trial_date));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to load trial details.');
     } finally {
@@ -123,6 +129,34 @@ export default function EditTrialPage() {
     }
   };
 
+  const saveSchedule = async () => {
+    if (!trial) return;
+    if (dates.some((date) => !date)) {
+      setError('Every trial day requires a date.');
+      return;
+    }
+    if (new Set(dates).size !== dates.length) {
+      setError('Each trial day must have a different date.');
+      return;
+    }
+    if (dates.some((date, index) => index > 0 && date <= dates[index - 1])) {
+      setError('Trial dates must be entered in chronological order.');
+      return;
+    }
+    try {
+      setScheduleSaving(true);
+      setScheduleSaved(false);
+      setError(null);
+      await replaceSddaTrialDaySchedule(getSupabaseBrowser(), trial.id, dates);
+      setScheduleSaved(true);
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to save the trial-day schedule.');
+    } finally {
+      setScheduleSaving(false);
+    }
+  };
+
   if (loading) return <MainLayout title="Edit SDDA Trial"><div className="flex justify-center py-20"><PawLoader className="h-8 w-8" /></div></MainLayout>;
   if (!trial) return <MainLayout title="Edit SDDA Trial"><Alert variant="destructive"><AlertDescription>{error || 'Trial not found.'}</AlertDescription></Alert></MainLayout>;
 
@@ -136,6 +170,7 @@ export default function EditTrialPage() {
 
         {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
         {saved && <Alert><AlertDescription>Trial details saved. Existing entries and runs were not changed.</AlertDescription></Alert>}
+        {scheduleSaved && <Alert><AlertDescription>Trial-day schedule saved. Existing day assignments and offerings were preserved.</AlertDescription></Alert>}
 
         <Card>
           <CardHeader><CardTitle>Trial details</CardTitle><CardDescription>These changes apply to the existing trial record.</CardDescription></CardHeader>
@@ -143,6 +178,26 @@ export default function EditTrialPage() {
             <div><Label htmlFor="trial-name">Trial name</Label><Input id="trial-name" required minLength={3} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} /></div>
             <div><Label htmlFor="host-club">Host club</Label><Input id="host-club" required minLength={2} maxLength={120} value={hostClub} onChange={(e) => setHostClub(e.target.value)} /></div>
             <div><Label htmlFor="venue">Venue and full address</Label><Input id="venue" value={venue} onChange={(e) => setVenue(e.target.value)} /></div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center"><Calendar className="mr-2 h-5 w-5" />Trial days</CardTitle>
+            <CardDescription>Add up to four days or revise the dates. Days are kept in chronological order. Only the final day can be removed, and only after its offerings are cleared and it has no competitor runs.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {dates.map((date, index) => (
+              <div key={index} className="flex items-end gap-3 rounded-lg border bg-[#f8fafc] p-3">
+                <div className="flex-1"><Label htmlFor={`trial-day-${index}`}>Day {index + 1}</Label><Input id={`trial-day-${index}`} type="date" value={date} onChange={(event) => setDates((current) => current.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} /></div>
+                {dates.length > 1 && index === dates.length - 1 && <Button type="button" variant="outline" aria-label={`Remove Day ${index + 1}`} onClick={() => setDates((current) => current.slice(0, -1))}><X className="h-4 w-4" /></Button>}
+              </div>
+            ))}
+            <div className="flex flex-wrap gap-3">
+              {dates.length < 4 && <Button type="button" variant="outline" onClick={() => setDates((current) => [...current, ''])}><Plus className="mr-2 h-4 w-4" />Add trial day</Button>}
+              <Button type="button" onClick={() => void saveSchedule()} disabled={scheduleSaving}>{scheduleSaving ? <PawLoader className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}Save trial days</Button>
+            </div>
+            <Alert><AlertDescription>Changing a date does not move offerings or entries to a different day number. Removing a populated day is blocked rather than deleting operational records.</AlertDescription></Alert>
           </CardContent>
         </Card>
 
