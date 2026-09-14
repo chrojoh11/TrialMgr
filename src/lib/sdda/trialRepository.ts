@@ -375,11 +375,13 @@ export async function saveSddaTrialEntrySchedule(
   trialId: string,
   generalOpenAt: string,
   closeAt: string,
+  timeZone: string,
 ) {
   const { error } = await client.rpc('sdda_set_entry_schedule', {
     target_trial_id: trialId,
-    requested_general_open_at: generalOpenAt,
-    requested_close_at: closeAt,
+    requested_general_open_local: generalOpenAt,
+    requested_close_local: closeAt,
+    requested_timezone: timeZone,
   });
   if (error) throw new Error(error.message);
 }
