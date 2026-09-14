@@ -124,7 +124,7 @@ doc.add_paragraph().paragraph_format.space_after=Pt(20)
 callout("Purpose", "A practical, step-by-step operating manual for trial secretaries using SDDA TrialDesk. It follows Sporting Detection Dogs Association Master Rule Book v5.1, effective July 1, 2026, and the implemented TrialDesk workflow.")
 table([
     ["Manual version", "Rules authority", "Application scope"],
-    ["1.3 • September 3, 2026", "SDDA Master Rule Book v5.1", "Scent, Games, and Combined trials"],
+    ["1.4 • September 14, 2026", "SDDA Master Rule Book v5.1", "Scent, Games, and Combined trials"],
 ], widths=[1.8,2.25,2.75])
 para("This manual explains the secretary’s administrative workflow. The current SDDA rulebook, sanction approval, premium list, judge’s instructions, and official SDDA forms remain controlling if they conflict with this guide.", italic=True)
 para("Updated in this edition: every primary TrialDesk page was re-audited, current workflow screenshots were added, Trial Team and Activity Journal instructions were expanded, and a page-and-button glossary was added. Screenshots were captured from Example Trial without saving operational changes.", bold_lead="Updated in this edition:")
@@ -176,6 +176,18 @@ step(5,"Add the trial dates","Enter unique dates in chronological order. Each be
 step(6,"Create Draft Trial","A draft does not accept public entries. It can be completed as information arrives.")
 image("02-create-trial.png","Figure 2. Initial trial creation. Trial numbers, judges, offerings, fees, and public instructions are completed on the next screen and may be amended later.",6.8)
 callout("Rule distinction", "SDDA defines a trial as a single offering of any level within a 12-hour period with a unique trial number. A consecutive set of trials is a trial event. Enter the SDDA numbers exactly as issued for each TrialDesk day.","warning")
+
+heading("2.1 Edit an existing trial",2)
+step(1,"Open All Trials","Find the trial and select Edit trial. The same editor is available from the trial's edit address.")
+step(2,"Update trial identity","Change the trial name, host club, venue/address, or Scent/Games/Combined format, then select Save trial changes.")
+step(3,"Update trial days","Revise dates, add days up to the four-day TrialDesk limit, or remove only the final day. Enter dates chronologically and select Save trial days.")
+para("Date changes preserve each existing Day number and everything attached to it. Removing a day is blocked until its offerings are cleared and it contains no competitor runs. Reopen a completed trial before making schedule changes.")
+
+heading("2.2 Copy a trial",2)
+step(1,"Select Copy trial","Use the control on an All Trials card or at the bottom of Edit trial.")
+step(2,"Name the new trial and enter its dates","Provide one new chronological date for every day in the source trial.")
+step(3,"Review the copy boundary","TrialDesk copies the club, venue, format, public instructions, pricing, capacities, FEO settings, and offerings. It does not copy entries, dogs, runs, scores, payments, expenses, trial numbers, or judges.")
+step(4,"Create draft copy","Open the new draft, review every setting, enter new trial numbers and judges, and only then open entries.")
 
 page_break(); heading("3. Configure the draft trial",1)
 image("11-trial-setup.png","Figure 3. Trial setup dashboard. The workflow row, operational summary, setup checklist, and trial operation links keep the secretary’s work in one place.",6.8)
@@ -427,6 +439,8 @@ table([
     ["Create trial / Create New Trial", "Dashboard or sidebar", "Opens the new-trial form."],
     ["Create SDDA Trial", "All Trials", "Opens the new-trial form."],
     ["Open trial", "All Trials card", "Opens the selected trial workspace."],
+    ["Edit trial", "All Trials card", "Opens identity, format, and guarded trial-day editing for the selected trial."],
+    ["Copy trial", "All Trials card or Edit trial", "Starts a clean draft using reusable setup from the selected trial."],
     ["Delete draft", "Draft trial card", "Permanently removes an unused draft after confirmation; unavailable after operational use."],
     ["Open setup", "Dashboard", "Opens Trial Details for the selected trial."],
     ["All trials / View all", "Dashboard or sidebar", "Opens the complete trial list."],
@@ -436,6 +450,11 @@ table([
     ["Remove day", "Create trial", "Removes that date before the draft is created."],
     ["Cancel", "Create trial", "Returns to Trials without creating a draft."],
     ["Create Draft Trial", "Create trial", "Creates the editable trial workspace; it does not open entries."],
+    ["Save trial changes", "Edit trial", "Saves the trial name, host club, venue/address, and format without changing entries or runs."],
+    ["Add trial day", "Edit trial", "Adds another empty trial day, up to four."],
+    ["Remove Day", "Edit trial", "Removes only the final day and is blocked while that day has offerings or runs."],
+    ["Save trial days", "Edit trial", "Atomically saves chronological date changes while preserving existing day assignments."],
+    ["Create draft copy", "Copy trial", "Creates a new draft with reusable setup but no operational or financial records."],
     ["Save setup", "Trial Details sticky header", "Saves offering, Games, and setup changes currently pending."],
     ["Save public details", "Trial Details", "Saves secretary contact, payment, and cancellation text."],
     ["Select all / Clear Scent", "Trial offering setup", "Selects or clears all Scent level/component offerings."],
@@ -540,7 +559,7 @@ page_break(); heading("Sources and scope notes",1)
 p=doc.add_paragraph(); hyperlink(p,"SDDA Master Rule Book v5.1 (effective July 1, 2026)","https://www.sdda.ca/wp-content/uploads/2026/06/SDDA-Rules-July-2026.pdf")
 p=doc.add_paragraph(); hyperlink(p,"SDDA Rules and Rulebook page","https://www.sdda.ca/front-page/rules-rulebook/")
 p=doc.add_paragraph(); hyperlink(p,"SDDA website","https://www.sdda.ca/")
-para("The operating sequence, primary pages, and visible controls were reviewed against K:\\TrialManager and the deployed Example Trial interface on September 3, 2026. Screenshots show read-only inspection and previously prepared unsaved finance dialogs; no live transactions or operational changes were submitted for this manual. The current SDDA rulebook and official forms remain controlling.")
+para("The operating sequence, primary pages, and visible controls were reviewed against K:\\TrialManager through September 14, 2026. Screenshots show read-only inspection and previously prepared unsaved finance dialogs; no live transactions or operational changes were submitted for this manual. The current SDDA rulebook and official forms remain controlling.")
 callout("Maintenance", "Revise this manual whenever SDDA publishes a new rulebook, official score sheet, Games form, results workbook, fee schedule, or submission instruction—or whenever TrialDesk changes a workflow shown here.")
 
 # Keep figures inline and add basic accessibility descriptions to drawings.
