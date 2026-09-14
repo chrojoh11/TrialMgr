@@ -17,7 +17,7 @@ export async function createEntryReceiptPdf(input:EntryReceiptPdfInput){
     const annotation=pdf.context.register(pdf.context.obj({Type:'Annot',Subtype:'Link',Rect:[linkX,linkY-4,linkX+linkWidth,linkY+linkSize+3],Border:[0,0,0],A:{Type:'Action',S:'URI',URI:PDFString.of(privateEditUrl)}}));
     page.node.addAnnot(annotation);y-=22;
     for(let index=0;index<privateEditUrl.length;index+=64)line(privateEditUrl.slice(index,index+64),7);
-    line('Anyone with this link can edit the entry until it is accepted or entries close.',8)
+    line('Anyone with this link can edit while entries are open and before a score is recorded.',8)
   }
   y-=10;line('Selections',14,bold);
   input.selections.forEach(selection=>{if(y>60)line(`- ${selection}`,10)});page.drawText('Keep this receipt for your records.',{x:48,y:38,size:9,font:regular,color:rgb(0.35,0.4,0.37)});
