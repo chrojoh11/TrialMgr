@@ -80,6 +80,7 @@ test('adds a printable Games running-order sheet with all run details', () => {
   assert.equal(sheet.E7.v, '4429');
   assert.equal(sheet.F7.v, 'Second dog');
   assert.equal(sheet.G7.v, 'Regular');
+  assert.equal(sheet.H6.v, 'Aerial division / Team partner');
   assert.equal(sheet.H7.v, 'Highfly');
   assert.equal(sheet.M7.v, 'People');
 });

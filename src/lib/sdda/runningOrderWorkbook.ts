@@ -369,7 +369,7 @@ export function buildSddaRunningOrderWorkbook(
           { s: { r: banner, c: 12 }, e: { r: banner, c: 15 } }
         );
         const header = gameRows.length;
-        gameRows.push(['Order', 'Dog / handler', '', '', 'SDDA #', 'Group', 'Entry type', 'Division / partner', '', '', '', '', 'Reactive']);
+        gameRows.push(['Order', 'Dog / handler', '', '', 'SDDA #', 'Group', 'Entry type', 'Aerial division / Team partner', '', '', '', '', 'Reactive']);
         gameMerges.push(
           { s: { r: header, c: 1 }, e: { r: header, c: 3 } },
           { s: { r: header, c: 7 }, e: { r: header, c: 11 } },
