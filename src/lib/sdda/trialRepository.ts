@@ -56,6 +56,9 @@ export interface SddaGameOffering {
 
 export interface SddaTrialWorkspace extends SddaTrialSummary {
   timezone: string;
+  entry_open_at: string | null;
+  general_entry_open_at: string | null;
+  entry_close_at: string | null;
   scent_component_fee_cents: number;
   scent_three_component_fee_cents: number;
   elite_fee_cents: number;
@@ -303,7 +306,7 @@ export async function getSddaTrialWorkspace(client: SupabaseClient, trialId: str
   const { data, error } = await client
     .from('sdda_trials')
     .select(
-      'id,name,host_club,venue,timezone,status,created_at,trial_format,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name,entries_open),sdda_trial_offerings(id,trial_day_id,level,component,stream,judge_name,capacity,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,judge_name,capacity,entry_fee_cents,feo_fee_cents,feo_allowed)'
+      'id,name,host_club,venue,timezone,entry_open_at,general_entry_open_at,entry_close_at,status,created_at,trial_format,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name,entries_open),sdda_trial_offerings(id,trial_day_id,level,component,stream,judge_name,capacity,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,judge_name,capacity,entry_fee_cents,feo_fee_cents,feo_allowed)'
     )
     .eq('id', trialId)
     .single();
@@ -363,6 +366,20 @@ export async function saveSddaTrialPublicDetails(
     requested_secretary_phone: details.secretaryPhone,
     requested_payment_instructions: details.paymentInstructions,
     requested_cancellation_policy: details.cancellationPolicy,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function saveSddaTrialEntrySchedule(
+  client: SupabaseClient,
+  trialId: string,
+  generalOpenAt: string,
+  closeAt: string,
+) {
+  const { error } = await client.rpc('sdda_set_entry_schedule', {
+    target_trial_id: trialId,
+    requested_general_open_at: generalOpenAt,
+    requested_close_at: closeAt,
   });
   if (error) throw new Error(error.message);
 }

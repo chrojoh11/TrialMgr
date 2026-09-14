@@ -18,10 +18,15 @@ import { formatSddaTrialStatus } from '@/lib/sdda/trialSetup';
 import { acceptedEntryChargeCents, financialBalanceDelta } from '@/lib/sdda/financialSummary';
 import { findSddaScheduleConflicts } from '@/lib/sdda/runningOrder';
 import { listSddaFinancialTransactions } from '@/lib/sdda/operationsRepository';
-import { gameOfferingKey, getSddaTrialWorkspace, listSddaEntries, listSddaGameScoringRuns, listSddaScoringRuns, saveSddaGameOfferings, saveSddaTrialDayDetails, saveSddaTrialOfferings, saveSddaTrialPricing, saveSddaTrialPublicDetails, SDDA_GAME_TYPES, setSddaTrialDayEntriesOpen, setSddaTrialEntryStatus, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
+import { gameOfferingKey, getSddaTrialWorkspace, listSddaEntries, listSddaGameScoringRuns, listSddaScoringRuns, saveSddaGameOfferings, saveSddaTrialDayDetails, saveSddaTrialEntrySchedule, saveSddaTrialOfferings, saveSddaTrialPricing, saveSddaTrialPublicDetails, SDDA_GAME_TYPES, setSddaTrialDayEntriesOpen, setSddaTrialEntryStatus, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
 
 const scentElementKey = (trialDayId: string, level: string, component: string) => `${trialDayId}|${level}|${component}`;
 const firstRelation = <T,>(value: T | T[] | null | undefined): T | null => Array.isArray(value) ? value[0] || null : value || null;
+const localDateTimeInput = (value: string | null) => {
+  if (!value) return '';
+  const date = new Date(value);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+};
 
 export default function SddaTrialWorkspacePage() {
   const trialId = useParams<{ trialId: string }>().trialId;
@@ -37,7 +42,7 @@ export default function SddaTrialWorkspacePage() {
   const [savingPricing, setSavingPricing] = useState(false);
   const [dayDetails, setDayDetails] = useState<Record<string, { trialDate: string; trialNumber: string; judgeName: string }>>({});
   const [savingDay, setSavingDay] = useState<string | null>(null);
-  const [publicDetails, setPublicDetails] = useState({ secretaryName: '', secretaryEmail: '', secretaryPhone: '', paymentInstructions: '', cancellationPolicy: '' });
+  const [publicDetails, setPublicDetails] = useState({ secretaryName: '', secretaryEmail: '', secretaryPhone: '', paymentInstructions: '', cancellationPolicy: '', generalOpenAt: '', closeAt: '' });
   const [savingPublicDetails, setSavingPublicDetails] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -83,7 +88,7 @@ export default function SddaTrialWorkspacePage() {
       setPricing({ componentFee: workspace.scent_component_fee_cents ? (workspace.scent_component_fee_cents / 100).toFixed(2) : '', threeComponentFee: workspace.scent_three_component_fee_cents ? (workspace.scent_three_component_fee_cents / 100).toFixed(2) : '', eliteFee: workspace.elite_fee_cents ? (workspace.elite_fee_cents / 100).toFixed(2) : '' });
       setPricingDirty(false);
       setDayDetails(Object.fromEntries(workspace.sdda_trial_days.map((day) => [day.id, { trialDate: day.trial_date, trialNumber: day.sdda_trial_number || '', judgeName: day.judge_name || '' }])));
-      setPublicDetails({ secretaryName: workspace.secretary_name || '', secretaryEmail: workspace.secretary_email || '', secretaryPhone: workspace.secretary_phone || '', paymentInstructions: workspace.payment_instructions || '', cancellationPolicy: workspace.cancellation_policy || '' });
+      setPublicDetails({ secretaryName: workspace.secretary_name || '', secretaryEmail: workspace.secretary_email || '', secretaryPhone: workspace.secretary_phone || '', paymentInstructions: workspace.payment_instructions || '', cancellationPolicy: workspace.cancellation_policy || '', generalOpenAt: localDateTimeInput(workspace.general_entry_open_at), closeAt: localDateTimeInput(workspace.entry_close_at) });
       const accepted = roster.filter((entry) => entry.confirmation_status === 'accepted').length;
       const scentRequired = scentRuns.filter((run) => run.run_group !== 'FEO');
       const gamesRequired = gameRuns.filter((run) => run.entry_type !== 'FEO');
@@ -281,7 +286,16 @@ export default function SddaTrialWorkspacePage() {
     if (!trial) return;
     try {
       setSavingPublicDetails(true); setError(null); setSaved(false);
+      if ((publicDetails.generalOpenAt || publicDetails.closeAt) && (!publicDetails.generalOpenAt || !publicDetails.closeAt)) throw new Error('Enter both the general opening and closing date/time.');
       await saveSddaTrialPublicDetails(getSupabaseBrowser(), trial.id, publicDetails);
+      if (publicDetails.generalOpenAt || publicDetails.closeAt) {
+        await saveSddaTrialEntrySchedule(
+          getSupabaseBrowser(),
+          trial.id,
+          new Date(publicDetails.generalOpenAt).toISOString(),
+          new Date(publicDetails.closeAt).toISOString(),
+        );
+      }
       await load(); setSaved(true);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to save competitor-facing details.');
@@ -346,7 +360,7 @@ export default function SddaTrialWorkspacePage() {
           <div><Label htmlFor="secretary-name">Trial secretary</Label><Input id="secretary-name" className="mt-1 bg-white" value={publicDetails.secretaryName} onChange={(event) => setPublicDetails((current) => ({ ...current, secretaryName: event.target.value }))} /></div>
           <div><Label htmlFor="secretary-email">Secretary email</Label><Input id="secretary-email" type="email" className="mt-1 bg-white" value={publicDetails.secretaryEmail} onChange={(event) => setPublicDetails((current) => ({ ...current, secretaryEmail: event.target.value }))} /></div>
           <div><Label htmlFor="secretary-phone">Secretary phone</Label><Input id="secretary-phone" className="mt-1 bg-white" value={publicDetails.secretaryPhone} onChange={(event) => setPublicDetails((current) => ({ ...current, secretaryPhone: event.target.value }))} /></div>
-        </div><div><Label htmlFor="payment-instructions">Payment instructions</Label><textarea id="payment-instructions" rows={4} className="mt-1 w-full rounded-md border border-input bg-white px-3 py-2 text-sm" placeholder="When to pay, accepted method, address, deadline, and reference information" value={publicDetails.paymentInstructions} onChange={(event) => setPublicDetails((current) => ({ ...current, paymentInstructions: event.target.value }))} /></div><div><Label htmlFor="cancellation-policy">Cancellation and refund policy</Label><textarea id="cancellation-policy" rows={4} className="mt-1 w-full rounded-md border border-input bg-white px-3 py-2 text-sm" value={publicDetails.cancellationPolicy} onChange={(event) => setPublicDetails((current) => ({ ...current, cancellationPolicy: event.target.value }))} /></div><Button type="button" variant="outline" disabled={savingPublicDetails} onClick={() => void savePublicDetails()}>{savingPublicDetails ? <PawLoader className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}Save public details</Button></CardContent></Card>
+        </div><div className="grid gap-4 rounded-md border border-[#cbd9e5] bg-[#f1f5f9] p-4 md:grid-cols-2"><div><Label htmlFor="general-open-at">General entries open</Label><Input id="general-open-at" type="datetime-local" className="mt-1 bg-white" value={publicDetails.generalOpenAt} onChange={(event) => setPublicDetails((current) => ({ ...current, generalOpenAt: event.target.value }))} /><p className="mt-1 text-xs text-gray-600">Verified registered participants automatically open three days earlier.</p></div><div><Label htmlFor="entry-close-at">Public entries close</Label><Input id="entry-close-at" type="datetime-local" className="mt-1 bg-white" value={publicDetails.closeAt} onChange={(event) => setPublicDetails((current) => ({ ...current, closeAt: event.target.value }))} /><p className="mt-1 text-xs text-gray-600">Secretary entry and editing remain available outside this public window.</p></div></div><div><Label htmlFor="payment-instructions">Payment instructions</Label><textarea id="payment-instructions" rows={4} className="mt-1 w-full rounded-md border border-input bg-white px-3 py-2 text-sm" placeholder="When to pay, accepted method, address, deadline, and reference information" value={publicDetails.paymentInstructions} onChange={(event) => setPublicDetails((current) => ({ ...current, paymentInstructions: event.target.value }))} /></div><div><Label htmlFor="cancellation-policy">Cancellation and refund policy</Label><textarea id="cancellation-policy" rows={4} className="mt-1 w-full rounded-md border border-input bg-white px-3 py-2 text-sm" value={publicDetails.cancellationPolicy} onChange={(event) => setPublicDetails((current) => ({ ...current, cancellationPolicy: event.target.value }))} /></div><Button type="button" variant="outline" disabled={savingPublicDetails} onClick={() => void savePublicDetails()}>{savingPublicDetails ? <PawLoader className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}Save public details &amp; entry schedule</Button></CardContent></Card>
         <Card><CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle>Trial offering setup</CardTitle><CardDescription>{hasScent && hasGames ? 'Select each Scent level/component and Game offered on each trial day.' : hasGames ? 'Select every SDDA Game offered on each trial day.' : 'Select each level and component offered. Amateur and Working are automatically available on the competitor entry form; Elite has no stream.'}</CardDescription></div><div className="flex flex-wrap gap-2">{hasScent && <><Button type="button" variant="outline" onClick={selectAllOfferings} disabled={selected.size === allOfferingKeys.size}>Select all scent</Button><Button type="button" variant="outline" onClick={clearAllOfferings} disabled={selected.size === 0}>Clear scent</Button></>}{hasGames && <><Button type="button" variant="outline" onClick={() => setGamesSelected(new Set(allGameKeys))} disabled={gamesSelected.size === allGameKeys.size}>Select all Games</Button><Button type="button" variant="outline" onClick={() => setGamesSelected(new Set())} disabled={gamesSelected.size === 0}>Clear Games</Button></>}</div></CardHeader></Card>
         {hasScent && <Card><CardHeader><CardTitle>Scent entry pricing</CardTitle><CardDescription>Trial-level fees used on the entry form, receipts, and in Finances. These are separate from public details and day assignments. A three-component price of $0 uses the individual component price three times.</CardDescription></CardHeader><CardContent className="grid gap-4 sm:grid-cols-3">
           <div><Label htmlFor="component-fee">Per component ($)</Label><Input id="component-fee" inputMode="decimal" className="mt-1 bg-white" value={pricing.componentFee} placeholder="0.00" onChange={(event) => updatePricing('componentFee', event.target.value)} /></div>

@@ -34,6 +34,10 @@ type Setup = {
   scent_component_fee_cents: number;
   scent_three_component_fee_cents: number;
   elite_fee_cents: number;
+  entry_open_at?: string;
+  general_entry_open_at?: string;
+  entry_close_at?: string;
+  entry_phase?: 'registered_only' | 'general';
   days: Day[];
   offerings: Offer[];
   game_offerings: GameOffer[];
@@ -344,6 +348,7 @@ export default function Page() {
       step === 1 &&
       (!form.handler_name ||
         !form.handler_email.includes('@') ||
+        (!secretaryEntryId && !secretaryNew && setup?.entry_phase === 'registered_only' && !form.participant_number.trim()) ||
         !form.dog_call_name ||
         !form.breed.trim() ||
         (!form.registration_pending && !form.dog_registration_number))
@@ -444,7 +449,7 @@ export default function Page() {
             receipt_token: receipt?.receipt_token || receiptToken,
             submission,
           })
-        : await client.rpc('sdda_submit_public_entry_v5', {
+        : await client.rpc(secretaryNew ? 'sdda_submit_secretary_entry' : 'sdda_submit_public_entry_v6', {
             target_trial_id: trialId,
             submission,
           });
@@ -627,6 +632,12 @@ export default function Page() {
       {!setup && !error && <section className={box}>Loading entry form…</section>}
       {setup && (
         <>
+          {!secretaryEntryId && !secretaryNew && setup.entry_phase === 'registered_only' && (
+            <section className="mb-4 rounded-2xl border-2 border-[#6688a6] bg-[#eaf2f8] p-5 text-[#17324d] shadow-sm">
+              <h2 className="font-serif text-2xl">Registered-participant entry period</h2>
+              <p className="mt-1 text-sm">General entries have not opened yet. A registered participant number matching the current SDDA registry is required to submit during this three-day early period.</p>
+            </section>
+          )}
           {secretaryNew && (
             <section className="mb-4 rounded-2xl border-2 border-[#6688a6] bg-[#eaf2f8] p-5 text-[#17324d] shadow-sm">
               <h2 className="font-serif text-2xl">Secretary entry</h2>
@@ -703,7 +714,7 @@ export default function Page() {
                       onChange={(e) => set('handler_phone', e.target.value)}
                     />
                   </F>
-                  <F label="Registered participant number">
+                  <F label={`Registered participant number${!secretaryEntryId && !secretaryNew && setup.entry_phase === 'registered_only' ? ' *' : ''}`}>
                     <input
                       className={field}
                       value={form.participant_number}
