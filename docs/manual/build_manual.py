@@ -197,7 +197,8 @@ heading("3.2 Enter public details",2)
 step(1,"Enter the trial secretary","Provide the name, monitored email address, and optional phone number.")
 step(2,"Write payment instructions","State when payment is due, method, recipient, reference information, and the consequence of non-payment.")
 step(3,"Enter cancellation/refund terms","Match the approved Premium List. Keep this text current if SDDA-approved arrangements change.")
-step(4,"Save public details","These details appear on the competitor entry form.")
+step(4,"Set the automatic entry schedule","Enter the general opening date/time and public closing date/time. TrialDesk calculates the registered-participant opening exactly three days before the general opening.")
+step(5,"Save public details and entry schedule","The dashboard shows the current phase: Scheduled, Registered participants only, Open to everyone, Automatically closed, or Manually closed.")
 heading("3.3 Configure Scent offerings",2)
 for x in [
     "For each day, select the offered level: Started, Advanced, Excellent, or Elite.",
@@ -216,7 +217,7 @@ for x in [
 heading("3.5 Enter day details and fees",2)
 step(1,"Enter SDDA trial number and day judge","They may be saved or replaced later if the assignment changes.")
 step(2,"Enter Scent pricing","Set individual component, three-component package, and Elite fees. TrialDesk uses them to calculate accepted-entry balances.")
-step(3,"Save setup","Do this before opening or copying the entry form link.")
+step(3,"Save setup","Do this before sharing the entry form link. The public form activates automatically at the scheduled time.")
 callout("FEO", "FEO is subordinate to Regular entries. SDDA permits FEO only after regular entries are accepted and allows the organizer to limit FEO by component or level when those limits are stated on the entry form.")
 heading("3.6 Give another secretary access",2)
 image("12-trial-team.png","Figure 4. Trial Team. Add an already registered TrialDesk user as Secretary, Assistant, or Viewer.",6.4)
@@ -229,8 +230,9 @@ page_break(); heading("4. Entries: collect, import, review, and accept",1)
 image("13-entry-roster.png","Figure 5. Entry roster. Summary totals, search, status filter, mailing-list export, CSV import, entry editing, and secretary decisions are available from one page.",6.8)
 heading("4.1 Open and share the built-in entry form",2)
 step(1,"Review the preview","Confirm dates, offerings, streams, FEO availability, prices, contact information, payment instructions, declaration, and cancellation terms.")
-step(2,"Open entries","Use the trial’s entry-status control only after the public form is ready.")
-step(3,"Copy entry form link","Send the public link or place it in the approved Premium/club communication.")
+step(2,"Confirm the automatic schedule","Registered participants open three days before the general opening. During that early period, TrialDesk requires a participant number that matches the active SDDA registry. General entry and closing occur automatically.")
+step(3,"Copy entry form link","Send the public link or place it in the approved Premium/club communication. It may be shared ahead of time; submissions remain blocked until the scheduled opening.")
+step(4,"Use manual closure only when needed","Close entries stops all new public submissions immediately. Per-day controls can close a full day while leaving other days available. Reopening restores the remaining scheduled window; it does not extend the closing time.")
 para("Competitors enter handler/contact details, participant number, dog call name, SDDA registration number or registration pending, breed, per-component Amateur/Working stream, offered FEO selections, formal alerts, title note, and reactivity. The separate Registered Name question and competitor-reported Gold counts are intentionally not used.")
 heading("4.2 Import Google Form CSV responses",2)
 step(1,"Export the Google Form responses as CSV","Keep the header row intact.")
@@ -242,7 +244,7 @@ heading("4.3 Enter a paper or day-of entry",2)
 step(1,"Open Entries","Select Add secretary entry above the roster.")
 step(2,"Transcribe the complete entry","Enter the competitor and dog information, choose every requested run, review the declaration with the competitor, and confirm the Review page before saving.")
 step(3,"Submit and review","TrialDesk returns to the Entry roster. The record is identified as a manual secretary entry and the activity journal attributes it to the signed-in secretary.")
-para("The same registry, offering, FEO, stream, and required-field checks used by the public form also apply to secretary-entered records. If online entries are closed, reopen the applicable entry period before adding the record, then close it again when finished.")
+para("The same registry, offering, FEO, stream, and required-field checks used by the public form also apply to secretary-entered records. Public opening and closing times do not restrict this signed-in workflow: the secretary may enter hosts before opening, transcribe paper entries, or add approved day-of entries after public closing without reopening the public form.")
 heading("4.4 Review and accept entries",2)
 for x in [
     "Open each received entry and verify contact information, call name, SDDA number/pending status, breed, stream, formal alerts, reactivity, and requested runs.",
@@ -461,12 +463,12 @@ table([
     ["Save trial days", "Edit trial", "Atomically saves chronological date changes while preserving existing day assignments."],
     ["Create draft copy", "Copy trial", "Creates a new draft with reusable setup but no operational or financial records."],
     ["Save setup", "Trial Details sticky header", "Saves offering, Games, and setup changes currently pending."],
-    ["Save public details", "Trial Details", "Saves secretary contact, payment, and cancellation text."],
+    ["Save public details and entry schedule", "Trial Details", "Saves secretary contact, payment and cancellation text plus the general opening and public closing times. Registered participants open three days early."],
     ["Select all / Clear Scent", "Trial offering setup", "Selects or clears all Scent level/component offerings."],
     ["Select all / Clear Games", "Trial offering setup", "Selects or clears all Games offerings."],
     ["Save Scent pricing", "Scent entry pricing", "Saves component, package, and Elite fees."],
-    ["Open entries and enable form", "Trial operations", "Changes the trial to Entries Open and activates submissions."],
-    ["Close entries", "Trial operations", "Stops new public submissions for the whole trial."],
+    ["Open entries and enable form", "Trial operations", "Re-enables the public form after a manual closure; scheduled opening and closing times still control availability."],
+    ["Close entries", "Trial operations", "Emergency manual closure that immediately stops new public submissions for the whole trial without restricting secretary entry or editing."],
     ["Open or Close this day", "Trial day header", "Allows or stops entries for only that day."],
     ["Save day details", "Trial day", "Saves the date, SDDA trial number, and day judge."],
     ["Offering tile", "Trial day offerings", "Turns that Scent component or Game on or off."],
