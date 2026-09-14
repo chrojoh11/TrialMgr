@@ -344,7 +344,9 @@ No legacy C-WAGS migration was applied.
 
 ## `20260914_0045_copy_trial.sql`
 
-- Status: prepared locally; must be applied to the dedicated `SDDA-Trialdesk` project before Copy Trial is used
+- Applied: user reported success on 2026-09-14 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Reported execution result: no rows returned
 - Capability: creates a new draft from an existing trial with new dates and copied club, venue, format, public instructions, pricing, capacity, FEO settings, and offerings
 - Clean boundary: entries, dogs, runs, scores, payments, expenses, trial numbers, and judge assignments are never copied
 - Security: requires management access to the source trial; the signed-in user owns the new draft
