@@ -238,7 +238,12 @@ step(2,"Open Entries / Entry roster","Choose the import control and select the C
 step(3,"Read every warning","TrialDesk recognizes familiar Google headings, expands all-component selections into individual runs, and rejects selections not offered for that day/level/stream.")
 step(4,"Resolve—not ignore—row errors","Correct missing identity fields, stream inconsistencies, duplicate submissions, invalid dates, or unavailable offerings before relying on the roster.")
 image("04-form-responses-headers.png","Figure 6. Sanitized Google Form response headings from the original SDDA workflow. TrialDesk imports the response selections into the unified entry roster.",6.8)
-heading("4.3 Review and accept entries",2)
+heading("4.3 Enter a paper or day-of entry",2)
+step(1,"Open Entries","Select Add secretary entry above the roster.")
+step(2,"Transcribe the complete entry","Enter the competitor and dog information, choose every requested run, review the declaration with the competitor, and confirm the Review page before saving.")
+step(3,"Submit and review","TrialDesk returns to the Entry roster. The record is identified as a manual secretary entry and the activity journal attributes it to the signed-in secretary.")
+para("The same registry, offering, FEO, stream, and required-field checks used by the public form also apply to secretary-entered records. If online entries are closed, reopen the applicable entry period before adding the record, then close it again when finished.")
+heading("4.4 Review and accept entries",2)
 for x in [
     "Open each received entry and verify contact information, call name, SDDA number/pending status, breed, stream, formal alerts, reactivity, and requested runs.",
     "Confirm capacity and payment handling before changing Received to Accepted.",
@@ -505,6 +510,7 @@ table([
     ["Search", "Entries", "Finds a handler, dog, or SDDA number."],
     ["Status filter", "Entries", "Shows All, Received, Accepted, Waitlisted, Rejected, or other statuses."],
     ["Export mailing list XLSX", "Entries", "Exports email, handler, received selections, and amount owing."],
+    ["Add secretary entry", "Entries", "Opens the full entry form for a signed-in secretary to transcribe a paper or day-of entry."],
     ["Import Google Form CSV", "Entries", "Selects and previews a familiar Google response CSV."],
     ["Import entries", "CSV import review", "Creates valid entries and reports rejected rows as one audited batch."],
     ["Edit entry", "Entry card", "Opens the secretary edit form with the current entry repopulated."],

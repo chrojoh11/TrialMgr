@@ -2,7 +2,7 @@
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Dog, Download, FileUp, Pencil, Search } from 'lucide-react';
+import { Dog, Download, FilePlus2, FileUp, Pencil, Search } from 'lucide-react';
 import { PawLoader } from '@/components/ui/pawLoader';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/mainLayout';
@@ -277,6 +277,12 @@ export default function SddaEntriesPage() {
           <Button variant="outline" onClick={exportMailingList} disabled={!entries.length}>
             <Download className="mr-2 h-4 w-4" />
             Export mailing list XLSX
+          </Button>
+          <Button asChild>
+            <Link href={`/sdda-entry/${trialId}?secretaryNew=1`}>
+              <FilePlus2 className="mr-2 h-4 w-4" />
+              Add secretary entry
+            </Link>
           </Button>
         </div>
         <details className="rounded-lg border bg-white">

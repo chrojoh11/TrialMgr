@@ -85,6 +85,7 @@ export default function Page() {
   const entryCode = searchParams.get('code') || '';
   const receiptToken = searchParams.get('token') || '';
   const secretaryEntryId = searchParams.get('secretaryEntry') || '';
+  const secretaryNew = searchParams.get('secretaryNew') === '1';
   const [setup, setSetup] = useState<Setup>();
   const [form, setForm] = useState(empty);
   const [chosen, setChosen] = useState<Set<string>>(new Set());
@@ -115,7 +116,27 @@ export default function Page() {
   } | null>(null);
   useEffect(() => {
     const client = getSupabaseBrowser();
-    if (secretaryEntryId) {
+    if (secretaryEntryId || secretaryNew) {
+      if (secretaryNew) {
+        void client
+          .from('sdda_trials')
+          .select(
+            'name,host_club,venue,trial_format,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,sdda_trial_days(id,day_number,trial_date,entries_open),sdda_trial_offerings(id,trial_day_id,level,component,stream,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,entry_fee_cents,feo_fee_cents,feo_allowed)'
+          )
+          .eq('id', trialId)
+          .single()
+          .then(({ data, error: setupError }) => {
+            if (setupError) return setError(setupError.message);
+            const row = data as SetupRow;
+            setSetup({
+              ...row,
+              days: row.sdda_trial_days || [],
+              offerings: row.sdda_trial_offerings || [],
+              game_offerings: row.sdda_game_offerings || [],
+            });
+          });
+        return;
+      }
       void Promise.all([
         client
           .from('sdda_trials')
@@ -163,7 +184,7 @@ export default function Page() {
       .then(({ data, error }) => (error ? setError(error.message) : setSetup(data as Setup)));
     // The identifiers are fixed for the lifetime of this entry page.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trialId, secretaryEntryId, entryCode, receiptToken]);
+  }, [trialId, secretaryEntryId, secretaryNew, entryCode, receiptToken]);
 
   function hydrateEdit(
     data: EditData,
@@ -431,6 +452,16 @@ export default function Page() {
     if (error) return setError(error.message);
     const r = data as { confirmation_code: string; receipt_token?: string };
     const token = r.receipt_token || receipt?.receipt_token || receiptToken;
+    if (secretaryNew) {
+      if (!token) return setError('The new entry was saved, but its secretary record could not be finalized.');
+      const { error: markError } = await client.rpc('sdda_mark_secretary_entry', {
+        target_confirmation_code: r.confirmation_code,
+        target_receipt_token: token,
+      });
+      if (markError) return setError(markError.message);
+      window.location.href = `/dashboard/trials/${trialId}/entries`;
+      return;
+    }
     if (secretaryEntryId) {
       window.location.href = `/dashboard/trials/${trialId}/entries`;
       return;
@@ -596,7 +627,16 @@ export default function Page() {
       {!setup && !error && <section className={box}>Loading entry form…</section>}
       {setup && (
         <>
-          {!editing && !secretaryEntryId && !entryCode && (
+          {secretaryNew && (
+            <section className="mb-4 rounded-2xl border-2 border-[#6688a6] bg-[#eaf2f8] p-5 text-[#17324d] shadow-sm">
+              <h2 className="font-serif text-2xl">Secretary entry</h2>
+              <p className="mt-1 text-sm">
+                Enter a paper or day-of submission. Saving returns you to the Entry roster and records
+                this as a manual entry made by the signed-in secretary.
+              </p>
+            </section>
+          )}
+          {!editing && !secretaryEntryId && !secretaryNew && !entryCode && (
             <form className={`${box} mb-4`} onSubmit={lookupExistingEntry}>
               <h2 className="font-serif text-2xl text-[#294f73]">Already entered this trial?</h2>
               <p className="mt-1 text-sm text-[#64748b]">
