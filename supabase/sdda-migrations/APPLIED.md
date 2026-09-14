@@ -351,3 +351,14 @@ No legacy C-WAGS migration was applied.
 - Clean boundary: entries, dogs, runs, scores, payments, expenses, trial numbers, and judge assignments are never copied
 - Security: requires management access to the source trial; the signed-in user owns the new draft
 - Audit: the new trial receives one `trial.copied` activity record
+
+## `20260914_0049_automatic_registered_entry_window.sql`
+
+- Applied: user reported success on 2026-09-14 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Reported execution result: no rows returned
+- Scheduling: the secretary sets general opening and public closing; registered participants open automatically three days before general entry
+- Verification: early submissions require a participant number matching the active SDDA registry; general submissions do not
+- Secretary boundary: authorized secretary-created and secretary-edited entries remain available outside the public schedule
+- Preservation: existing entries and selections are unchanged; existing scheduled opening moments are preserved as general opening times
+- Control: whole-trial and per-day manual closures remain available
