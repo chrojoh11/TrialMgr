@@ -63,9 +63,21 @@ type EditData = Omit<typeof empty, 'formal_alert_1' | 'formal_alert_2'> & {
   }>;
 };
 type RegistryDog = { found: boolean; registration_number?: string; call_name?: string; breed?: string; snapshot_source?: string; snapshot_refreshed_at?: string };
+type EntryTiming = { name: string; host_club: string; venue?: string; timezone: string; entry_open_at?: string; general_entry_open_at?: string; entry_close_at?: string };
 const box = 'rounded-2xl border border-[#cbd5e1] bg-[#f8fafc] p-5 shadow-sm';
 const field = 'w-full rounded-lg border border-[#bfc8c1] bg-white px-3 py-2';
 const levelOrder = ['Started', 'Advanced', 'Excellent', 'Elite'];
+const formatCountdown = (milliseconds: number) => {
+  const seconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainder = seconds % 60;
+  return `${days ? `${days}d ` : ''}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
+};
+const formatTrialTime = (value: string, timeZone: string) => new Intl.DateTimeFormat('en-CA', {
+  timeZone, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+}).format(new Date(value));
 const empty = {
   handler_name: '',
   handler_email: '',
@@ -91,6 +103,8 @@ export default function Page() {
   const secretaryEntryId = searchParams.get('secretaryEntry') || '';
   const secretaryNew = searchParams.get('secretaryNew') === '1';
   const [setup, setSetup] = useState<Setup>();
+  const [entryTiming, setEntryTiming] = useState<EntryTiming>();
+  const [clock, setClock] = useState(() => Date.now());
   const [form, setForm] = useState(empty);
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [gameChosen, setGameChosen] = useState<Set<string>>(new Set());
@@ -118,6 +132,11 @@ export default function Page() {
     confirmation_code: string;
     receipt_token: string;
   } | null>(null);
+  useEffect(() => {
+    if (!entryTiming) return;
+    const timer = window.setInterval(() => setClock(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [entryTiming]);
   useEffect(() => {
     const client = getSupabaseBrowser();
     if (secretaryEntryId || secretaryNew) {
@@ -183,9 +202,12 @@ export default function Page() {
         });
       return;
     }
-    void client
-      .rpc('sdda_public_trial_entry_setup', { target_trial_id: trialId })
-      .then(({ data, error }) => (error ? setError(error.message) : setSetup(data as Setup)));
+    void client.rpc('sdda_public_trial_entry_setup', { target_trial_id: trialId }).then(async ({ data, error }) => {
+      if (!error) return setSetup(data as Setup);
+      const timingResult = await client.rpc('sdda_public_trial_entry_timing', { target_trial_id: trialId });
+      if (timingResult.error || !timingResult.data) return setError(error.message);
+      setEntryTiming(timingResult.data as EntryTiming);
+    });
     // The identifiers are fixed for the lifetime of this entry page.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trialId, secretaryEntryId, secretaryNew, entryCode, receiptToken]);
@@ -534,6 +556,12 @@ export default function Page() {
     a.download = `${receipt.confirmation_code}-entry-receipt.pdf`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  if (entryTiming) {
+    const opensAt = entryTiming.entry_open_at ? new Date(entryTiming.entry_open_at).getTime() : Number.NaN;
+    const remaining = opensAt - clock;
+    if (remaining <= 0) window.setTimeout(() => window.location.reload(), 500);
+    return <Shell title={entryTiming.name} subtitle={`${entryTiming.host_club}${entryTiming.venue ? ` • ${entryTiming.venue}` : ''}`}><section className={`${box} text-center`}><h2 className="font-serif text-3xl text-[#294f73]">Entries have not opened yet</h2>{Number.isFinite(remaining) && remaining > 0 ? <><p className="mt-3 text-sm text-[#64748b]">Registered-participant entries open in</p><p className="mt-2 text-4xl font-bold tabular-nums text-[#17324d]">{formatCountdown(remaining)}</p><p className="mt-3 text-sm text-[#64748b]">{formatTrialTime(entryTiming.entry_open_at!, entryTiming.timezone)}</p>{entryTiming.general_entry_open_at && <p className="mt-2 text-sm text-[#64748b]">General entries open {formatTrialTime(entryTiming.general_entry_open_at, entryTiming.timezone)}</p>}</> : <p className="mt-3 text-[#64748b]">Opening time has not been scheduled. Please check the premium list or contact the trial secretary.</p>}<button type="button" className="mt-6 rounded-lg bg-[#294f73] px-5 py-3 font-bold text-white" onClick={() => window.location.reload()}>Check entry availability</button></section></Shell>;
   }
   if (receipt)
     return (
