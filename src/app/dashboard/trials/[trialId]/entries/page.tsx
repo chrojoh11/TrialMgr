@@ -43,6 +43,7 @@ export default function SddaEntriesPage() {
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [savingEntryId, setSavingEntryId] = useState<string | null>(null);
+  const [entryDecisionError, setEntryDecisionError] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
 
   const exportMailingList = async () => {
@@ -209,11 +210,13 @@ export default function SddaEntriesPage() {
 
   const changeConfirmation = async (entryId: string, status: 'received' | 'accepted' | 'waitlisted' | 'rejected') => {
     try {
-      setSavingEntryId(entryId); setError(null);
+      setSavingEntryId(entryId); setError(null); setEntryDecisionError((current) => ({ ...current, [entryId]: '' }));
       await setSddaEntryConfirmationStatus(getSupabaseBrowser(), entryId, status);
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Unable to update entry status.');
+      const message = caught instanceof Error ? caught.message : 'Unable to update entry status.';
+      setError(message);
+      setEntryDecisionError((current) => ({ ...current, [entryId]: message }));
     } finally { setSavingEntryId(null); }
   };
 
@@ -372,7 +375,7 @@ export default function SddaEntriesPage() {
                         Edit entry
                       </Link>
                     </Button>
-                    <div className="flex flex-wrap items-center gap-2 border-t pt-3"><span className="text-sm font-semibold">Secretary decision:</span><select aria-label={`Confirmation status for ${dog?.call_name || 'entry'}`} disabled={savingEntryId === entry.id} className="h-9 rounded-md border border-input bg-white px-3 text-sm" value={entry.confirmation_status} onChange={(event) => void changeConfirmation(entry.id, event.target.value as 'received' | 'accepted' | 'waitlisted' | 'rejected')}><option value="received">Received - awaiting review</option><option value="accepted">Accepted</option><option value="waitlisted">Waitlisted</option><option value="rejected">Rejected</option></select>{savingEntryId === entry.id && <PawLoader className="h-4 w-4" />}</div>
+                    <div className="flex flex-wrap items-center gap-2 border-t pt-3"><span className="text-sm font-semibold">Secretary decision:</span><select aria-label={`Confirmation status for ${dog?.call_name || 'entry'}`} disabled={savingEntryId === entry.id} className="h-9 rounded-md border border-input bg-white px-3 text-sm" value={entry.confirmation_status} onChange={(event) => void changeConfirmation(entry.id, event.target.value as 'received' | 'accepted' | 'waitlisted' | 'rejected')}><option value="received">Received - awaiting review</option><option value="accepted">Accepted</option><option value="waitlisted">Waitlisted</option><option value="rejected">Rejected</option></select>{savingEntryId === entry.id && <PawLoader className="h-4 w-4" />}{entryDecisionError[entry.id] && <p className="w-full rounded-md border border-red-300 bg-red-50 p-2 text-sm text-red-800">Could not change this entry: {entryDecisionError[entry.id]}</p>}</div>
                   </CardContent>
                 </Card>
               );
