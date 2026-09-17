@@ -49,6 +49,21 @@ test('calculates accepted Scent packages, Elite, and Games fees', () => {
   );
 });
 
+test('charges only accepted selections in a partially waitlisted entry', () => {
+  assert.equal(acceptedEntryChargeCents({
+    id: 'entry', confirmation_status: 'accepted',
+    sdda_runs: [
+      { trial_day_id: 'day', level: 'Started', selection_status: 'accepted' },
+      { trial_day_id: 'day', level: 'Started', selection_status: 'waitlisted' },
+    ],
+    sdda_game_runs: [
+      { offering_id: 'game', entry_type: 'Regular', selection_status: 'waitlisted' },
+    ],
+  }, { scentComponentFeeCents: 3500, scentThreeComponentFeeCents: 10000, eliteFeeCents: 10000 }, [
+    { id: 'game', entry_fee_cents: 2500, feo_fee_cents: 1500 },
+  ]), 3500);
+});
+
 test('partial payment plus waiver settles without inventing collections; restore retains history', () => {
   const ledger = [
     { transaction_type: 'payment', amount_cents: 4000 },

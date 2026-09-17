@@ -128,6 +128,20 @@ export default function RunningOrderPage() {
     const groupOrder: Record<string, number> = { Official: 0, Regular: 1, 'Second dog': 2, FEO: 3, BIS: 4 };
     return String(offeringA?.game_type || '').localeCompare(String(offeringB?.game_type || '')) || (groupOrder[a.run_group] ?? 1) - (groupOrder[b.run_group] ?? 1) || (a.running_position ?? 9999) - (b.running_position ?? 9999);
   }), [gameRuns, dayId]);
+  const reactiveTeams = useMemo(() => {
+    const teams = new Map<string, { dog: string; handler: string; reactivity: string }>();
+    [...allRuns, ...gameRuns].forEach((run: any) => {
+      const entry = Array.isArray(run.sdda_entries) ? run.sdda_entries[0] : run.sdda_entries;
+      if (!entry?.reactivity || String(entry.reactivity).toLowerCase() === 'none') return;
+      const dog = Array.isArray(entry.sdda_dogs) ? entry.sdda_dogs[0] : entry.sdda_dogs;
+      teams.set(entry.id, {
+        dog: dog?.call_name || 'Dog name pending',
+        handler: entry.handler_name || 'Handler name pending',
+        reactivity: entry.reactivity,
+      });
+    });
+    return [...teams.values()].sort((a, b) => a.dog.localeCompare(b.dog));
+  }, [allRuns, gameRuns]);
   const autoOrder = () => setOrdered(orderSddaRuns(normalize(group)).map((item: any) => item.raw));
   const save = async () => {
     try {
@@ -250,6 +264,26 @@ export default function RunningOrderPage() {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+        <Card id="reactive-alerts" className={reactiveTeams.length ? 'border-2 border-blue-400 bg-blue-50 scroll-mt-6' : 'scroll-mt-6'}>
+          <CardHeader>
+            <CardTitle>Reactive handling alerts</CardTitle>
+            <CardDescription>
+              {reactiveTeams.length
+                ? `${reactiveTeams.length} ${reactiveTeams.length === 1 ? 'team requires' : 'teams require'} special handling. These alerts also appear directly on every affected run.`
+                : 'No entries are flagged for reactive handling.'}
+            </CardDescription>
+          </CardHeader>
+          {reactiveTeams.length > 0 && (
+            <CardContent className="grid gap-2 sm:grid-cols-2">
+              {reactiveTeams.map((team) => (
+                <div key={`${team.dog}-${team.handler}`} className="rounded-md border border-blue-200 bg-white px-4 py-3">
+                  <p className="font-semibold">{team.dog} — {team.handler}</p>
+                  <Badge variant="outline" className="mt-2 border-blue-400 bg-blue-50 text-blue-900">Reactive to: {team.reactivity}</Badge>
+                </div>
+              ))}
+            </CardContent>
+          )}
+        </Card>
         <Card>
           <CardContent className="grid gap-3 pt-6 md:grid-cols-3">
             <Select value={dayId} onValueChange={setDayId}>
@@ -370,6 +404,9 @@ export default function RunningOrderPage() {
                       </p>
                     </div>
                     {run.move_up_approved_at && <Badge>Moved up</Badge>}
+                    {entry?.reactivity && String(entry.reactivity).toLowerCase() !== 'none' && (
+                      <Badge variant="outline" className="border-blue-400 bg-blue-50 text-blue-900">Reactive: {entry.reactivity}</Badge>
+                    )}
                     <Select
                       value={run.run_group}
                       onValueChange={(value) => void changeRunGroup(run.id, value as SddaRunGroup)}
@@ -433,7 +470,7 @@ export default function RunningOrderPage() {
           <CardContent className="space-y-4">{SDDA_GAME_TYPES.map((gameType) => {
             const rows = selectedDayGames.filter((run: any) => { const offering = Array.isArray(run.sdda_game_offerings) ? run.sdda_game_offerings[0] : run.sdda_game_offerings; return offering?.game_type === gameType; });
             if (!rows.length) return null;
-            return <section key={gameType}><h3 className="mb-2 font-semibold text-[#294f73]">{gameType}</h3><div className="space-y-2">{rows.map((run: any, index) => { const entry = Array.isArray(run.sdda_entries) ? run.sdda_entries[0] : run.sdda_entries; const dog = Array.isArray(entry?.sdda_dogs) ? entry.sdda_dogs[0] : entry?.sdda_dogs; const allowedGroups = SDDA_RUN_GROUPS.filter((name) => (gameType === 'Aerial' || gameType === 'Distance') || name !== 'Second dog'); return <div key={run.id} className="flex flex-wrap items-center gap-3 rounded-md border bg-white p-3"><span className="w-8 text-center font-bold">{run.running_position || index + 1}</span><div className="min-w-48 flex-1"><p className="font-medium">{dog?.call_name} - {entry?.handler_name}</p><p className="text-sm text-gray-500">{dog?.sdda_registration_number || 'Registration pending'}{run.requested_team_partner ? ` · Partner: ${run.requested_team_partner}` : ''}</p></div><Select value={run.run_group || (run.entry_type === 'FEO' ? 'FEO' : 'Regular')} onValueChange={(value) => void changeGameRunGroup(run.id, value as SddaRunGroup)} disabled={changingGameGroupRunId === run.id || run.entry_type === 'FEO'}><SelectTrigger className="w-36 bg-white" aria-label={`Games running-order group for ${dog?.call_name}`}><SelectValue /></SelectTrigger><SelectContent>{allowedGroups.map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}</SelectContent></Select><Badge variant={run.entry_type === 'FEO' ? 'outline' : 'default'}>{run.entry_type}</Badge></div>; })}</div></section>;
+            return <section key={gameType}><h3 className="mb-2 font-semibold text-[#294f73]">{gameType}</h3><div className="space-y-2">{rows.map((run: any, index) => { const entry = Array.isArray(run.sdda_entries) ? run.sdda_entries[0] : run.sdda_entries; const dog = Array.isArray(entry?.sdda_dogs) ? entry.sdda_dogs[0] : entry?.sdda_dogs; const allowedGroups = SDDA_RUN_GROUPS.filter((name) => (gameType === 'Aerial' || gameType === 'Distance') || name !== 'Second dog'); return <div key={run.id} className="flex flex-wrap items-center gap-3 rounded-md border bg-white p-3"><span className="w-8 text-center font-bold">{run.running_position || index + 1}</span><div className="min-w-48 flex-1"><p className="font-medium">{dog?.call_name} - {entry?.handler_name}</p><p className="text-sm text-gray-500">{dog?.sdda_registration_number || 'Registration pending'}{run.requested_team_partner ? ` · Partner: ${run.requested_team_partner}` : ''}</p></div>{entry?.reactivity && String(entry.reactivity).toLowerCase() !== 'none' && <Badge variant="outline" className="border-blue-400 bg-blue-50 text-blue-900">Reactive: {entry.reactivity}</Badge>}<Select value={run.run_group || (run.entry_type === 'FEO' ? 'FEO' : 'Regular')} onValueChange={(value) => void changeGameRunGroup(run.id, value as SddaRunGroup)} disabled={changingGameGroupRunId === run.id || run.entry_type === 'FEO'}><SelectTrigger className="w-36 bg-white" aria-label={`Games running-order group for ${dog?.call_name}`}><SelectValue /></SelectTrigger><SelectContent>{allowedGroups.map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}</SelectContent></Select><Badge variant={run.entry_type === 'FEO' ? 'outline' : 'default'}>{run.entry_type}</Badge></div>; })}</div></section>;
           })}</CardContent>
         </Card>}
       </div>

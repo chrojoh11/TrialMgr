@@ -19,6 +19,7 @@ import {
   listSddaEntries,
   listSddaEntryFinancials,
   saveSddaTrialOfferings,
+  promoteSddaWaitlistedSelection,
   setSddaEntryConfirmationStatus,
   type SddaTrialWorkspace,
 } from '@/lib/sdda/trialRepository';
@@ -207,6 +208,34 @@ export default function SddaEntriesPage() {
     const collected = ledger.payments - ledger.refunds;
     return { ...counts, owed: charges, collected, outstanding: charges - collected };
   }, [entries, financials, trial]);
+  const waitlistGroups = useMemo(() => {
+    if (!trial) return [];
+    const dayById = new Map(trial.sdda_trial_days.map((day) => [day.id, day]));
+    const groups = new Map<string, { label: string; items: Array<{ entry: RosterEntry; kind: 'scent' | 'game'; selectionId: string }> }>();
+    const add = (key: string, label: string, entry: RosterEntry, kind: 'scent' | 'game', selectionId: string) => {
+      const group = groups.get(key) || { label, items: [] };
+      group.items.push({ entry, kind, selectionId });
+      groups.set(key, group);
+    };
+    entries.forEach((entry) => {
+      entry.sdda_runs.filter((run) => run.selection_status === 'waitlisted').forEach((run) => {
+        const day = dayById.get(run.trial_day_id);
+        const dayLabel = day ? `Day ${day.day_number} · ${day.trial_date}` : 'Trial day';
+        add(`scent|${run.trial_day_id}|${run.level}|${run.component}`, `${dayLabel} · ${run.level} ${run.component} (Amateur and Working share capacity)`, entry, 'scent', run.id);
+      });
+      entry.sdda_game_runs.filter((run) => run.selection_status === 'waitlisted').forEach((run) => {
+        const day = dayById.get(run.trial_day_id);
+        const dayLabel = day ? `Day ${day.day_number} · ${day.trial_date}` : 'Trial day';
+        const offering = Array.isArray(run.sdda_game_offerings) ? run.sdda_game_offerings[0] : run.sdda_game_offerings;
+        add(`game|${run.offering_id}`, `${dayLabel} · ${offering?.game_type || 'Game'}`, entry, 'game', run.id);
+      });
+    });
+    return [...groups.values()].map((group) => ({
+      ...group,
+      items: group.items.sort((a, b) => String(a.entry.submitted_at || a.entry.created_at).localeCompare(String(b.entry.submitted_at || b.entry.created_at))),
+    }));
+  }, [entries, trial]);
+  const waitlistedSelectionCount = useMemo(() => waitlistGroups.reduce((total, group) => total + group.items.length, 0), [waitlistGroups]);
 
   const changeConfirmation = async (entryId: string, status: 'received' | 'accepted' | 'waitlisted' | 'rejected') => {
     try {
@@ -215,6 +244,18 @@ export default function SddaEntriesPage() {
       await load();
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Unable to update entry status.';
+      setError(message);
+      setEntryDecisionError((current) => ({ ...current, [entryId]: message }));
+    } finally { setSavingEntryId(null); }
+  };
+
+  const promoteSelection = async (entryId: string, kind: 'scent' | 'game', selectionId: string) => {
+    try {
+      setSavingEntryId(entryId); setEntryDecisionError((current) => ({ ...current, [entryId]: '' }));
+      await promoteSddaWaitlistedSelection(getSupabaseBrowser(), kind, selectionId);
+      await load();
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : 'Unable to promote this selection.';
       setError(message);
       setEntryDecisionError((current) => ({ ...current, [entryId]: message }));
     } finally { setSavingEntryId(null); }
@@ -255,6 +296,50 @@ export default function SddaEntriesPage() {
             ['Outstanding', money(overview.outstanding), overview.outstanding > 0 ? 'text-blue-800' : 'text-blue-800'],
           ].map(([label, value, color]) => <Card key={String(label)}><CardContent className="p-4"><p className="text-xs font-bold uppercase tracking-wide text-gray-500">{label}</p><p className={`mt-1 text-2xl font-bold ${color}`}>{value}</p></CardContent></Card>)}
         </div>
+        <Card className="border-2 border-[#6f8fac] bg-[#f4f8fb]">
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <CardTitle>Selection waitlist</CardTitle>
+                <CardDescription>FIFO queues are kept separately for every trial day and offering. Scent Amateur and Working share the same component capacity.</CardDescription>
+              </div>
+              <Badge variant="outline" className="bg-white text-[#294f73]">{waitlistedSelectionCount} waitlisted selection{waitlistedSelectionCount === 1 ? '' : 's'}</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {waitlistGroups.length === 0 ? (
+              <div className="rounded-md border border-dashed border-[#9db2c6] bg-white px-4 py-5 text-sm text-gray-600">
+                No selections are currently waitlisted. When an entry is accepted after an offering reaches capacity, only the full selections will appear here; any selections with space remain accepted.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {waitlistGroups.map((group) => (
+                  <section key={group.label} className="overflow-hidden rounded-md border bg-white">
+                    <h3 className="border-b bg-[#e8f0f7] px-4 py-3 font-semibold text-[#203f5e]">{group.label}</h3>
+                    <div className="divide-y">
+                      {group.items.map((item, index) => {
+                        const dog = Array.isArray(item.entry.sdda_dogs) ? item.entry.sdda_dogs[0] : item.entry.sdda_dogs;
+                        return (
+                          <div key={`${item.kind}-${item.selectionId}`} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#294f73] font-bold text-white">{index + 1}</span>
+                            <div className="min-w-48 flex-1">
+                              <p className="font-semibold">{dog?.call_name || 'Dog name pending'}</p>
+                              <p className="text-sm text-gray-600">{item.entry.handler_name} · received {new Date(item.entry.submitted_at || item.entry.created_at).toLocaleString('en-CA')}</p>
+                            </div>
+                            <Button type="button" size="sm" disabled={savingEntryId === item.entry.id} onClick={() => void promoteSelection(item.entry.id, item.kind, item.selectionId)}>
+                              {savingEntryId === item.entry.id ? <PawLoader className="mr-2 h-4 w-4" /> : null}
+                              Promote
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="relative min-w-64 max-w-md flex-1">
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -354,18 +439,14 @@ export default function SddaEntriesPage() {
                     )}
                     <div className="flex flex-wrap gap-2">
                       {(entry.sdda_runs || []).map((run: any) => (
-                        <Badge key={run.id} variant="outline">
-                          {run.level} {run.component} • {run.stream}
-                        </Badge>
+                        <span key={run.id} className="inline-flex items-center gap-1"><Badge variant="outline">{run.level} {run.component} • {run.stream} • {run.selection_status}</Badge>{run.selection_status === 'waitlisted' && <Button type="button" size="sm" variant="outline" disabled={savingEntryId === entry.id} onClick={() => void promoteSelection(entry.id, 'scent', run.id)}>Promote</Button>}</span>
                       ))}
                       {(entry.sdda_game_runs || []).map((run: any) => {
                         const offering = Array.isArray(run.sdda_game_offerings)
                           ? run.sdda_game_offerings[0]
                           : run.sdda_game_offerings;
                         return (
-                          <Badge key={run.id} variant="outline">
-                            {offering?.game_type} • {run.entry_type}
-                          </Badge>
+                          <span key={run.id} className="inline-flex items-center gap-1"><Badge variant="outline">{offering?.game_type} • {run.entry_type} • {run.selection_status}</Badge>{run.selection_status === 'waitlisted' && <Button type="button" size="sm" variant="outline" disabled={savingEntryId === entry.id} onClick={() => void promoteSelection(entry.id, 'game', run.id)}>Promote</Button>}</span>
                         );
                       })}
                     </div>

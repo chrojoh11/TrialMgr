@@ -53,7 +53,7 @@ export default function SddaTrialWorkspacePage() {
   const [gamesSelected, setGamesSelected] = useState<Set<string>>(new Set());
   const [gameConfiguration, setGameConfiguration] = useState<Record<string, { judge_name: string | null; capacity: number | null; entry_fee_cents: number; feo_fee_cents: number; feo_allowed: boolean }>>({});
   const [gameConfigurationDirty, setGameConfigurationDirty] = useState(false);
-  const [scentConfiguration, setScentConfiguration] = useState<Record<string, { judge_name: string | null; feo_allowed: boolean }>>({});
+  const [scentConfiguration, setScentConfiguration] = useState<Record<string, { judge_name: string | null; capacity: number | null; feo_allowed: boolean }>>({});
   const [scentConfigurationDirty, setScentConfigurationDirty] = useState(false);
   const [pricing, setPricing] = useState({ componentFee: '', threeComponentFee: '', eliteFee: '' });
   const [pricingDirty, setPricingDirty] = useState(false);
@@ -70,6 +70,7 @@ export default function SddaTrialWorkspacePage() {
   const [changingDayId, setChangingDayId] = useState<string | null>(null);
   const [entryLinkCopied, setEntryLinkCopied] = useState(false);
   const [workflow, setWorkflow] = useState({ entries: 0, received: 0, accepted: 0, waitlisted: 0, rejected: 0, reactive: 0, runs: 0, ordered: 0, scored: 0, requiredScores: 0, conflicts: 0, outstandingCents: 0 });
+  const [reactiveTeamNames, setReactiveTeamNames] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -91,10 +92,10 @@ export default function SddaTrialWorkspacePage() {
         streams.forEach((stream) => normalizedScent.add(offeringKey({ trialDayId: item.trial_day_id, level: item.level, component: item.component, stream })));
       });
       setSelected(normalizedScent);
-      const scentConfig: Record<string, { judge_name: string | null; feo_allowed: boolean }> = {};
+      const scentConfig: Record<string, { judge_name: string | null; capacity: number | null; feo_allowed: boolean }> = {};
       workspace.sdda_trial_offerings.forEach((item) => {
         const key = scentElementKey(item.trial_day_id, item.level, item.component);
-        if (!scentConfig[key]) scentConfig[key] = { judge_name: item.judge_name || null, feo_allowed: item.feo_allowed || false };
+        if (!scentConfig[key]) scentConfig[key] = { judge_name: item.judge_name || null, capacity: item.capacity, feo_allowed: item.feo_allowed || false };
       });
       setScentConfiguration(scentConfig);
       setScentConfigurationDirty(false);
@@ -120,6 +121,13 @@ export default function SddaTrialWorkspacePage() {
       const ledgerBalance = transactions.reduce((balance, item) => {
         return balance + financialBalanceDelta(item);
       }, 0);
+      setReactiveTeamNames(roster
+        .filter((entry) => entry.reactivity && String(entry.reactivity).toLowerCase() !== 'none')
+        .map((entry) => {
+          const dog = firstRelation(entry.sdda_dogs);
+          return `${dog?.call_name || 'Dog name pending'} — ${entry.handler_name} (${entry.reactivity})`;
+        })
+      );
       setWorkflow({
         entries: roster.length,
         received: roster.filter((entry) => entry.confirmation_status === 'received').length,
@@ -182,12 +190,17 @@ export default function SddaTrialWorkspacePage() {
 
   const updateScentJudge = (key: string, value: string) => {
     setSaved(false); setScentConfigurationDirty(true);
-    setScentConfiguration((current) => ({ ...current, [key]: { judge_name: value.trimStart() || null, feo_allowed: current[key]?.feo_allowed || false } }));
+    setScentConfiguration((current) => ({ ...current, [key]: { judge_name: value.trimStart() || null, capacity: current[key]?.capacity || null, feo_allowed: current[key]?.feo_allowed || false } }));
+  };
+
+  const updateScentCapacity = (key: string, value: string) => {
+    setSaved(false); setScentConfigurationDirty(true);
+    setScentConfiguration((current) => ({ ...current, [key]: { judge_name: current[key]?.judge_name || null, capacity: value ? Math.max(1, Number(value)) : null, feo_allowed: current[key]?.feo_allowed || false } }));
   };
 
   const toggleScentFeo = (key: string) => {
     setSaved(false); setScentConfigurationDirty(true);
-    setScentConfiguration((current) => ({ ...current, [key]: { judge_name: current[key]?.judge_name || null, feo_allowed: !current[key]?.feo_allowed } }));
+    setScentConfiguration((current) => ({ ...current, [key]: { judge_name: current[key]?.judge_name || null, capacity: current[key]?.capacity || null, feo_allowed: !current[key]?.feo_allowed } }));
   };
 
   const allOfferingKeys = useMemo(() => new Set(
@@ -379,7 +392,7 @@ export default function SddaTrialWorkspacePage() {
           setupReady={scentReady && gamesReady && scentPricingReady && gamesPricingReady && competitorDetailsReady}
           workflow={workflow}
         />
-        <OperationalSummary trialId={trial.id} workflow={workflow} />
+        <OperationalSummary trialId={trial.id} workflow={workflow} reactiveTeamNames={reactiveTeamNames} />
         <Card><CardHeader><CardTitle>Secretary setup checklist</CardTitle><CardDescription>Complete the required setup first; trial numbers and judge assignments can remain pending until SDDA confirms them.</CardDescription></CardHeader><CardContent className="grid gap-3 md:grid-cols-2">{[
           { ready: scentReady && gamesReady, label: 'Offerings selected', detail: 'Required before opening entries.' },
           { ready: scentPricingReady && gamesPricingReady, label: 'Entry fees configured', detail: 'Strongly recommended before sharing the form.' },
@@ -430,7 +443,7 @@ export default function SddaTrialWorkspacePage() {
                     const storageKeys = (level === 'Elite' ? (['Amateur'] as const) : SDDA_STREAMS).map((stream) => offeringKey({ trialDayId: day.id, level, component, stream }));
                     const active = storageKeys.every((key) => selected.has(key));
                     const configKey = scentElementKey(day.id, level, component);
-                    return <div key={configKey} className={`rounded-md border p-3 text-sm transition ${active ? 'border-blue-600 bg-blue-50 text-blue-900' : 'border-gray-200 bg-white'}`}><button type="button" onClick={() => toggleScentElement(day.id, level, component)} className="flex w-full items-center justify-between text-left"><span className="font-semibold">{component}</span>{active && <Check className="h-4 w-4" />}</button>{active && <div className="mt-3 space-y-3 border-t border-blue-200 pt-3"><div><Label htmlFor={`${configKey}-judge`}>Judge</Label><Input id={`${configKey}-judge`} className="mt-1 bg-white" placeholder={day.judge_name || 'Use day judge'} value={scentConfiguration[configKey]?.judge_name || ''} onChange={(event) => updateScentJudge(configKey, event.target.value)} /><p className="mt-1 text-xs text-gray-600">Both Amateur and Working use this judge.</p></div><label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={scentConfiguration[configKey]?.feo_allowed || false} onChange={() => toggleScentFeo(configKey)} />Allow FEO entries</label></div>}</div>;
+                    return <div key={configKey} className={`rounded-md border p-3 text-sm transition ${active ? 'border-blue-600 bg-blue-50 text-blue-900' : 'border-gray-200 bg-white'}`}><button type="button" onClick={() => toggleScentElement(day.id, level, component)} className="flex w-full items-center justify-between text-left"><span className="font-semibold">{component}</span>{active && <Check className="h-4 w-4" />}</button>{active && <div className="mt-3 space-y-3 border-t border-blue-200 pt-3"><div><Label htmlFor={`${configKey}-judge`}>Judge</Label><Input id={`${configKey}-judge`} className="mt-1 bg-white" placeholder={day.judge_name || 'Use day judge'} value={scentConfiguration[configKey]?.judge_name || ''} onChange={(event) => updateScentJudge(configKey, event.target.value)} /><p className="mt-1 text-xs text-gray-600">Both Amateur and Working use this judge.</p></div><div><Label htmlFor={`${configKey}-capacity`}>Shared capacity</Label><Input id={`${configKey}-capacity`} className="mt-1 bg-white" type="number" min="1" placeholder="Unlimited" value={scentConfiguration[configKey]?.capacity || ''} onChange={(event) => updateScentCapacity(configKey, event.target.value)} /><p className="mt-1 text-xs text-gray-600">Combined Amateur and Working limit for this day, level and component.</p></div><label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={scentConfiguration[configKey]?.feo_allowed || false} onChange={() => toggleScentFeo(configKey)} />Allow FEO entries</label></div>}</div>;
                   })}
                 </div></div>
               ))}
@@ -479,12 +492,12 @@ function WorkflowStrip({ trialId, trialStatus, setupReady, workflow }: {
   return <Card className="border-[#b6c8d8] bg-[#f8fafc]"><CardHeader><CardTitle>Trial workflow</CardTitle><CardDescription>Follow the same left-to-right secretary process throughout the trial. Select any stage to open it.</CardDescription></CardHeader><CardContent><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">{steps.map((step, index) => <Link key={step.label} href={step.href} className={`group relative rounded-lg border p-3 transition hover:-translate-y-0.5 hover:shadow-sm ${step.ready ? 'border-blue-300 bg-blue-50' : 'border-sky-200 bg-white'}`}><div className="flex items-center justify-between"><span className="text-xs font-bold text-gray-500">{index + 1}</span>{step.ready ? <Check className="h-4 w-4 text-blue-700" /> : <Circle className="h-4 w-4 text-sky-700" />}</div><p className="mt-2 font-semibold text-[#294f73]">{step.label}</p><p className="mt-1 text-xs text-gray-600">{step.detail}</p></Link>)}</div></CardContent></Card>;
 }
 
-function OperationalSummary({ trialId, workflow }: { trialId: string; workflow: { entries: number; received: number; accepted: number; waitlisted: number; rejected: number; reactive: number; runs: number; ordered: number; scored: number; requiredScores: number; conflicts: number; outstandingCents: number } }) {
+function OperationalSummary({ trialId, workflow, reactiveTeamNames }: { trialId: string; workflow: { entries: number; received: number; accepted: number; waitlisted: number; rejected: number; reactive: number; runs: number; ordered: number; scored: number; requiredScores: number; conflicts: number; outstandingCents: number }; reactiveTeamNames: string[] }) {
   const money = new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(workflow.outstandingCents / 100);
   const items = [
     { label: 'Entry decisions', value: `${workflow.received} awaiting · ${workflow.accepted} accepted · ${workflow.waitlisted} waitlisted`, attention: workflow.received > 0, href: `/dashboard/trials/${trialId}/entries` },
     { label: 'Running order', value: `${workflow.ordered}/${workflow.runs} runs placed · ${workflow.conflicts} possible conflicts`, attention: workflow.runs > workflow.ordered || workflow.conflicts > 0, href: `/dashboard/trials/${trialId}/running-order` },
-    { label: 'Reactive teams', value: `${workflow.reactive} entr${workflow.reactive === 1 ? 'y' : 'ies'} flagged`, attention: workflow.reactive > 0, href: `/dashboard/trials/${trialId}/running-order` },
+    { label: 'Reactive teams', value: reactiveTeamNames.length ? `${workflow.reactive} entr${workflow.reactive === 1 ? 'y' : 'ies'} flagged: ${reactiveTeamNames.join('; ')}` : 'No entries flagged', attention: workflow.reactive > 0, href: `/dashboard/trials/${trialId}/running-order#reactive-alerts` },
     { label: 'Score completion', value: `${workflow.scored}/${workflow.requiredScores} required runs scored`, attention: workflow.requiredScores > workflow.scored, href: `/dashboard/trials/${trialId}/scoring` },
     { label: 'Outstanding entry balances', value: money, attention: workflow.outstandingCents > 0, href: `/dashboard/trials/${trialId}/financials` },
     { label: 'Close to Titles & Ribbon Planning', value: 'See possible titles and the maximum ribbons to prepare', attention: false, href: `/dashboard/trials/${trialId}/title-watch` },
