@@ -42,6 +42,7 @@ import {
   SDDA_GAME_TYPES,
   listSddaRunningOrderRuns,
   saveSddaRunningOrder,
+  saveSddaGameRunningOrder,
   setSddaRunMoveUp,
   setSddaRunGroup,
   setSddaGameRunGroup,
@@ -64,6 +65,10 @@ export default function RunningOrderPage() {
   const [changingGroupRunId, setChangingGroupRunId] = useState<string | null>(null);
   const [changingGameGroupRunId, setChangingGameGroupRunId] = useState<string | null>(null);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [draggingGame, setDraggingGame] = useState<{ offeringId: string; index: number } | null>(null);
+  const [dirtyGameOfferings, setDirtyGameOfferings] = useState<Set<string>>(new Set());
+  const [savingGameOfferingId, setSavingGameOfferingId] = useState<string | null>(null);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(async () => {
     try {
@@ -79,6 +84,7 @@ export default function RunningOrderPage() {
       setDayId((v) => v || workspace.sdda_trial_days[0]?.id || '');
       setAllRuns(runs);
       setGameRuns(games);
+      setDirtyGameOfferings(new Set());
       setError(null);
     } catch (c) {
       setError(c instanceof Error ? c.message : 'Unable to load running orders.');
@@ -155,10 +161,40 @@ export default function RunningOrderPage() {
         runIds: ordered.map((r: any) => r.id),
       });
       await load();
+      setSavedMessage(`${level} ${component} running order saved.`);
     } catch (c) {
       setError(c instanceof Error ? c.message : 'Unable to save running order.');
     } finally {
       setSaving(false);
+    }
+  };
+  const reorderGame = (offeringId: string, fromIndex: number, toIndex: number) => {
+    setGameRuns((current) => {
+      const offeringRuns = current
+        .filter((run: any) => run.offering_id === offeringId)
+        .sort((a: any, b: any) => (a.running_position ?? 9999) - (b.running_position ?? 9999));
+      const reordered = moveSddaRun(offeringRuns, fromIndex, toIndex).map((run: any, index) => ({ ...run, running_position: index + 1 }));
+      const byId = new Map(reordered.map((run: any) => [run.id, run]));
+      return current.map((run: any) => byId.get(run.id) || run);
+    });
+    setDirtyGameOfferings((current) => new Set(current).add(offeringId));
+    setSavedMessage(null);
+  };
+  const saveGameOrder = async (offeringId: string, gameType: string) => {
+    try {
+      setSavingGameOfferingId(offeringId);
+      setError(null);
+      const runIds = gameRuns
+        .filter((run: any) => run.offering_id === offeringId)
+        .sort((a: any, b: any) => (a.running_position ?? 9999) - (b.running_position ?? 9999))
+        .map((run: any) => run.id);
+      await saveSddaGameRunningOrder(getSupabaseBrowser(), { trialId, offeringId, runIds });
+      await load();
+      setSavedMessage(`${gameType} running order saved.`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to save the Games running order.');
+    } finally {
+      setSavingGameOfferingId(null);
     }
   };
   const exportXlsx = () => {
@@ -264,6 +300,7 @@ export default function RunningOrderPage() {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+        {savedMessage && <Alert><AlertDescription>{savedMessage}</AlertDescription></Alert>}
         <Card id="reactive-alerts" className={reactiveTeams.length ? 'border-2 border-blue-400 bg-blue-50 scroll-mt-6' : 'scroll-mt-6'}>
           <CardHeader>
             <CardTitle>Reactive handling alerts</CardTitle>
@@ -470,7 +507,15 @@ export default function RunningOrderPage() {
           <CardContent className="space-y-4">{SDDA_GAME_TYPES.map((gameType) => {
             const rows = selectedDayGames.filter((run: any) => { const offering = Array.isArray(run.sdda_game_offerings) ? run.sdda_game_offerings[0] : run.sdda_game_offerings; return offering?.game_type === gameType; });
             if (!rows.length) return null;
-            return <section key={gameType}><h3 className="mb-2 font-semibold text-[#294f73]">{gameType}</h3><div className="space-y-2">{rows.map((run: any, index) => { const entry = Array.isArray(run.sdda_entries) ? run.sdda_entries[0] : run.sdda_entries; const dog = Array.isArray(entry?.sdda_dogs) ? entry.sdda_dogs[0] : entry?.sdda_dogs; const allowedGroups = SDDA_RUN_GROUPS.filter((name) => (gameType === 'Aerial' || gameType === 'Distance') || name !== 'Second dog'); return <div key={run.id} className="flex flex-wrap items-center gap-3 rounded-md border bg-white p-3"><span className="w-8 text-center font-bold">{run.running_position || index + 1}</span><div className="min-w-48 flex-1"><p className="font-medium">{dog?.call_name} - {entry?.handler_name}</p><p className="text-sm text-gray-500">{dog?.sdda_registration_number || 'Registration pending'}{run.requested_team_partner ? ` · Partner: ${run.requested_team_partner}` : ''}</p></div>{entry?.reactivity && String(entry.reactivity).toLowerCase() !== 'none' && <Badge variant="outline" className="border-blue-400 bg-blue-50 text-blue-900">Reactive: {entry.reactivity}</Badge>}<Select value={run.run_group || (run.entry_type === 'FEO' ? 'FEO' : 'Regular')} onValueChange={(value) => void changeGameRunGroup(run.id, value as SddaRunGroup)} disabled={changingGameGroupRunId === run.id || run.entry_type === 'FEO'}><SelectTrigger className="w-36 bg-white" aria-label={`Games running-order group for ${dog?.call_name}`}><SelectValue /></SelectTrigger><SelectContent>{allowedGroups.map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}</SelectContent></Select><Badge variant={run.entry_type === 'FEO' ? 'outline' : 'default'}>{run.entry_type}</Badge></div>; })}</div></section>;
+            const offeringId = rows[0].offering_id;
+            const isDirty = dirtyGameOfferings.has(offeringId);
+            return <section key={gameType} className="rounded-md border p-3">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div><h3 className="font-semibold text-[#294f73]">{gameType}</h3><p className="text-xs text-gray-500">Drag entries or use the arrows, then save this Game.</p></div>
+                <div className="flex items-center gap-2">{isDirty && <Badge variant="outline" className="border-sky-400 bg-sky-50 text-sky-900">Unsaved changes</Badge>}<Button size="sm" onClick={() => void saveGameOrder(offeringId, gameType)} disabled={!isDirty || savingGameOfferingId === offeringId}>{savingGameOfferingId === offeringId ? <PawLoader className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}Save {gameType}</Button></div>
+              </div>
+              <div className="space-y-2">{rows.map((run: any, index) => { const entry = Array.isArray(run.sdda_entries) ? run.sdda_entries[0] : run.sdda_entries; const dog = Array.isArray(entry?.sdda_dogs) ? entry.sdda_dogs[0] : entry?.sdda_dogs; const allowedGroups = SDDA_RUN_GROUPS.filter((name) => (gameType === 'Aerial' || gameType === 'Distance') || name !== 'Second dog'); return <div key={run.id} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect='move'; }} onDrop={(event) => { event.preventDefault(); const source=draggingGame?.offeringId===offeringId ? draggingGame?.index : Number(event.dataTransfer.getData('text/plain')); if (Number.isInteger(source)) reorderGame(offeringId,source as number,index); setDraggingGame(null); }} className={`flex flex-wrap items-center gap-3 rounded-md border bg-white p-3 ${draggingGame?.offeringId===offeringId && draggingGame?.index===index ? 'opacity-50 ring-2 ring-[#294f73]' : ''}`}><span draggable onDragStart={(event) => { setDraggingGame({offeringId,index}); event.dataTransfer.effectAllowed='move'; event.dataTransfer.setData('text/plain',String(index)); }} onDragEnd={() => setDraggingGame(null)} className="cursor-grab rounded p-1 text-gray-500 hover:bg-gray-100 active:cursor-grabbing" title="Drag to reorder" aria-label={`Drag ${dog?.call_name} in ${gameType}`}><GripVertical className="h-5 w-5" /></span><span className="w-8 text-center font-bold">{index + 1}</span><div className="min-w-48 flex-1"><p className="font-medium">{dog?.call_name} - {entry?.handler_name}</p><p className="text-sm text-gray-500">{dog?.sdda_registration_number || 'Registration pending'}{run.requested_team_partner ? ` · Partner: ${run.requested_team_partner}` : ''}</p></div>{entry?.reactivity && String(entry.reactivity).toLowerCase() !== 'none' && <Badge variant="outline" className="border-blue-400 bg-blue-50 text-blue-900">Reactive: {entry.reactivity}</Badge>}<Select value={run.run_group || (run.entry_type === 'FEO' ? 'FEO' : 'Regular')} onValueChange={(value) => void changeGameRunGroup(run.id, value as SddaRunGroup)} disabled={isDirty || changingGameGroupRunId === run.id || run.entry_type === 'FEO'}><SelectTrigger className="w-36 bg-white" aria-label={`Games running-order group for ${dog?.call_name}`}><SelectValue /></SelectTrigger><SelectContent>{allowedGroups.map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}</SelectContent></Select><Badge variant={run.entry_type === 'FEO' ? 'outline' : 'default'}>{run.entry_type}</Badge><Button size="sm" variant="ghost" disabled={index===0} onClick={() => reorderGame(offeringId,index,index-1)}><ArrowUp className="h-4 w-4" /></Button><Button size="sm" variant="ghost" disabled={index===rows.length-1} onClick={() => reorderGame(offeringId,index,index+1)}><ArrowDown className="h-4 w-4" /></Button></div>; })}</div>
+            </section>;
           })}</CardContent>
         </Card>}
       </div>

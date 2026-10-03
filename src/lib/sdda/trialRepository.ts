@@ -630,7 +630,7 @@ export async function listSddaGameRuns(client: SupabaseClient, trialId: string) 
   const { data, error } = await client
     .from('sdda_game_runs')
     .select(
-      'id,trial_day_id,entry_type,run_group,aerial_division,selection_status,running_position,requested_team_partner,created_at,sdda_game_offerings(game_type,judge_name),sdda_entries!inner(id,handler_name,dog_id,reactivity,confirmation_status,sdda_dogs(call_name,registered_name,breed,sdda_registration_number))'
+      'id,trial_day_id,offering_id,entry_type,run_group,aerial_division,selection_status,running_position,requested_team_partner,created_at,sdda_game_offerings(game_type,judge_name),sdda_entries!inner(id,handler_name,dog_id,reactivity,confirmation_status,sdda_dogs(call_name,registered_name,breed,sdda_registration_number))'
     )
     .eq('trial_id', trialId)
     .eq('selection_status', 'accepted')
@@ -738,6 +738,18 @@ export async function saveSddaRunningOrder(
     target_trial_day_id: input.trialDayId,
     target_level: input.level,
     target_component: input.component,
+    ordered_run_ids: input.runIds,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function saveSddaGameRunningOrder(
+  client: SupabaseClient,
+  input: { trialId: string; offeringId: string; runIds: string[] }
+) {
+  const { error } = await client.rpc('sdda_save_game_running_order', {
+    target_trial_id: input.trialId,
+    target_offering_id: input.offeringId,
     ordered_run_ids: input.runIds,
   });
   if (error) throw new Error(error.message);
