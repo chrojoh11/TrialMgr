@@ -29,7 +29,7 @@ import {
   sddaRemittanceCents,
   financialEntryBalance,
   financialLedgerTotals,
-  financialHandlerKey,
+  resolveFinancialHandlerKeys,
   allocateHandlerPayment,
 } from '@/lib/sdda/financialSummary';
 import { createFinancialWorkbook } from '@/lib/sdda/financialWorkbook';
@@ -117,6 +117,7 @@ export default function SddaFinancialsPage() {
       scentThreeComponentFeeCents: trial.scent_three_component_fee_cents || 0,
       eliteFeeCents: trial.elite_fee_cents || 0,
     };
+    const handlerKeys = resolveFinancialHandlerKeys(entries);
     return entries.map((entry: any) => {
       const automatic = acceptedEntryChargeCents(entry, pricing, trial.sdda_game_offerings);
       const ledger = transactions.filter((item) => item.entry_id === entry.id);
@@ -125,7 +126,9 @@ export default function SddaFinancialsPage() {
         id: entry.id,
         handler: entry.handler_name,
         email: entry.handler_email || '',
-        key: financialHandlerKey(entry),
+        key: handlerKeys.get(entry.id) || `entry:${entry.id}`,
+        participantNumber: entry.participant_number || '',
+        registrationNumber: dog?.sdda_registration_number || '',
         dog: dog?.call_name || 'Dog',
         entryStatus: entry.confirmation_status,
         ...financialEntryBalance(automatic, ledger),
@@ -523,6 +526,9 @@ export default function SddaFinancialsPage() {
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <h3 className="font-bold">{group[0].handler}</h3>
+                      <p className="text-xs text-gray-600">
+                        Participant: {group.find((entry) => entry.participantNumber)?.participantNumber || 'pending'}
+                      </p>
                       <p className="text-sm text-gray-600">
                         {group[0].email} · Net balance{' '}
                         {money(group.reduce((sum, e) => sum + e.balance, 0))}
@@ -564,6 +570,9 @@ export default function SddaFinancialsPage() {
                           <tr key={e.id} className="border-b">
                             <td className="p-2">
                               {e.dog}
+                              <span className="block text-xs font-normal text-gray-500">
+                                SDDA dog number: {e.registrationNumber || 'pending'}
+                              </span>
                               <div className="text-xs text-gray-600">
                                 {e.entryStatus} · {e.status}
                               </div>

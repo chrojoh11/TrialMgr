@@ -7,6 +7,7 @@ import {
   financialEntryBalance,
   financialBalanceDelta,
   financialHandlerKey,
+  resolveFinancialHandlerKeys,
   allocateHandlerPayment,
   financialLedgerTotals,
 } from './financialSummary';
@@ -114,19 +115,30 @@ test('allocates one payment across dogs without losing a cent or overpayment', (
   assert.throws(() => allocateHandlerPayment(100, []));
 });
 
-test('groups only matching handler/email identities and keeps missing-email entries separate', () => {
+test('groups handlers by participant number, then matching contact identity', () => {
+  assert.equal(
+    financialHandlerKey({ id: 'a', handler_name: 'Pat Smith', participant_number: ' 1234 ' }),
+    financialHandlerKey({ id: 'b', handler_name: 'Patricia Smith', participant_number: '1234' })
+  );
   assert.equal(
     financialHandlerKey({
       id: 'a',
       handler_name: ' Pat Smith ',
       handler_email: 'PAT@example.test',
+      handler_phone: '(403) 555-0100',
     }),
-    financialHandlerKey({ id: 'b', handler_name: 'pat smith', handler_email: 'pat@example.test' })
+    financialHandlerKey({ id: 'b', handler_name: 'pat smith', handler_email: 'pat@example.test', handler_phone: '4035550100' })
   );
   assert.notEqual(
     financialHandlerKey({ id: 'a', handler_name: 'Pat Smith' }),
     financialHandlerKey({ id: 'b', handler_name: 'Pat Smith' })
   );
+  const resolved = resolveFinancialHandlerKeys([
+    { id: 'registered', handler_name: 'Pat Smith', handler_email: 'pat@example.test', handler_phone: '4035550100', participant_number: '1234' },
+    { id: 'pending', handler_name: ' pat smith ', handler_email: 'PAT@example.test', handler_phone: '(403) 555-0100' },
+  ]);
+  assert.equal(resolved.get('registered'), 'participant:1234');
+  assert.equal(resolved.get('pending'), 'participant:1234');
 });
 
 test('actual expense totals do not include estimates or waivers', () => {

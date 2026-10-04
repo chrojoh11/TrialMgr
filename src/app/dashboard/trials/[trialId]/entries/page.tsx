@@ -2,7 +2,7 @@
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Dog, Download, FilePlus2, FileUp, Pencil, Search } from 'lucide-react';
+import { BadgeCheck, Dog, Download, FilePlus2, FileUp, Pencil, Search } from 'lucide-react';
 import { PawLoader } from '@/components/ui/pawLoader';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/mainLayout';
@@ -186,7 +186,7 @@ export default function SddaEntriesPage() {
     () =>
       entries.filter((entry: any) => {
         const dog = Array.isArray(entry.sdda_dogs) ? entry.sdda_dogs[0] : entry.sdda_dogs;
-        const matchesSearch = `${entry.handler_name} ${entry.handler_email || ''} ${dog?.call_name || ''} ${dog?.sdda_registration_number || ''}`
+        const matchesSearch = `${entry.handler_name} ${entry.handler_email || ''} ${entry.participant_number || ''} ${dog?.call_name || ''} ${dog?.sdda_registration_number || ''}`
           .toLowerCase()
           .includes(search.toLowerCase());
         const matchesStatus = statusFilter === 'all' || entry.confirmation_status === statusFilter;
@@ -425,10 +425,8 @@ export default function SddaEntriesPage() {
                       <div className="flex flex-wrap gap-2"><Badge>{entry.entry_status}</Badge><Badge variant="outline">{entry.confirmation_status}</Badge></div>
                     </div>
                     <CardDescription>
-                      {entry.handler_name} •{' '}
-                      {dog?.registration_pending
-                        ? 'SDDA registration pending'
-                        : dog?.sdda_registration_number}
+                      {entry.handler_name} · Participant {entry.participant_number || 'pending'} · Dog{' '}
+                      {dog?.registration_pending ? 'registration pending' : dog?.sdda_registration_number || 'number pending'}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
@@ -452,8 +450,12 @@ export default function SddaEntriesPage() {
                     </div>
                     <Button asChild size="sm" variant="outline">
                       <Link href={`/sdda-entry/${trialId}?secretaryEntry=${entry.id}`}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Edit entry
+                        {dog?.registration_pending || !dog?.sdda_registration_number
+                          ? <BadgeCheck className="mr-2 h-4 w-4" />
+                          : <Pencil className="mr-2 h-4 w-4" />}
+                        {dog?.registration_pending || !dog?.sdda_registration_number
+                          ? 'Assign / verify SDDA number'
+                          : 'Edit entry'}
                       </Link>
                     </Button>
                     <div className="flex flex-wrap items-center gap-2 border-t pt-3"><span className="text-sm font-semibold">Secretary decision:</span><select aria-label={`Confirmation status for ${dog?.call_name || 'entry'}`} disabled={savingEntryId === entry.id} className="h-9 rounded-md border border-input bg-white px-3 text-sm" value={entry.confirmation_status} onChange={(event) => void changeConfirmation(entry.id, event.target.value as 'received' | 'accepted' | 'waitlisted' | 'rejected')}><option value="received">Received - awaiting review</option><option value="accepted">Accepted</option><option value="waitlisted">Waitlisted</option><option value="rejected">Rejected</option></select>{savingEntryId === entry.id && <PawLoader className="h-4 w-4" />}{entryDecisionError[entry.id] && <p className="w-full rounded-md border border-red-300 bg-red-50 p-2 text-sm text-red-800">Could not change this entry: {entryDecisionError[entry.id]}</p>}</div>

@@ -122,14 +122,50 @@ export function financialEntryBalance(automatic: number, items: LedgerItem[]) {
 }
 
 /** Email plus handler identity: never infer ownership from a dog's registration. */
-export function financialHandlerKey(entry: {
+export interface FinancialHandlerIdentity {
   id: string;
+  participant_number?: string | null;
   handler_email?: string | null;
+  handler_phone?: string | null;
   handler_name: string;
-}) {
-  const email = entry.handler_email?.trim().toLowerCase();
-  const name = entry.handler_name.trim().toLowerCase().replace(/\s+/g, ' ');
-  return email ? `${email}|${name}` : `entry:${entry.id}`;
+}
+
+const normalizeIdentityText = (value?: string | null) =>
+  String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+const normalizeParticipantNumber = (value?: string | null) =>
+  String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+const normalizePhone = (value?: string | null) => String(value || '').replace(/\D/g, '');
+
+function financialContactKey(entry: FinancialHandlerIdentity) {
+  const email = normalizeIdentityText(entry.handler_email);
+  const phone = normalizePhone(entry.handler_phone);
+  const name = normalizeIdentityText(entry.handler_name);
+  return email || phone ? `identity:${email}|${phone}|${name}` : `entry:${entry.id}`;
+}
+
+/** SDDA participant numbers identify people; dog registration numbers never identify payers. */
+export function financialHandlerKey(entry: FinancialHandlerIdentity) {
+  const participant = normalizeParticipantNumber(entry.participant_number);
+  return participant ? `participant:${participant}` : financialContactKey(entry);
+}
+
+/**
+ * Join pending-number dogs to a verified participant account only when the same
+ * normalized contact identity appears on both records.
+ */
+export function resolveFinancialHandlerKeys<T extends FinancialHandlerIdentity>(entries: T[]) {
+  const participantByContact = new Map<string, string>();
+  for (const entry of entries) {
+    const participant = normalizeParticipantNumber(entry.participant_number);
+    const contact = financialContactKey(entry);
+    if (participant && contact.startsWith('identity:'))
+      participantByContact.set(contact, `participant:${participant}`);
+  }
+  return new Map(entries.map((entry) => {
+    const direct = financialHandlerKey(entry);
+    const contact = financialContactKey(entry);
+    return [entry.id, direct.startsWith('participant:') ? direct : participantByContact.get(contact) || direct];
+  }));
 }
 
 export function allocateHandlerPayment(amount: number, entries: { id: string; balance: number }[]) {
