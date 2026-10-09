@@ -1,7 +1,7 @@
 import XLSX from 'xlsx-js-style';
 
 export type MailingListRow = {
-  name:string; email:string; dog:string; registrationNumber:string; selections:string;
+  name:string; email:string; dog:string; registrationNumber:string; scentSelections:string; gameSelections:string;
   receivedAt:string; confirmationStatus:string; amountOwing:number;
 };
 
@@ -26,7 +26,7 @@ const statusSuffix = (status?: string | null) =>
   status && status !== 'accepted' ? ` · ${status.replaceAll('_', ' ')}` : '';
 
 /** One readable list containing every Scent and Games selection on the entry. */
-export function formatSddaEntrySelections(
+export function formatSddaEntrySelectionColumns(
   dayMap: Map<string, number>,
   scentRuns: ScentSelection[] = [],
   gameRuns: GameSelection[] = [],
@@ -64,23 +64,23 @@ export function formatSddaEntrySelections(
       ].filter(Boolean);
       return `${details.join(' · ')}${statusSuffix(run.selection_status)}`;
     });
-  return [...scent, ...games].join('; ');
+  return { scentSelections: scent.join('; '), gameSelections: games.join('; ') };
 }
 
 export function createSddaMailingListWorkbook(trialName:string, rows:MailingListRow[]) {
-  const headers=['Name','Email','Dog','SDDA Number','Entry Selections Received','Received','Status','Amount Owing'];
-  const data=rows.map(row=>[row.name,row.email,row.dog,row.registrationNumber,row.selections,
+  const headers=['Name','Email','Dog','SDDA Number','Scent Selections','Games Selections','Received','Status','Amount Owing'];
+  const data=rows.map(row=>[row.name,row.email,row.dog,row.registrationNumber,row.scentSelections,row.gameSelections,
     row.receivedAt?new Date(row.receivedAt):'',row.confirmationStatus,row.amountOwing]);
   const ws=XLSX.utils.aoa_to_sheet([headers,...data]);
-  ws['!cols']=[{wch:24},{wch:32},{wch:18},{wch:18},{wch:70},{wch:20},{wch:14},{wch:16}];
-  ws['!autofilter']={ref:`A1:H${Math.max(1,rows.length+1)}`};
+  ws['!cols']=[{wch:24},{wch:32},{wch:18},{wch:18},{wch:60},{wch:48},{wch:20},{wch:14},{wch:16}];
+  ws['!autofilter']={ref:`A1:I${Math.max(1,rows.length+1)}`};
   ws['!freeze']={xSplit:0,ySplit:1,topLeftCell:'A2',activePane:'bottomLeft',state:'frozen'};
   const headerStyle={fill:{fgColor:{rgb:'225F45'}},font:{bold:true,color:{rgb:'FFFFFF'}},alignment:{vertical:'center'}};
   headers.forEach((_,index)=>{const cell=ws[XLSX.utils.encode_cell({r:0,c:index})];if(cell)cell.s=headerStyle;});
   for(let row=1;row<=rows.length;row++){
-    const received=ws[XLSX.utils.encode_cell({r:row,c:5})]; if(received) received.z='yyyy-mm-dd hh:mm';
-    const owing=ws[XLSX.utils.encode_cell({r:row,c:7})]; if(owing){owing.z='"$"#,##0.00;[Red]-"$"#,##0.00';owing.s={font:{bold:true,color:{rgb:rows[row-1].amountOwing>0?'9C3B22':'225F45'}}};}
-    const selection=ws[XLSX.utils.encode_cell({r:row,c:4})]; if(selection)selection.s={alignment:{wrapText:true,vertical:'top'}};
+    const received=ws[XLSX.utils.encode_cell({r:row,c:6})]; if(received) received.z='yyyy-mm-dd hh:mm';
+    const owing=ws[XLSX.utils.encode_cell({r:row,c:8})]; if(owing){owing.z='"$"#,##0.00;[Red]-"$"#,##0.00';owing.s={font:{bold:true,color:{rgb:rows[row-1].amountOwing>0?'9C3B22':'225F45'}}};}
+    for(const column of [4,5]){const selection=ws[XLSX.utils.encode_cell({r:row,c:column})];if(selection)selection.s={alignment:{wrapText:true,vertical:'top'}};}
   }
   ws['!rows']=[{hpt:26},...rows.map(()=>({hpt:34}))];
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Mailing List');

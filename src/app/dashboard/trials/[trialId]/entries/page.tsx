@@ -24,7 +24,7 @@ import {
   type SddaTrialWorkspace,
 } from '@/lib/sdda/trialRepository';
 import { offeringKey } from '@/lib/sdda/offerings';
-import { createSddaMailingListWorkbook, formatSddaEntrySelections } from '@/lib/sdda/mailingListWorkbook';
+import { createSddaMailingListWorkbook, formatSddaEntrySelectionColumns } from '@/lib/sdda/mailingListWorkbook';
 import { acceptedEntryChargeCents, financialBalanceDelta, financialLedgerTotals } from '@/lib/sdda/financialSummary';
 
 type RosterEntry = Awaited<ReturnType<typeof listSddaEntries>>[number];
@@ -61,7 +61,7 @@ export default function SddaEntriesPage() {
       const dayMap = new Map(trial.sdda_trial_days.map((day) => [day.id, day.day_number]));
       const rows = entries.map((entry: any) => {
         const dog = Array.isArray(entry.sdda_dogs) ? entry.sdda_dogs[0] : entry.sdda_dogs;
-        const selections = formatSddaEntrySelections(
+        const selections = formatSddaEntrySelectionColumns(
           dayMap,
           entry.sdda_runs || [],
           entry.sdda_game_runs || [],
@@ -71,7 +71,7 @@ export default function SddaEntriesPage() {
           email: entry.handler_email || '',
           dog: dog?.call_name || '',
           registrationNumber: dog?.sdda_registration_number || 'Pending',
-          selections,
+          ...selections,
           receivedAt: entry.submitted_at || entry.created_at,
           confirmationStatus: entry.confirmation_status || entry.entry_status,
           amountOwing: (acceptedEntryChargeCents(entry, {
