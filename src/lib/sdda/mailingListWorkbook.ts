@@ -5,6 +5,68 @@ export type MailingListRow = {
   receivedAt:string; confirmationStatus:string; amountOwing:number;
 };
 
+type ScentSelection = {
+  trial_day_id: string;
+  level: string;
+  component: string;
+  stream: string;
+  selection_status?: string | null;
+};
+
+type GameSelection = {
+  trial_day_id: string;
+  entry_type: string;
+  selection_status?: string | null;
+  requested_team_partner?: string | null;
+  aerial_division?: string | null;
+  sdda_game_offerings?: { game_type: string } | null;
+};
+
+const statusSuffix = (status?: string | null) =>
+  status && status !== 'accepted' ? ` · ${status.replaceAll('_', ' ')}` : '';
+
+/** One readable list containing every Scent and Games selection on the entry. */
+export function formatSddaEntrySelections(
+  dayMap: Map<string, number>,
+  scentRuns: ScentSelection[] = [],
+  gameRuns: GameSelection[] = [],
+) {
+  const scent = scentRuns
+    .slice()
+    .sort(
+      (a, b) =>
+        (dayMap.get(a.trial_day_id) || 0) - (dayMap.get(b.trial_day_id) || 0) ||
+        a.level.localeCompare(b.level) ||
+        a.component.localeCompare(b.component),
+    )
+    .map(
+      (run) =>
+        `Day ${dayMap.get(run.trial_day_id) || '?'} · Scent · ${run.level} · ${run.component} · ${run.stream}${statusSuffix(run.selection_status)}`,
+    );
+  const games = gameRuns
+    .slice()
+    .sort(
+      (a, b) =>
+        (dayMap.get(a.trial_day_id) || 0) - (dayMap.get(b.trial_day_id) || 0) ||
+        (a.sdda_game_offerings?.game_type || '').localeCompare(b.sdda_game_offerings?.game_type || ''),
+    )
+    .map((run) => {
+      const game = run.sdda_game_offerings?.game_type || 'Game';
+      const details = [
+        `Day ${dayMap.get(run.trial_day_id) || '?'}`,
+        'Games',
+        game,
+        game === 'Aerial' ? run.aerial_division : '',
+        run.entry_type || 'Regular',
+        game === 'Team' && run.requested_team_partner
+          ? `Partner: ${run.requested_team_partner}`
+          : '',
+      ].filter(Boolean);
+      return `${details.join(' · ')}${statusSuffix(run.selection_status)}`;
+    });
+  return [...scent, ...games].join('; ');
+}
+
 export function createSddaMailingListWorkbook(trialName:string, rows:MailingListRow[]) {
   const headers=['Name','Email','Dog','SDDA Number','Entry Selections Received','Received','Status','Amount Owing'];
   const data=rows.map(row=>[row.name,row.email,row.dog,row.registrationNumber,row.selections,

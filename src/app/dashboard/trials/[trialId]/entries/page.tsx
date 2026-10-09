@@ -24,7 +24,7 @@ import {
   type SddaTrialWorkspace,
 } from '@/lib/sdda/trialRepository';
 import { offeringKey } from '@/lib/sdda/offerings';
-import { createSddaMailingListWorkbook } from '@/lib/sdda/mailingListWorkbook';
+import { createSddaMailingListWorkbook, formatSddaEntrySelections } from '@/lib/sdda/mailingListWorkbook';
 import { acceptedEntryChargeCents, financialBalanceDelta, financialLedgerTotals } from '@/lib/sdda/financialSummary';
 
 type RosterEntry = Awaited<ReturnType<typeof listSddaEntries>>[number];
@@ -61,19 +61,11 @@ export default function SddaEntriesPage() {
       const dayMap = new Map(trial.sdda_trial_days.map((day) => [day.id, day.day_number]));
       const rows = entries.map((entry: any) => {
         const dog = Array.isArray(entry.sdda_dogs) ? entry.sdda_dogs[0] : entry.sdda_dogs;
-        const selections = (entry.sdda_runs || [])
-          .slice()
-          .sort(
-            (a: any, b: any) =>
-              (dayMap.get(a.trial_day_id) || 0) - (dayMap.get(b.trial_day_id) || 0) ||
-              a.level.localeCompare(b.level) ||
-              a.component.localeCompare(b.component)
-          )
-          .map(
-            (run: any) =>
-              `Day ${dayMap.get(run.trial_day_id) || '?'} · ${run.level} · ${run.component} · ${run.stream}`
-          )
-          .join('; ');
+        const selections = formatSddaEntrySelections(
+          dayMap,
+          entry.sdda_runs || [],
+          entry.sdda_game_runs || [],
+        );
         return {
           name: entry.handler_name,
           email: entry.handler_email || '',
