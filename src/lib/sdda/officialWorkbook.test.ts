@@ -33,6 +33,26 @@ test('patches a fresh official SDDA workbook while preserving formulas and filli
   assert.match(started, /r="O6"[^>]*><v>22<\/v>/);
 });
 
+test('keeps worksheet cell XML valid when populated template cells were self-closing', () => {
+  const output = buildOfficialSddaWorkbook(template, {
+    days: [{ dayNumber: 1, trialNumber: '3085', trialDate: '2026-10-11' }],
+    venue: 'Peachland Riding Club',
+    defaultJudge: 'Test Judge',
+    runs: [
+      { dayNumber: 1, level: 'Started', component: 'Container', stream: 'Working', dogNumber: '7151', runGroup: 'Regular', result: 'qualifying', score: 30, timeSeconds: 72.77 },
+      { dayNumber: 1, level: 'Advanced', component: 'Container', stream: 'Working', dogNumber: '7151', runGroup: 'Regular', result: 'qualifying', score: 60, timeSeconds: 151.27 },
+    ],
+    gameRuns: [{ dayNumber: 1, gameType: 'Aerial', dogNumber: '7151', entryType: 'Regular', result: 'pass', timeSeconds: 18.2 }],
+  });
+  const files = unzipSync(output);
+  for (const [path, bytes] of Object.entries(files)) {
+    if (!path.startsWith('xl/worksheets/') || !path.endsWith('.xml')) continue;
+    const xml = strFromU8(bytes);
+    assert.doesNotMatch(xml, /<c\b[^>]*\/\s+t=/, `${path} has attributes after a self-closing cell slash`);
+    assert.doesNotMatch(xml, /<c\b[^>]*\/>\s*<(?:v|is)>/, `${path} has a value outside a self-closing cell`);
+  }
+});
+
 test('rejects more than two days because the official workbook has only two day sections', () => {
   assert.throws(() => buildOfficialSddaWorkbook(template, { days: [
     { dayNumber: 1, trialNumber: '1', trialDate: '2026-09-12' },

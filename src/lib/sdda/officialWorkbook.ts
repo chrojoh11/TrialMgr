@@ -178,10 +178,12 @@ export function buildOfficialSddaWorkbook(template: Uint8Array, input: OfficialW
   const setCell = (sheet: string, address: string, value: string | number, time = false) => {
     let xml = sheetXml(sheet);
     const row = Number(address.match(/\d+/)?.[0]);
-    const full = new RegExp(`<c\\b([^>]*\\br="${address}"[^>]*)>(?:[\\s\\S]*?)<\\/c>`);
+    // A self-closing template cell must not be mistaken for the start of a
+    // normal cell and consumed through a later cell's closing tag.
+    const full = new RegExp(`<c\\b([^>]*\\br="${address}"[^>]*?)(?<!\\/)>(?:[\\s\\S]*?)<\\/c>`);
     const empty = new RegExp(`<c\\b([^>]*\\br="${address}"[^>]*)\\/>`);
     const existing = xml.match(full) || xml.match(empty);
-    let attrs = (existing?.[1] || ` r="${address}"`).replace(/\s+t="[^"]*"/g, '');
+    let attrs = (existing?.[1] || ` r="${address}"`).replace(/\s+t="[^"]*"/g, '').replace(/\/\s*$/, '');
     if (time && !/\s+s="/.test(attrs)) attrs += ' s="2"';
     const body = typeof value === 'number' ? `<v>${value}</v>` : `<is><t xml:space="preserve">${xmlEscape(value)}</t></is>`;
     if (typeof value !== 'number') attrs += ' t="inlineStr"';
