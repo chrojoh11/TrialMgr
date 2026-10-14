@@ -82,8 +82,8 @@ export function reviewOfficialSddaWorkbook(
     if (run.result === 'qualifying' && (run.score == null || run.score < limit.minimum || run.timeSeconds == null || run.timeSeconds > limit.seconds)) {
       issues.push({ severity: 'blocker', message: `${label} is marked Qualifying but does not meet the official ${limit.minimum}-point minimum and ${limit.seconds}-second time limit.` });
     }
-    if (run.result === 'non_qualifying' && run.score != null && run.score >= limit.minimum && run.timeSeconds != null && run.timeSeconds <= limit.seconds) {
-      issues.push({ severity: 'blocker', message: `${label} is marked Non-qualifying, but its score and time would calculate as Pass in the official workbook. Enter the judge's official failed score.` });
+    if (run.result === 'non_qualifying' && run.score != null && run.score >= limit.minimum) {
+      issues.push({ severity: 'warning', message: `${label} is Non-qualifying with a score at or above the passing minimum. TrialDesk will export 0 so the official workbook records the failed search; the entered judge score remains in TrialDesk.` });
     }
   }
   const unscoredGames = relevantGames.filter((run) => !run.result && run.entryType.toLowerCase() !== 'feo').length;
@@ -139,8 +139,16 @@ function excelDate(iso: string) {
 function cellValue(run: OfficialWorkbookRun): string | number {
   if (run.runGroup === 'FEO') return 'FEO';
   if (!run.result) return 'E';
-  if (run.result === 'excused' || run.result === 'withdrawn') return 'E';
   if (run.result === 'absent') return 'NE';
+  if (run.result === 'excused' || run.result === 'withdrawn') return 0;
+  if (run.result === 'non_qualifying') {
+    const minimum = SCENT_LIMITS[run.level][run.component].minimum;
+    // The official workbook derives Pass/Fail from the numeric score. Its
+    // instructions require a failed search to contain either zero or a score
+    // below the component minimum. Preserve a judge's below-minimum score;
+    // otherwise write zero so an automatic NQ is counted as an entered Fail.
+    return run.score != null && run.score < minimum ? run.score : 0;
+  }
   return run.score ?? '';
 }
 

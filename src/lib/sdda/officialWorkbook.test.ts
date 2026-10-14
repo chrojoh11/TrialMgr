@@ -76,10 +76,30 @@ test('reviews required official submission fields and reads the embedded dog reg
   assert.equal(issues.some((issue) => issue.message.includes('not scored')), true);
 });
 
-test('blocks Scent results that would recalculate differently in the official workbook', () => {
+test('reviews Scent results and warns when an automatic NQ must export as zero', () => {
   const base = { days: [{ dayNumber: 1, trialNumber: '3000', trialDate: '2026-09-12', judgeName: 'Judge' }], venue: 'Venue' };
   const qualifyingBelowMinimum = reviewOfficialSddaWorkbook({ ...base, runs: [{ dayNumber: 1, level: 'Started' as const, component: 'Container' as const, stream: 'Amateur' as const, dogNumber: '1234', runGroup: 'Regular', result: 'qualifying' as const, score: 14, timeSeconds: 30 }] });
   assert.equal(qualifyingBelowMinimum.some((issue) => issue.severity === 'blocker' && issue.message.includes('marked Qualifying')), true);
   const nonQualifyingThatCalculatesPass = reviewOfficialSddaWorkbook({ ...base, runs: [{ dayNumber: 1, level: 'Advanced' as const, component: 'Interior' as const, stream: 'Working' as const, dogNumber: '1234', runGroup: 'Regular', result: 'non_qualifying' as const, score: 70, timeSeconds: 120 }] });
-  assert.equal(nonQualifyingThatCalculatesPass.some((issue) => issue.severity === 'blocker' && issue.message.includes('calculate as Pass')), true);
+  assert.equal(nonQualifyingThatCalculatesPass.some((issue) => issue.severity === 'warning' && issue.message.includes('export 0')), true);
+});
+
+test('exports every non-qualifying Scent outcome as a numeric failed score', () => {
+  const output = buildOfficialSddaWorkbook(template, {
+    days: [{ dayNumber: 1, trialNumber: '3085', trialDate: '2026-10-11', judgeName: 'Judge' }],
+    venue: 'Venue',
+    runs: [
+      { dayNumber: 1, level: 'Started', component: 'Container', stream: 'Amateur', dogNumber: '1001', runGroup: 'Regular', result: 'non_qualifying', score: null, timeSeconds: 151.27 },
+      { dayNumber: 1, level: 'Started', component: 'Container', stream: 'Working', dogNumber: '1002', runGroup: 'Regular', result: 'non_qualifying', score: 14, timeSeconds: 60 },
+      { dayNumber: 1, level: 'Started', component: 'Container', stream: 'Working', dogNumber: '1003', runGroup: 'Regular', result: 'non_qualifying', score: 20, timeSeconds: 60 },
+      { dayNumber: 1, level: 'Started', component: 'Container', stream: 'Working', dogNumber: '1004', runGroup: 'Regular', result: 'excused' },
+      { dayNumber: 1, level: 'Started', component: 'Container', stream: 'Working', dogNumber: '1005', runGroup: 'Regular', result: 'withdrawn' },
+    ],
+  });
+  const started = strFromU8(unzipSync(output)['xl/worksheets/sheet3.xml']);
+  assert.match(started, /r="G5"[^>]*><v>0<\/v>/);
+  assert.match(started, /r="G6"[^>]*><v>14<\/v>/);
+  assert.match(started, /r="G7"[^>]*><v>0<\/v>/);
+  assert.match(started, /r="G8"[^>]*><v>0<\/v>/);
+  assert.match(started, /r="G9"[^>]*><v>0<\/v>/);
 });
