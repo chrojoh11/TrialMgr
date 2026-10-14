@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
+import { parseScoreTime } from '@/lib/sdda/scoreTime';
 import {
   getSddaTrialWorkspace,
   listSddaGameScoringRuns,
@@ -98,13 +99,13 @@ export default function ScoringPage() {
 
   const scentInput = (run: ScentRun) => {
     const draft = scentDrafts[run.id]; if (!draft?.result) throw new Error('Choose a result on every changed Scent card before saving.');
-    const score = numberOrNull(draft.score), time = numberOrNull(draft.time), faults = Number(draft.faults || 0);
-    if ([score, time, faults].some((value) => value !== null && !Number.isFinite(value))) throw new Error('Score, time and faults must be valid numbers.');
+    const score = numberOrNull(draft.score), time = parseScoreTime(draft.time), faults = Number(draft.faults || 0);
+    if ([score, time, faults].some((value) => value !== null && !Number.isFinite(value))) throw new Error('Score and faults must be numbers. Enter time as total seconds (72.77) or minutes:seconds (1:12.77).');
     return { runId: run.id, result: draft.result, score, timeSeconds: time, faults, notes: draft.notes };
   };
   const gameInput = (run: GameRun) => {
     const draft = gameDrafts[run.id]; if (!draft?.result) throw new Error('Choose a result on every changed Games card before saving.');
-    const time = numberOrNull(draft.time); if (time !== null && !Number.isFinite(time)) throw new Error('Time must be a valid number.');
+    const time = parseScoreTime(draft.time); if (time !== null && !Number.isFinite(time)) throw new Error('Enter time as total seconds (72.77) or minutes:seconds (1:12.77).');
     return { runId: run.id, result: draft.result, timeSeconds: time, notes: draft.notes };
   };
 
