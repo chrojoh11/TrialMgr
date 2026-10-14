@@ -278,5 +278,23 @@ export function buildOfficialSddaWorkbook(template: Uint8Array, input: OfficialW
   for (const [name, xml] of changedSheets) files[sheetPaths.get(name)!] = strToU8(xml);
   workbookXml = workbookXml.replace(/<calcPr\b([^>]*)\/>/, (_match, attrs: string) => `<calcPr${attrs.replace(/\s+(fullCalcOnLoad|forceFullCalc)="[^"]*"/g, '')} fullCalcOnLoad="1" forceFullCalc="1"/>`);
   files[workbookPath] = strToU8(workbookXml);
+
+  // The template calculation chain describes its original formula dependency
+  // graph. Populating the workbook makes that cache stale, so omit it and let
+  // Excel rebuild the chain during the forced full recalculation above.
+  delete files['xl/calcChain.xml'];
+  files[relationshipsPath] = strToU8(
+    strFromU8(files[relationshipsPath]).replace(
+      /<Relationship\b[^>]*\bType="[^"]*\/calcChain"[^>]*\/>/g,
+      ''
+    )
+  );
+  const contentTypesPath = '[Content_Types].xml';
+  files[contentTypesPath] = strToU8(
+    strFromU8(files[contentTypesPath]).replace(
+      /<Override\b[^>]*\bPartName="\/xl\/calcChain\.xml"[^>]*\/>/g,
+      ''
+    )
+  );
   return zipSync(files, { level: 6 });
 }

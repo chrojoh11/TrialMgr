@@ -22,6 +22,9 @@ test('patches a fresh official SDDA workbook while preserving formulas and filli
   const workbook = strFromU8(files['xl/workbook.xml']);
   assert.match(workbook, /name="Games"/);
   assert.match(workbook, /fullCalcOnLoad="1"/);
+  assert.equal(files['xl/calcChain.xml'], undefined);
+  assert.doesNotMatch(strFromU8(files['xl/_rels/workbook.xml.rels']), /calcChain/);
+  assert.doesNotMatch(strFromU8(files['[Content_Types].xml']), /calcChain/);
   assert.equal(strFromU8(files['xl/worksheets/sheet3.xml']).includes('<f>'), true);
   const games = strFromU8(files['xl/worksheets/sheet11.xml']);
   assert.match(games, /r="D7"[^>]*><v>1234<\/v>/);
