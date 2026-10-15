@@ -101,7 +101,19 @@ export default function SddaOfficialWorkbookPage() {
         judgeName: day.judge_name || undefined,
       })),
       venue: trial.venue || '',
+      hostClub: trial.host_club || undefined,
+      secretaryName: trial.secretary_name || undefined,
       trialEmail: trial.secretary_email || undefined,
+      scentJudges: trial.sdda_trial_offerings.flatMap((offering) => {
+        const dayNumber = trial.sdda_trial_days.find((day) => day.id === offering.trial_day_id)?.day_number;
+        if (!dayNumber || !offering.judge_name?.trim() || !selectedDays.has(dayNumber)) return [];
+        return [{ dayNumber, level: offering.level, component: offering.component, judgeName: offering.judge_name.trim() }];
+      }),
+      gameJudges: trial.sdda_game_offerings.flatMap((offering) => {
+        const dayNumber = trial.sdda_trial_days.find((day) => day.id === offering.trial_day_id)?.day_number;
+        if (!dayNumber || !offering.judge_name?.trim() || !selectedDays.has(dayNumber)) return [];
+        return [{ dayNumber, gameType: offering.game_type, judgeName: offering.judge_name.trim() }];
+      }),
       runs: enteredRuns.filter((run) => selectedDays.has(run.dayNumber)),
       gameRuns: gameRuns.flatMap((record) => {
         const entry = first(record.sdda_entries);
@@ -148,7 +160,7 @@ export default function SddaOfficialWorkbookPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
       <Card><CardHeader><CardTitle className="flex items-center"><FileSpreadsheet className="mr-2 h-5 w-5" />SDDA Trial Results Workbook</CardTitle><CardDescription>Downloads the newest official SDDA workbook and fills its designated Scent and Games input cells. Official formulas, validation, print areas, Summary, High-in-Trial, fees, labels, and formatted-results sheets remain in place.</CardDescription></CardHeader><CardContent className="flex flex-wrap gap-2"><Badge variant="outline">{enteredRuns.length} entered scent runs</Badge><Badge variant="outline">{gameRuns.length} Games runs</Badge>{excludedRuns > 0 && <Badge variant="outline">{excludedRuns} waitlisted/withdrawn runs excluded</Badge>}</CardContent></Card>
-      <Alert><AlertDescription>Open the downloaded workbook in Excel so its original formulas recalculate. Review the official results before submission. SDDA Games sheets are preserved exactly and use their dedicated Games entry and scoring workflow.</AlertDescription></Alert>
+      <Alert><AlertDescription>Open the downloaded workbook in desktop Microsoft Excel so its original formulas recalculate. Every Scent NQ is exported with a numeric zero score; a recorded time is preserved and an unrecorded time remains blank. Review the official Summary and results before submission. SDDA Games sheets are preserved exactly and use their dedicated Games entry and scoring workflow.</AlertDescription></Alert>
       {loading ? <div className="flex justify-center py-16"><PawLoader className="h-8 w-8" /></div> : dayGroups.map((days, index) => {
         const selected = new Set(days.map((day) => day.day_number));
         const count = enteredRuns.filter((run) => selected.has(run.dayNumber)).length;

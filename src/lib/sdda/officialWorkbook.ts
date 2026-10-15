@@ -30,11 +30,28 @@ export type OfficialWorkbookGameRun = {
   runningPosition?: number | null;
 };
 
+export type OfficialWorkbookScentJudge = {
+  dayNumber: number;
+  level: SddaLevel;
+  component: SddaComponent;
+  judgeName: string;
+};
+
+export type OfficialWorkbookGameJudge = {
+  dayNumber: number;
+  gameType: OfficialWorkbookGameRun['gameType'];
+  judgeName: string;
+};
+
 export type OfficialWorkbookInput = {
   days: OfficialWorkbookDay[];
   venue: string;
+  hostClub?: string;
+  secretaryName?: string;
   trialEmail?: string;
   defaultJudge?: string;
+  scentJudges?: OfficialWorkbookScentJudge[];
+  gameJudges?: OfficialWorkbookGameJudge[];
   runs: OfficialWorkbookRun[];
   gameRuns?: OfficialWorkbookGameRun[];
 };
@@ -73,7 +90,7 @@ export function reviewOfficialSddaWorkbook(
   }
   const unscored = relevantRuns.filter((run) => !run.result && run.runGroup !== 'FEO').length;
   if (unscored) issues.push({ severity: 'warning', message: `${unscored} ${unscored === 1 ? 'run is' : 'runs are'} not scored yet and will be marked Entered.` });
-  const incomplete = relevantRuns.filter((run) => (run.result === 'qualifying' || run.result === 'non_qualifying') && (run.score == null || run.timeSeconds == null)).length;
+  const incomplete = relevantRuns.filter((run) => run.result === 'qualifying' && (run.score == null || run.timeSeconds == null)).length;
   if (incomplete) issues.push({ severity: 'warning', message: `${incomplete} scored ${incomplete === 1 ? 'run is' : 'runs are'} missing a score or time.` });
   for (const run of relevantRuns.filter((candidate) => candidate.result === 'qualifying' || candidate.result === 'non_qualifying')) {
     const limit = SCENT_LIMITS[run.level][run.component];
@@ -141,14 +158,10 @@ function cellValue(run: OfficialWorkbookRun): string | number {
   if (!run.result) return 'E';
   if (run.result === 'absent') return 'NE';
   if (run.result === 'excused' || run.result === 'withdrawn') return 0;
-  if (run.result === 'non_qualifying') {
-    const minimum = SCENT_LIMITS[run.level][run.component].minimum;
-    // The official workbook derives Pass/Fail from the numeric score. Its
-    // instructions require a failed search to contain either zero or a score
-    // below the component minimum. Preserve a judge's below-minimum score;
-    // otherwise write zero so an automatic NQ is counted as an entered Fail.
-    return run.score != null && run.score < minimum ? run.score : 0;
-  }
+  // The official workbook derives Pass/Fail and pass rates from numeric score
+  // cells. Always export NQ as zero so it remains in the denominator and can
+  // never accidentally calculate as a pass.
+  if (run.result === 'non_qualifying') return 0;
   return run.score ?? '';
 }
 
@@ -220,16 +233,28 @@ export function buildOfficialSddaWorkbook(template: Uint8Array, input: OfficialW
   setName('TrialDate', excelDate(input.days[0].trialDate));
   setName('TrialNumberDay2', input.days[1]?.trialNumber || '');
   setName('TrialDateDay2', input.days[1] ? excelDate(input.days[1].trialDate) : '');
+  setName('TrialHost', input.hostClub || '');
+  setName('TrialSecretary', input.secretaryName || '');
   setName('TrialVenue', input.venue);
+  setName('TrialCityDay1', input.venue);
+  setName('TrialCityDay2', input.days[1] ? input.venue : '');
+  setName('TrialEmail', input.trialEmail || '');
   setName('TrialEmailDay1', input.trialEmail || '');
   setName('TrialEmailDay2', input.days[1] ? input.trialEmail || '' : '');
+  const levelCode: Record<SddaLevel, string> = { Started: 'S', Advanced: 'A', Excellent: 'E', Elite: 'L' };
+  const componentCode: Record<SddaComponent, string> = { Container: 'CS', Interior: 'IS', Exterior: 'ES' };
   for (const [index, day] of input.days.entries()) {
-    const judge = day.judgeName || input.defaultJudge;
-    if (!judge) continue;
-    for (const name of names.keys()) {
-      if (new RegExp(`^JudgeD${index + 1}(CSS|ISS|ESS|CSA|ISA|ESA|CSE|ISE|ESE|CSL|ISL|ESL)$`).test(name)) setName(name, judge);
+    const fallbackJudge = day.judgeName || input.defaultJudge || '';
+    for (const level of ['Started', 'Advanced', 'Excellent', 'Elite'] as SddaLevel[]) {
+      for (const component of ['Container', 'Interior', 'Exterior'] as SddaComponent[]) {
+        const assigned = input.scentJudges?.find((judge) => judge.dayNumber === day.dayNumber && judge.level === level && judge.component === component)?.judgeName;
+        setName(`JudgeD${index + 1}${componentCode[component]}${levelCode[level]}`, assigned || fallbackJudge);
+      }
     }
-    for (const game of ['Aerial', 'Distance', 'Speed', 'Team']) setName(`JudgeD${index + 1}Games${game}`, judge);
+    for (const game of ['Aerial', 'Distance', 'Speed', 'Team'] as OfficialWorkbookGameRun['gameType'][]) {
+      const assigned = input.gameJudges?.find((judge) => judge.dayNumber === day.dayNumber && judge.gameType === game)?.judgeName;
+      setName(`JudgeD${index + 1}Games${game}`, assigned || fallbackJudge);
+    }
   }
 
 
@@ -284,7 +309,7 @@ export function buildOfficialSddaWorkbook(template: Uint8Array, input: OfficialW
   }
 
   for (const [name, xml] of changedSheets) files[sheetPaths.get(name)!] = strToU8(xml);
-  workbookXml = workbookXml.replace(/<calcPr\b([^>]*)\/>/, (_match, attrs: string) => `<calcPr${attrs.replace(/\s+(fullCalcOnLoad|forceFullCalc)="[^"]*"/g, '')} fullCalcOnLoad="1" forceFullCalc="1"/>`);
+  workbookXml = workbookXml.replace(/<calcPr\b([^>]*)\/>/, (_match, attrs: string) => `<calcPr${attrs.replace(/\s+(calcMode|calcOnSave|fullCalcOnLoad|forceFullCalc)="[^"]*"/g, '')} calcMode="auto" calcOnSave="1" fullCalcOnLoad="1" forceFullCalc="1"/>`);
   files[workbookPath] = strToU8(workbookXml);
 
   // The template calculation chain describes its original formula dependency

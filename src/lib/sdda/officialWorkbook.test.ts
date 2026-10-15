@@ -22,6 +22,8 @@ test('patches a fresh official SDDA workbook while preserving formulas and filli
   const workbook = strFromU8(files['xl/workbook.xml']);
   assert.match(workbook, /name="Games"/);
   assert.match(workbook, /fullCalcOnLoad="1"/);
+  assert.match(workbook, /calcMode="auto"/);
+  assert.match(workbook, /calcOnSave="1"/);
   assert.equal(files['xl/calcChain.xml'], undefined);
   assert.doesNotMatch(strFromU8(files['xl/_rels/workbook.xml.rels']), /calcChain/);
   assert.doesNotMatch(strFromU8(files['[Content_Types].xml']), /calcChain/);
@@ -98,7 +100,7 @@ test('exports every non-qualifying Scent outcome as a numeric failed score', () 
   });
   const started = strFromU8(unzipSync(output)['xl/worksheets/sheet3.xml']);
   assert.match(started, /r="G5"[^>]*><v>0<\/v>/);
-  assert.match(started, /r="G6"[^>]*><v>14<\/v>/);
+  assert.match(started, /r="G6"[^>]*><v>0<\/v>/);
   assert.match(started, /r="G7"[^>]*><v>0<\/v>/);
   assert.match(started, /r="G8"[^>]*><v>0<\/v>/);
   assert.match(started, /r="G9"[^>]*><v>0<\/v>/);

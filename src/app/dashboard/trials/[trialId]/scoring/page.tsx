@@ -89,6 +89,7 @@ export default function ScoringPage() {
   const recordedGames = persistedGameIds.size;
 
   const updateScentDraft = (runId: string, patch: Partial<ScentDraft>) => {
+    if (patch.result === 'non_qualifying') patch = { ...patch, score: '0' };
     setScentDrafts((current) => ({ ...current, [runId]: { ...current[runId], ...patch } }));
     setDirtyScentIds((current) => new Set(current).add(runId)); setMessage('');
   };
