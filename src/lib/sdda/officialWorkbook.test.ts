@@ -16,7 +16,11 @@ test('patches a fresh official SDDA workbook while preserving formulas and filli
       { dayNumber: 1, level: 'Started', component: 'Container', stream: 'Amateur', dogNumber: '1234', runGroup: 'Regular' },
       { dayNumber: 1, level: 'Started', component: 'Interior', stream: 'Working', dogNumber: '1234', runGroup: 'Regular', result: 'qualifying', score: 22, timeSeconds: 31.5 },
     ],
-    gameRuns: [{ dayNumber: 1, gameType: 'Aerial', dogNumber: '1234', entryType: 'Regular', result: 'pass', timeSeconds: 18.2 }],
+    gameRuns: [
+      { dayNumber: 1, gameType: 'Aerial', dogNumber: '1234', entryType: 'Regular', result: 'pass', timeSeconds: 18.2 },
+      { dayNumber: 1, gameType: 'Distance', dogNumber: '1234', entryType: 'Regular', result: 'pass', timeSeconds: 27.7 },
+      { dayNumber: 1, gameType: 'Speed', dogNumber: '1234', entryType: 'Regular', result: 'pass', timeSeconds: 32.4 },
+    ],
   });
   const files = unzipSync(output);
   const workbook = strFromU8(files['xl/workbook.xml']);
@@ -31,6 +35,12 @@ test('patches a fresh official SDDA workbook while preserving formulas and filli
   const games = strFromU8(files['xl/worksheets/sheet11.xml']);
   assert.match(games, /r="D7"[^>]*><v>1234<\/v>/);
   assert.match(games, /r="O7"[^>]*t="inlineStr"><is><t xml:space="preserve">P<\/t>/);
+  const distanceTimeStyle = Number(games.match(/r="W7"[^>]*\bs="(\d+)"/)?.[1]);
+  const speedTimeStyle = Number(games.match(/r="AD7"[^>]*\bs="(\d+)"/)?.[1]);
+  const styles = strFromU8(files['xl/styles.xml']);
+  const cellStyles = styles.match(/<cellXfs\b[^>]*>([\s\S]*?)<\/cellXfs>/)?.[1].match(/<xf\b[^>]*\/>|<xf\b[^>]*>[\s\S]*?<\/xf>/g) || [];
+  assert.match(cellStyles[distanceTimeStyle], /numFmtId="47"/);
+  assert.match(cellStyles[speedTimeStyle], /numFmtId="47"/);
   const started = strFromU8(files['xl/worksheets/sheet3.xml']);
   assert.match(started, /r="C5"[^>]*><v>1234<\/v>/);
   assert.match(started, /r="G5"[^>]*t="inlineStr"><is><t xml:space="preserve">E<\/t><\/is><\/c>/);

@@ -190,6 +190,35 @@ export function buildOfficialSddaWorkbook(template: Uint8Array, input: OfficialW
   const names = new Map<string, string>();
   for (const match of workbookXml.matchAll(/<definedName\b[^>]*\bname="([^"]+)"[^>]*>([^<]*)<\/definedName>/g)) names.set(match[1], match[2]);
   const changedSheets = new Map<string, string>();
+  const stylesPath = 'xl/styles.xml';
+  let stylesXml = strFromU8(files[stylesPath]);
+  const timeStyleCache = new Map<number, number>();
+  const ensureTimeStyle = (styleId: number) => {
+    if (timeStyleCache.has(styleId)) return timeStyleCache.get(styleId)!;
+    const cellXfs = stylesXml.match(/<cellXfs\b([^>]*)>([\s\S]*?)<\/cellXfs>/);
+    if (!cellXfs) throw new Error('The official workbook is missing its cell-style table.');
+    const styles = cellXfs[2].match(/<xf\b[^>]*\/>|<xf\b[^>]*>[\s\S]*?<\/xf>/g) || [];
+    const source = styles[styleId] || styles[0];
+    if (!source) throw new Error(`The official workbook is missing cell style ${styleId}.`);
+    if (/\bnumFmtId="47"/.test(source)) {
+      timeStyleCache.set(styleId, styleId);
+      return styleId;
+    }
+    let clone = /\bnumFmtId="[^"]*"/.test(source)
+      ? source.replace(/\bnumFmtId="[^"]*"/, 'numFmtId="47"')
+      : source.replace(/^<xf\b/, '<xf numFmtId="47"');
+    clone = /\bapplyNumberFormat="[^"]*"/.test(clone)
+      ? clone.replace(/\bapplyNumberFormat="[^"]*"/, 'applyNumberFormat="1"')
+      : clone.replace(/^<xf\b/, '<xf applyNumberFormat="1"');
+    const newStyleId = styles.length;
+    const count = Number(cellXfs[1].match(/\bcount="(\d+)"/)?.[1] || styles.length);
+    const attributes = /\bcount="\d+"/.test(cellXfs[1])
+      ? cellXfs[1].replace(/\bcount="\d+"/, `count="${count + 1}"`)
+      : `${cellXfs[1]} count="${count + 1}"`;
+    stylesXml = stylesXml.replace(cellXfs[0], `<cellXfs${attributes}>${cellXfs[2]}${clone}</cellXfs>`);
+    timeStyleCache.set(styleId, newStyleId);
+    return newStyleId;
+  };
   const sheetXml = (name: string) => {
     if (changedSheets.has(name)) return changedSheets.get(name)!;
     const path = sheetPaths.get(name);
@@ -205,7 +234,13 @@ export function buildOfficialSddaWorkbook(template: Uint8Array, input: OfficialW
     const empty = new RegExp(`<c\\b([^>]*\\br="${address}"[^>]*)\\/>`);
     const existing = xml.match(full) || xml.match(empty);
     let attrs = (existing?.[1] || ` r="${address}"`).replace(/\s+t="[^"]*"/g, '').replace(/\/\s*$/, '');
-    if (time && !/\s+s="/.test(attrs)) attrs += ' s="2"';
+    if (time) {
+      const currentStyle = Number(attrs.match(/\s+s="(\d+)"/)?.[1] || 0);
+      const timeStyle = ensureTimeStyle(currentStyle);
+      attrs = /\s+s="\d+"/.test(attrs)
+        ? attrs.replace(/\s+s="\d+"/, ` s="${timeStyle}"`)
+        : `${attrs} s="${timeStyle}"`;
+    }
     const body = typeof value === 'number' ? `<v>${value}</v>` : `<is><t xml:space="preserve">${xmlEscape(value)}</t></is>`;
     if (typeof value !== 'number') attrs += ' t="inlineStr"';
     const replacement = `<c${attrs}>${body}</c>`;
@@ -309,6 +344,7 @@ export function buildOfficialSddaWorkbook(template: Uint8Array, input: OfficialW
   }
 
   for (const [name, xml] of changedSheets) files[sheetPaths.get(name)!] = strToU8(xml);
+  files[stylesPath] = strToU8(stylesXml);
   workbookXml = workbookXml.replace(/<calcPr\b([^>]*)\/>/, (_match, attrs: string) => `<calcPr${attrs.replace(/\s+(calcMode|calcOnSave|fullCalcOnLoad|forceFullCalc)="[^"]*"/g, '')} calcMode="auto" calcOnSave="1" fullCalcOnLoad="1" forceFullCalc="1"/>`);
   files[workbookPath] = strToU8(workbookXml);
 
