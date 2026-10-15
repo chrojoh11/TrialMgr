@@ -571,6 +571,22 @@ export async function promoteSddaWaitlistedSelection(client: SupabaseClient, kin
   if (error) throw new Error(error.message);
 }
 
+export async function setSddaSelectionDayOfStatus(
+  client: SupabaseClient,
+  kind: 'scent' | 'game',
+  selectionId: string,
+  action: 'withdraw' | 'restore',
+  reason: string,
+) {
+  const { error } = await client.rpc('sdda_set_selection_day_of_status', {
+    target_kind: kind,
+    target_selection_id: selectionId,
+    requested_action: action,
+    requested_reason: reason,
+  });
+  if (error) throw new Error(error.message);
+}
+
 export async function importSddaCsvEntries(
   client: SupabaseClient,
   trial: SddaTrialWorkspace,

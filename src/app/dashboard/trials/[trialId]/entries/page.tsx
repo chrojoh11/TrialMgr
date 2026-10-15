@@ -20,6 +20,7 @@ import {
   listSddaEntryFinancials,
   saveSddaTrialOfferings,
   promoteSddaWaitlistedSelection,
+  setSddaSelectionDayOfStatus,
   setSddaEntryConfirmationStatus,
   type SddaTrialWorkspace,
 } from '@/lib/sdda/trialRepository';
@@ -253,6 +254,32 @@ export default function SddaEntriesPage() {
     } finally { setSavingEntryId(null); }
   };
 
+  const changeDayOfSelection = async (
+    entryId: string,
+    kind: 'scent' | 'game',
+    selectionId: string,
+    action: 'withdraw' | 'restore',
+  ) => {
+    const reason = window.prompt(
+      action === 'withdraw'
+        ? 'Why is this run being withdrawn? This removes it from trial operations but does not remove its fee.'
+        : 'Why is this run being restored?'
+    )?.trim();
+    if (!reason) return;
+    try {
+      setSavingEntryId(entryId);
+      setError(null);
+      setEntryDecisionError((current) => ({ ...current, [entryId]: '' }));
+      await setSddaSelectionDayOfStatus(getSupabaseBrowser(), kind, selectionId, action, reason);
+      await load();
+      setResult(action === 'withdraw' ? 'Run withdrawn from trial operations.' : 'Run restored. Add it to the running order when ready.');
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : 'Unable to change this run.';
+      setError(message);
+      setEntryDecisionError((current) => ({ ...current, [entryId]: message }));
+    } finally { setSavingEntryId(null); }
+  };
+
   return (
     <MainLayout
       title="SDDA Entries"
@@ -429,14 +456,14 @@ export default function SddaEntriesPage() {
                     )}
                     <div className="flex flex-wrap gap-2">
                       {(entry.sdda_runs || []).map((run: any) => (
-                        <span key={run.id} className="inline-flex items-center gap-1"><Badge variant="outline">{run.level} {run.component} • {run.stream} • {run.selection_status}</Badge>{run.selection_status === 'waitlisted' && <Button type="button" size="sm" variant="outline" disabled={savingEntryId === entry.id} onClick={() => void promoteSelection(entry.id, 'scent', run.id)}>Promote</Button>}</span>
+                        <span key={run.id} className="inline-flex items-center gap-1"><Badge variant="outline">{run.level} {run.component} • {run.stream} • {run.selection_status === 'day_of_withdrawn' ? 'day-of withdrawn' : run.selection_status}</Badge>{run.selection_status === 'waitlisted' && <Button type="button" size="sm" variant="outline" disabled={savingEntryId === entry.id} onClick={() => void promoteSelection(entry.id, 'scent', run.id)}>Promote</Button>}{run.selection_status === 'accepted' && <Button type="button" size="sm" variant="outline" disabled={savingEntryId === entry.id} onClick={() => void changeDayOfSelection(entry.id, 'scent', run.id, 'withdraw')}>Withdraw run</Button>}{run.selection_status === 'day_of_withdrawn' && <Button type="button" size="sm" variant="outline" disabled={savingEntryId === entry.id} onClick={() => void changeDayOfSelection(entry.id, 'scent', run.id, 'restore')}>Restore run</Button>}</span>
                       ))}
                       {(entry.sdda_game_runs || []).map((run: any) => {
                         const offering = Array.isArray(run.sdda_game_offerings)
                           ? run.sdda_game_offerings[0]
                           : run.sdda_game_offerings;
                         return (
-                          <span key={run.id} className="inline-flex items-center gap-1"><Badge variant="outline">{offering?.game_type} • {run.entry_type} • {run.selection_status}</Badge>{run.selection_status === 'waitlisted' && <Button type="button" size="sm" variant="outline" disabled={savingEntryId === entry.id} onClick={() => void promoteSelection(entry.id, 'game', run.id)}>Promote</Button>}</span>
+                          <span key={run.id} className="inline-flex items-center gap-1"><Badge variant="outline">{offering?.game_type} • {run.entry_type} • {run.selection_status === 'day_of_withdrawn' ? 'day-of withdrawn' : run.selection_status}</Badge>{run.selection_status === 'waitlisted' && <Button type="button" size="sm" variant="outline" disabled={savingEntryId === entry.id} onClick={() => void promoteSelection(entry.id, 'game', run.id)}>Promote</Button>}{run.selection_status === 'accepted' && <Button type="button" size="sm" variant="outline" disabled={savingEntryId === entry.id} onClick={() => void changeDayOfSelection(entry.id, 'game', run.id, 'withdraw')}>Withdraw run</Button>}{run.selection_status === 'day_of_withdrawn' && <Button type="button" size="sm" variant="outline" disabled={savingEntryId === entry.id} onClick={() => void changeDayOfSelection(entry.id, 'game', run.id, 'restore')}>Restore run</Button>}</span>
                         );
                       })}
                     </div>

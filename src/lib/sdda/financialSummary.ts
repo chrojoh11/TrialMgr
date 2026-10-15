@@ -26,6 +26,9 @@ interface GameOffering {
   feo_fee_cents: number;
 }
 
+const isChargeableSelection = (selectionStatus?: string) =>
+  !selectionStatus || selectionStatus === 'accepted' || selectionStatus === 'day_of_withdrawn';
+
 export function acceptedEntryChargeCents(
   entry: FinancialEntry,
   pricing: TrialPricing,
@@ -34,7 +37,7 @@ export function acceptedEntryChargeCents(
   if (entry.confirmation_status !== 'accepted') return 0;
   const games = new Map(gameOfferings.map((offering) => [offering.id, offering]));
   const grouped = new Map<string, ScentRun[]>();
-  for (const run of (entry.sdda_runs || []).filter((item) => !item.selection_status || item.selection_status === 'accepted')) {
+  for (const run of (entry.sdda_runs || []).filter((item) => isChargeableSelection(item.selection_status))) {
     const key = `${run.trial_day_id}|${run.level}`;
     grouped.set(key, [...(grouped.get(key) || []), run]);
   }
@@ -45,7 +48,7 @@ export function acceptedEntryChargeCents(
       total += pricing.scentThreeComponentFeeCents;
     else total += runs.length * pricing.scentComponentFeeCents;
   }
-  for (const run of (entry.sdda_game_runs || []).filter((item) => !item.selection_status || item.selection_status === 'accepted')) {
+  for (const run of (entry.sdda_game_runs || []).filter((item) => isChargeableSelection(item.selection_status))) {
     const offering = games.get(run.offering_id);
     if (offering)
       total += run.entry_type === 'FEO' ? offering.feo_fee_cents : offering.entry_fee_cents;
@@ -58,11 +61,11 @@ export function sddaRemittanceCents(entries: FinancialEntry[], trialDayCount: nu
   let gameRuns = 0;
   const eliteDogs = new Set<string>();
   for (const entry of entries.filter((item) => item.confirmation_status === 'accepted')) {
-    for (const run of (entry.sdda_runs || []).filter((item) => !item.selection_status || item.selection_status === 'accepted')) {
+    for (const run of (entry.sdda_runs || []).filter((item) => isChargeableSelection(item.selection_status))) {
       if (run.level === 'Elite') eliteDogs.add(`${entry.id}|${run.trial_day_id}`);
       else standardRuns += 1;
     }
-    gameRuns += entry.sdda_game_runs?.filter((item) => !item.selection_status || item.selection_status === 'accepted').length || 0;
+    gameRuns += entry.sdda_game_runs?.filter((item) => isChargeableSelection(item.selection_status)).length || 0;
   }
   return trialDayCount * 5000 + (standardRuns + gameRuns) * 500 + eliteDogs.size * 1000;
 }

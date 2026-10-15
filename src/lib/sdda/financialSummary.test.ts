@@ -65,6 +65,23 @@ test('charges only accepted selections in a partially waitlisted entry', () => {
   ]), 3500);
 });
 
+test('day-of withdrawn selections keep their fees while ordinary withdrawals do not', () => {
+  const entry = {
+    id: 'entry', confirmation_status: 'accepted',
+    sdda_runs: [
+      { trial_day_id: 'day', level: 'Started', selection_status: 'day_of_withdrawn' },
+      { trial_day_id: 'day', level: 'Started', selection_status: 'withdrawn' },
+    ],
+    sdda_game_runs: [
+      { offering_id: 'game', entry_type: 'Regular', selection_status: 'day_of_withdrawn' },
+    ],
+  };
+  const pricing = { scentComponentFeeCents: 3500, scentThreeComponentFeeCents: 10000, eliteFeeCents: 10000 };
+  const games = [{ id: 'game', entry_fee_cents: 2500, feo_fee_cents: 1500 }];
+  assert.equal(acceptedEntryChargeCents(entry, pricing, games), 6000);
+  assert.equal(sddaRemittanceCents([entry], 0), 1000);
+});
+
 test('partial payment plus waiver settles without inventing collections; restore retains history', () => {
   const ledger = [
     { transaction_type: 'payment', amount_cents: 4000 },
