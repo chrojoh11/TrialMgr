@@ -681,11 +681,21 @@ export async function recordSddaScentScore(client: SupabaseClient, input: { runI
   if (error) throw new Error(error.message);
 }
 
+export async function clearSddaScentScore(client: SupabaseClient, runId: string) {
+  const { error } = await client.rpc('sdda_clear_scent_score', { target_run_id: runId });
+  if (error) throw new Error(error.message);
+}
+
 export async function recordSddaGameScore(client: SupabaseClient, input: { runId: string; result: string; timeSeconds: number | null; notes: string }) {
   const { error } = await client.rpc('sdda_record_game_score', {
     target_game_run_id: input.runId, requested_result: input.result,
     requested_time_seconds: input.timeSeconds, requested_notes: input.notes,
   });
+  if (error) throw new Error(error.message);
+}
+
+export async function clearSddaGameScore(client: SupabaseClient, runId: string) {
+  const { error } = await client.rpc('sdda_clear_game_score', { target_game_run_id: runId });
   if (error) throw new Error(error.message);
 }
 

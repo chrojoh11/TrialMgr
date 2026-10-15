@@ -14,6 +14,8 @@ import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { parseScoreTime } from '@/lib/sdda/scoreTime';
 import {
   getSddaTrialWorkspace,
+  clearSddaGameScore,
+  clearSddaScentScore,
   listSddaGameScoringRuns,
   listSddaScoringRuns,
   recordSddaGameScore,
@@ -90,10 +92,12 @@ export default function ScoringPage() {
 
   const updateScentDraft = (runId: string, patch: Partial<ScentDraft>) => {
     if (patch.result === 'non_qualifying') patch = { ...patch, score: '0' };
+    if (patch.result === '') patch = { result: '', score: '', time: '', faults: '0', notes: '' };
     setScentDrafts((current) => ({ ...current, [runId]: { ...current[runId], ...patch } }));
     setDirtyScentIds((current) => new Set(current).add(runId)); setMessage('');
   };
   const updateGameDraft = (runId: string, patch: Partial<GameDraft>) => {
+    if (patch.result === '') patch = { result: '', time: '', notes: '' };
     setGameDrafts((current) => ({ ...current, [runId]: { ...current[runId], ...patch } }));
     setDirtyGameIds((current) => new Set(current).add(runId)); setMessage('');
   };
@@ -119,13 +123,13 @@ export default function ScoringPage() {
 
   const saveScent = async (run: ScentRun) => {
     setSavingId(run.id); setError(''); setMessage('');
-    try { await recordSddaScentScore(getSupabaseBrowser(), scentInput(run)); setDirtyScentIds((current) => { const next=new Set(current); next.delete(run.id); return next; }); setPersistedScentIds((current)=>new Set(current).add(run.id)); setMessage('Scent result saved. Other unsaved cards were left in place.'); advanceToNext('scent', run.id); }
+    try { const client=getSupabaseBrowser(); const draft=scentDrafts[run.id]; if (!draft?.result) await clearSddaScentScore(client,run.id); else await recordSddaScentScore(client,scentInput(run)); setDirtyScentIds((current) => { const next=new Set(current); next.delete(run.id); return next; }); setPersistedScentIds((current)=>{const next=new Set(current); if(draft?.result) next.add(run.id); else next.delete(run.id); return next;}); setMessage(draft?.result?'Scent result saved. Other unsaved cards were left in place.':'Scent result cleared and returned to Not recorded.'); advanceToNext('scent', run.id); }
     catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to save Scent result.'); }
     finally { setSavingId(null); }
   };
   const saveGame = async (run: GameRun) => {
     setSavingId(run.id); setError(''); setMessage('');
-    try { await recordSddaGameScore(getSupabaseBrowser(), gameInput(run)); setDirtyGameIds((current) => { const next=new Set(current); next.delete(run.id); return next; }); setPersistedGameIds((current)=>new Set(current).add(run.id)); setMessage('Games result saved. Other unsaved cards were left in place.'); advanceToNext('games', run.id); }
+    try { const client=getSupabaseBrowser(); const draft=gameDrafts[run.id]; if (!draft?.result) await clearSddaGameScore(client,run.id); else await recordSddaGameScore(client,gameInput(run)); setDirtyGameIds((current) => { const next=new Set(current); next.delete(run.id); return next; }); setPersistedGameIds((current)=>{const next=new Set(current); if(draft?.result) next.add(run.id); else next.delete(run.id); return next;}); setMessage(draft?.result?'Games result saved. Other unsaved cards were left in place.':'Games result cleared and returned to Not recorded.'); advanceToNext('games', run.id); }
     catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to save Games result.'); }
     finally { setSavingId(null); }
   };
@@ -133,11 +137,11 @@ export default function ScoringPage() {
   const saveAll = async () => {
     setError(''); setMessage('');
     try {
-      const scentToSave = scentRuns.filter((run) => dirtyScentIds.has(run.id)).map((run) => ({ run, input: scentInput(run) }));
-      const gamesToSave = gameRuns.filter((run) => dirtyGameIds.has(run.id)).map((run) => ({ run, input: gameInput(run) }));
+      const scentToSave = scentRuns.filter((run) => dirtyScentIds.has(run.id)).map((run) => ({ run, input: scentDrafts[run.id]?.result ? scentInput(run) : null }));
+      const gamesToSave = gameRuns.filter((run) => dirtyGameIds.has(run.id)).map((run) => ({ run, input: gameDrafts[run.id]?.result ? gameInput(run) : null }));
       setSavingAll(true); const client = getSupabaseBrowser(); let saved = 0;
-      for (const item of scentToSave) { await recordSddaScentScore(client, item.input); saved++; setDirtyScentIds((current) => { const next=new Set(current); next.delete(item.run.id); return next; }); setPersistedScentIds((current)=>new Set(current).add(item.run.id)); }
-      for (const item of gamesToSave) { await recordSddaGameScore(client, item.input); saved++; setDirtyGameIds((current) => { const next=new Set(current); next.delete(item.run.id); return next; }); setPersistedGameIds((current)=>new Set(current).add(item.run.id)); }
+      for (const item of scentToSave) { if(item.input) await recordSddaScentScore(client,item.input); else await clearSddaScentScore(client,item.run.id); saved++; setDirtyScentIds((current) => { const next=new Set(current); next.delete(item.run.id); return next; }); setPersistedScentIds((current)=>{const next=new Set(current); if(item.input) next.add(item.run.id); else next.delete(item.run.id); return next;}); }
+      for (const item of gamesToSave) { if(item.input) await recordSddaGameScore(client,item.input); else await clearSddaGameScore(client,item.run.id); saved++; setDirtyGameIds((current) => { const next=new Set(current); next.delete(item.run.id); return next; }); setPersistedGameIds((current)=>{const next=new Set(current); if(item.input) next.add(item.run.id); else next.delete(item.run.id); return next;}); }
       setMessage(`${saved} changed score card${saved === 1 ? '' : 's'} saved. You can safely leave and continue later.`);
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to save all changed scores. Cards saved before the error remain saved.'); }
     finally { setSavingAll(false); }
