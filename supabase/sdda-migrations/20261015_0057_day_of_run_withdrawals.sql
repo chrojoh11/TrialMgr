@@ -1,5 +1,5 @@
 -- Secretary-only, audited day-of run withdrawals. These selections are excluded
--- from trial operations while retaining the original entry fee obligation.
+-- from trial operations and from entry charges when the dog is no longer eligible.
 begin;
 
 alter table public.sdda_runs drop constraint if exists sdda_runs_selection_status_check;
@@ -97,11 +97,11 @@ as $charges$
       when grouped.n=3 and t.scent_three_component_fee_cents>0 then t.scent_three_component_fee_cents
       else grouped.n*t.scent_component_fee_cents end)
       from (select r.trial_day_id,r.level,count(*) n from public.sdda_runs r
-        where r.entry_id=e.id and coalesce(r.selection_status,'accepted') in ('accepted','day_of_withdrawn')
+        where r.entry_id=e.id and coalesce(r.selection_status,'accepted')='accepted'
         group by r.trial_day_id,r.level) grouped),0)
     +coalesce((select sum(case when r.entry_type='FEO' then o.feo_fee_cents else o.entry_fee_cents end)
       from public.sdda_game_runs r join public.sdda_game_offerings o on o.id=r.offering_id
-      where r.entry_id=e.id and coalesce(r.selection_status,'accepted') in ('accepted','day_of_withdrawn')),0) end
+      where r.entry_id=e.id and coalesce(r.selection_status,'accepted')='accepted'),0) end
   from public.sdda_entries e join public.sdda_trials t on t.id=e.trial_id where e.id=target_entry_id;
 $charges$;
 

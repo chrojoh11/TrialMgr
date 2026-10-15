@@ -27,7 +27,7 @@ interface GameOffering {
 }
 
 const isChargeableSelection = (selectionStatus?: string) =>
-  !selectionStatus || selectionStatus === 'accepted' || selectionStatus === 'day_of_withdrawn';
+  !selectionStatus || selectionStatus === 'accepted';
 
 export function acceptedEntryChargeCents(
   entry: FinancialEntry,

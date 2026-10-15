@@ -262,7 +262,7 @@ export default function SddaEntriesPage() {
   ) => {
     const reason = window.prompt(
       action === 'withdraw'
-        ? 'Why is this run being withdrawn? This removes it from trial operations but does not remove its fee.'
+        ? 'Why is this run being withdrawn? This removes it from trial operations and recalculates the entry fees.'
         : 'Why is this run being restored?'
     )?.trim();
     if (!reason) return;
