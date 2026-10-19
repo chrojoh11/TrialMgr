@@ -13,3 +13,14 @@ export function parseScoreTime(value: string): number | null {
   if (!Number.isFinite(minutes) || !Number.isFinite(seconds) || seconds >= 60) return Number.NaN;
   return minutes * 60 + seconds;
 }
+
+/** Display stored total seconds in the same format written on judge sheets. */
+export function formatScoreTime(value: number | string | null | undefined): string {
+  if (value === null || value === undefined || value === '') return '';
+  const total = Number(value);
+  if (!Number.isFinite(total) || total < 0) return '';
+  const hundredths = Math.round(total * 100);
+  const minutes = Math.floor(hundredths / 6000);
+  const seconds = (hundredths - minutes * 6000) / 100;
+  return `${minutes}:${seconds.toFixed(2).padStart(5, '0')}`;
+}

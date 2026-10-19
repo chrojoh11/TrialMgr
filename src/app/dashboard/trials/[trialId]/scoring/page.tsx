@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
-import { parseScoreTime } from '@/lib/sdda/scoreTime';
+import { formatScoreTime, parseScoreTime } from '@/lib/sdda/scoreTime';
 import {
   getSddaTrialWorkspace,
   clearSddaGameScore,
@@ -42,8 +42,8 @@ export default function ScoringPage() {
   const [gameDrafts, setGameDrafts] = useState<Record<string, GameDraft>>({});
   const [format, setFormat] = useState<'scent' | 'games'>('scent');
   const [dayId, setDayId] = useState('all');
+  const [classKey, setClassKey] = useState('');
   const [query, setQuery] = useState('');
-  const [savingId, setSavingId] = useState<string | null>(null);
   const [savingAll, setSavingAll] = useState(false);
   const [dirtyScentIds, setDirtyScentIds] = useState<Set<string>>(new Set());
   const [dirtyGameIds, setDirtyGameIds] = useState<Set<string>>(new Set());
@@ -62,13 +62,14 @@ export default function ScoringPage() {
       ]);
       setTrial(workspace); setScentRuns(scents); setGameRuns(games);
       const nextScent: Record<string, ScentDraft> = {};
-      for (const run of scents) { const score = first(run.sdda_scores); nextScent[run.id] = { result: score?.result || '', score: score?.score == null ? '' : String(score.score), time: score?.time_seconds == null ? '' : String(score.time_seconds), faults: String(score?.faults ?? 0), notes: score?.judge_notes || '' }; }
+      for (const run of scents) { const score = first(run.sdda_scores); nextScent[run.id] = { result: score?.result || '', score: score?.score == null ? '' : String(score.score), time: formatScoreTime(score?.time_seconds), faults: String(score?.faults ?? 0), notes: score?.judge_notes || '' }; }
       const nextGames: Record<string, GameDraft> = {};
-      for (const run of games) { const score = first(run.sdda_game_scores); nextGames[run.id] = { result: score?.result || '', time: score?.time_seconds == null ? '' : String(score.time_seconds), notes: score?.judge_notes || '' }; }
+      for (const run of games) { const score = first(run.sdda_game_scores); nextGames[run.id] = { result: score?.result || '', time: formatScoreTime(score?.time_seconds), notes: score?.judge_notes || '' }; }
       setScentDrafts(nextScent); setGameDrafts(nextGames);
       setDirtyScentIds(new Set()); setDirtyGameIds(new Set());
       setPersistedScentIds(new Set(scents.filter((run) => Boolean(first(run.sdda_scores))).map((run) => run.id)));
       setPersistedGameIds(new Set(games.filter((run) => Boolean(first(run.sdda_game_scores))).map((run) => run.id)));
+      if (workspace.sdda_trial_days[0]) setDayId(workspace.sdda_trial_days[0].id);
       if (!scents.length && games.length) setFormat('games');
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to load score entry.'); }
     finally { setLoading(false); }
@@ -80,13 +81,22 @@ export default function ScoringPage() {
     window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn);
   }, [unsavedCount]);
 
-  const matches = useCallback((run: ScentRun | GameRun) => {
-    if (dayId !== 'all' && run.trial_day_id !== dayId) return false;
+  const matchesSearch = useCallback((run: ScentRun | GameRun) => {
     const entry = first(run.sdda_entries); const dog = first(entry?.sdda_dogs);
     return `${entry?.handler_name || ''} ${dog?.call_name || ''} ${dog?.registered_name || ''} ${dog?.sdda_registration_number || ''}`.toLowerCase().includes(query.toLowerCase());
-  }, [dayId, query]);
-  const shownScent = useMemo(() => scentRuns.filter(matches).sort((left, right) => (first(left.sdda_trial_days)?.day_number || 0) - (first(right.sdda_trial_days)?.day_number || 0) || (left.running_position || Number.MAX_SAFE_INTEGER) - (right.running_position || Number.MAX_SAFE_INTEGER)), [scentRuns, matches]);
-  const shownGames = useMemo(() => gameRuns.filter(matches).sort((left, right) => (first(left.sdda_trial_days)?.day_number || 0) - (first(right.sdda_trial_days)?.day_number || 0) || (left.running_position || Number.MAX_SAFE_INTEGER) - (right.running_position || Number.MAX_SAFE_INTEGER)), [gameRuns, matches]);
+  }, [query]);
+  const scentClasses = useMemo(() => {
+    const seen = new Set<string>();
+    return scentRuns.filter((run) => run.trial_day_id === dayId).map((run) => ({ key: `${run.level}|${run.component}`, label: `${run.level} ${run.component}` })).filter((item) => !seen.has(item.key) && Boolean(seen.add(item.key)));
+  }, [scentRuns, dayId]);
+  const gameClasses = useMemo(() => {
+    const seen = new Set<string>();
+    return gameRuns.filter((run) => run.trial_day_id === dayId).map((run) => { const offering=first(run.sdda_game_offerings); return { key: offering?.game_type || '', label: offering?.game_type || 'Game' }; }).filter((item) => item.key && !seen.has(item.key) && Boolean(seen.add(item.key)));
+  }, [gameRuns, dayId]);
+  const classOptions = format === 'scent' ? scentClasses : gameClasses;
+  useEffect(() => { if (!classOptions.some((item) => item.key === classKey)) setClassKey(classOptions[0]?.key || ''); }, [classOptions, classKey]);
+  const shownScent = useMemo(() => scentRuns.filter((run) => run.trial_day_id === dayId && `${run.level}|${run.component}` === classKey && matchesSearch(run)).sort((left, right) => (left.running_position || Number.MAX_SAFE_INTEGER) - (right.running_position || Number.MAX_SAFE_INTEGER)), [scentRuns, dayId, classKey, matchesSearch]);
+  const shownGames = useMemo(() => gameRuns.filter((run) => run.trial_day_id === dayId && (first(run.sdda_game_offerings)?.game_type || '') === classKey && matchesSearch(run)).sort((left, right) => (left.running_position || Number.MAX_SAFE_INTEGER) - (right.running_position || Number.MAX_SAFE_INTEGER)), [gameRuns, dayId, classKey, matchesSearch]);
   const recordedScent = persistedScentIds.size;
   const recordedGames = persistedGameIds.size;
 
@@ -114,26 +124,6 @@ export default function ScoringPage() {
     return { runId: run.id, result: draft.result, timeSeconds: time, notes: draft.notes };
   };
 
-  const advanceToNext = (kind: 'scent' | 'games', runId: string) => {
-    const runs = kind === 'scent' ? shownScent : shownGames;
-    const next = runs[runs.findIndex((run) => run.id === runId) + 1];
-    if (!next) { setMessage('Score saved. This is the last sheet in the current view.'); return; }
-    window.setTimeout(() => document.getElementById(`score-result-${next.id}`)?.focus(), 0);
-  };
-
-  const saveScent = async (run: ScentRun) => {
-    setSavingId(run.id); setError(''); setMessage('');
-    try { const client=getSupabaseBrowser(); const draft=scentDrafts[run.id]; if (!draft?.result) await clearSddaScentScore(client,run.id); else await recordSddaScentScore(client,scentInput(run)); setDirtyScentIds((current) => { const next=new Set(current); next.delete(run.id); return next; }); setPersistedScentIds((current)=>{const next=new Set(current); if(draft?.result) next.add(run.id); else next.delete(run.id); return next;}); setMessage(draft?.result?'Scent result saved. Other unsaved cards were left in place.':'Scent result cleared and returned to Not recorded.'); advanceToNext('scent', run.id); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to save Scent result.'); }
-    finally { setSavingId(null); }
-  };
-  const saveGame = async (run: GameRun) => {
-    setSavingId(run.id); setError(''); setMessage('');
-    try { const client=getSupabaseBrowser(); const draft=gameDrafts[run.id]; if (!draft?.result) await clearSddaGameScore(client,run.id); else await recordSddaGameScore(client,gameInput(run)); setDirtyGameIds((current) => { const next=new Set(current); next.delete(run.id); return next; }); setPersistedGameIds((current)=>{const next=new Set(current); if(draft?.result) next.add(run.id); else next.delete(run.id); return next;}); setMessage(draft?.result?'Games result saved. Other unsaved cards were left in place.':'Games result cleared and returned to Not recorded.'); advanceToNext('games', run.id); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to save Games result.'); }
-    finally { setSavingId(null); }
-  };
-
   const saveAll = async () => {
     setError(''); setMessage('');
     try {
@@ -147,18 +137,72 @@ export default function ScoringPage() {
     finally { setSavingAll(false); }
   };
 
+  const currentDay = trial?.sdda_trial_days.find((day) => day.id === dayId);
+  const currentDirtyCount = format === 'scent'
+    ? shownScent.filter((run) => dirtyScentIds.has(run.id)).length
+    : shownGames.filter((run) => dirtyGameIds.has(run.id)).length;
+
   return <MainLayout title="Score entry" breadcrumbItems={[{ label: 'Trials', href: '/dashboard/trials' }, { label: trial?.name || 'Trial', href: `/dashboard/trials/${trialId}` }, { label: 'Score entry' }]}>
     <div className="space-y-5">
-      <Card className="sticky top-0 z-30 border-[#cbd9e5] bg-[#f8fafc]/95 shadow-md backdrop-blur"><CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2 font-serif text-3xl text-[#294f73]"><ClipboardCheck className="h-7 w-7" />Audited score entry</CardTitle><CardDescription>Accepted entries only. Save all changed cards before taking a break; saved scores reload when you return.</CardDescription></div><div className="flex flex-wrap items-center gap-2"><Badge variant={unsavedCount ? 'destructive' : 'outline'}>{unsavedCount} unsaved</Badge><Badge className="bg-[#294f73] text-white">{recordedScent + recordedGames} / {scentRuns.length + gameRuns.length} recorded</Badge><Button className="bg-[#294f73]" disabled={!unsavedCount || savingAll || Boolean(savingId)} onClick={() => void saveAll()}>{savingAll ? <PawLoader className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}Save all changes</Button></div></div></CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-4"><select className="rounded-md border bg-white px-3 py-2" value={format} onChange={(event) => setFormat(event.target.value as 'scent' | 'games')}><option value="scent">Scent ({recordedScent}/{scentRuns.length})</option><option value="games">Games ({recordedGames}/{gameRuns.length})</option></select><select className="rounded-md border bg-white px-3 py-2" value={dayId} onChange={(event) => setDayId(event.target.value)}><option value="all">All trial days</option>{trial?.sdda_trial_days.map((day) => <option key={day.id} value={day.id}>Day {day.day_number} · {day.trial_date}</option>)}</select><Input className="bg-white md:col-span-2" placeholder="Find dog, handler, or SDDA number" value={query} onChange={(event) => setQuery(event.target.value)} /><p className="text-xs text-[#64748b] md:col-span-4">Cards follow the printed running order. Save &amp; next moves to the next result; Save all keeps every changed card available for a break.</p></CardContent>
+      <Card className="sticky top-0 z-30 border-[#cbd9e5] bg-[#f8fafc]/95 shadow-md backdrop-blur">
+        <CardHeader>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div><CardTitle className="flex items-center gap-2 font-serif text-3xl text-[#294f73]"><ClipboardCheck className="h-7 w-7" />Class score entry</CardTitle><CardDescription>Enter one class in running order. Times display as m:ss.00 and are stored as total seconds for the official workbook.</CardDescription></div>
+            <div className="flex flex-wrap items-center gap-2"><Badge variant={unsavedCount ? 'destructive' : 'outline'}>{unsavedCount} unsaved total</Badge><Badge variant="outline">{currentDirtyCount} in this class</Badge><Badge className="bg-[#294f73] text-white">{recordedScent + recordedGames} / {scentRuns.length + gameRuns.length} recorded</Badge><Button className="bg-[#294f73]" disabled={!unsavedCount || savingAll} onClick={() => void saveAll()}>{savingAll ? <PawLoader className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}Save all changes</Button></div>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-4">
+          <select aria-label="Competition format" className="rounded-md border bg-white px-3 py-2" value={format} onChange={(event) => setFormat(event.target.value as 'scent' | 'games')}><option value="scent">Scent ({recordedScent}/{scentRuns.length})</option><option value="games">Games ({recordedGames}/{gameRuns.length})</option></select>
+          <select aria-label="Trial day" className="rounded-md border bg-white px-3 py-2" value={dayId} onChange={(event) => setDayId(event.target.value)}>{trial?.sdda_trial_days.map((day) => <option key={day.id} value={day.id}>Day {day.day_number} · {day.trial_date}</option>)}</select>
+          <select aria-label="Class" className="rounded-md border bg-white px-3 py-2" value={classKey} onChange={(event) => setClassKey(event.target.value)}>{classOptions.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}</select>
+          <Input className="bg-white" placeholder="Find dog, handler, or SDDA number" value={query} onChange={(event) => setQuery(event.target.value)} />
+        </CardContent>
       </Card>
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
       {message && <Alert className="border-blue-300 bg-blue-50 text-blue-900"><CheckCircle2 className="h-4 w-4" /><AlertDescription>{message}</AlertDescription></Alert>}
-      {loading ? <div className="flex justify-center p-12"><PawLoader className="h-8 w-8 text-[#294f73]" /></div> : format === 'scent' ?
-        <div className="space-y-3">{shownScent.map((run) => { const entry=first(run.sdda_entries), dog=first(entry?.sdda_dogs), day=first(run.sdda_trial_days), draft=scentDrafts[run.id]; return <Card key={run.id} className={dirtyScentIds.has(run.id)?'border-sky-400 bg-sky-50':'border-[#cbd5e1] bg-white'}><CardContent className="p-4"><div className="grid gap-3 xl:grid-cols-[1.3fr_1fr_.7fr_.7fr_.55fr_1.3fr_auto] xl:items-end"><div><strong className="block text-lg text-[#294f73]">{dog?.call_name || dog?.registered_name || 'Unnamed dog'}</strong><span className="text-sm text-[#64748b]">{entry?.handler_name} · SDDA {dog?.sdda_registration_number || 'pending'} · Day {day?.day_number} · #{run.running_position || '—'} · {run.level} {run.component} · {run.stream}</span>{dirtyScentIds.has(run.id)&&<Badge variant="outline" className="ml-2 border-sky-500 text-sky-800">Unsaved</Badge>}</div><label className="text-xs font-bold text-[#475569]">Result<select id={`score-result-${run.id}`} className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm" value={draft?.result || ''} onChange={(e)=>updateScentDraft(run.id,{result:e.target.value})}><option value="">Not recorded</option><option value="qualifying">Qualifying</option><option value="non_qualifying">Non-qualifying</option><option value="absent">Absent</option><option value="withdrawn">Withdrawn</option><option value="excused">Excused</option></select></label><label className="text-xs font-bold text-[#475569]">Score<Input className="mt-1 bg-white" inputMode="decimal" value={draft?.score || ''} onChange={(e)=>updateScentDraft(run.id,{score:e.target.value})} /></label><label className="text-xs font-bold text-[#475569]">Time (sec)<Input className="mt-1 bg-white" inputMode="decimal" value={draft?.time || ''} onChange={(e)=>updateScentDraft(run.id,{time:e.target.value})} /></label><label className="text-xs font-bold text-[#475569]">Faults<Input className="mt-1 bg-white" inputMode="numeric" value={draft?.faults || '0'} onChange={(e)=>updateScentDraft(run.id,{faults:e.target.value})} /></label><label className="text-xs font-bold text-[#475569]">Judge notes<Input className="mt-1 bg-white" value={draft?.notes || ''} onChange={(e)=>updateScentDraft(run.id,{notes:e.target.value})} /></label><Button className="bg-[#294f73]" disabled={savingId===run.id||savingAll} onClick={()=>void saveScent(run)}>{savingId===run.id?<PawLoader className="h-4 w-4"/>:<><Save className="mr-2 h-4 w-4"/>Save &amp; next</>}</Button></div></CardContent></Card>; })}{!shownScent.length && <Empty label="No accepted Scent runs match this view." />}</div>
-        : <div className="space-y-3">{shownGames.map((run) => { const entry=first(run.sdda_entries), dog=first(entry?.sdda_dogs), day=first(run.sdda_trial_days), offering=first(run.sdda_game_offerings), draft=gameDrafts[run.id]; return <Card key={run.id} className={dirtyGameIds.has(run.id)?'border-sky-400 bg-sky-50':'border-[#cbd5e1] bg-white'}><CardContent className="p-4"><div className="grid gap-3 xl:grid-cols-[1.4fr_1fr_.8fr_1.5fr_auto] xl:items-end"><div><strong className="block text-lg text-[#294f73]">{dog?.call_name || dog?.registered_name || 'Unnamed dog'}</strong><span className="text-sm text-[#64748b]">{entry?.handler_name} · SDDA {dog?.sdda_registration_number || 'pending'} · Day {day?.day_number} · #{run.running_position || '—'} · {offering?.game_type}{run.aerial_division ? ` ${run.aerial_division}` : ''} · {run.entry_type}</span>{dirtyGameIds.has(run.id)&&<Badge variant="outline" className="ml-2 border-sky-500 text-sky-800">Unsaved</Badge>}</div><label className="text-xs font-bold text-[#475569]">Result<select id={`score-result-${run.id}`} className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm" value={draft?.result || ''} onChange={(e)=>updateGameDraft(run.id,{result:e.target.value})}><option value="">Not recorded</option><option value="pass">Pass</option><option value="fail">Fail</option><option value="absent">Absent</option><option value="withdrawn">Withdrawn</option><option value="excused">Excused</option></select></label><label className="text-xs font-bold text-[#475569]">Time (sec)<Input className="mt-1 bg-white" inputMode="decimal" value={draft?.time || ''} onChange={(e)=>updateGameDraft(run.id,{time:e.target.value})} /></label><label className="text-xs font-bold text-[#475569]">Judge notes<Input className="mt-1 bg-white" value={draft?.notes || ''} onChange={(e)=>updateGameDraft(run.id,{notes:e.target.value})} /></label><Button className="bg-[#294f73]" disabled={savingId===run.id||savingAll} onClick={()=>void saveGame(run)}>{savingId===run.id?<PawLoader className="h-4 w-4"/>:<><Save className="mr-2 h-4 w-4"/>Save &amp; next</>}</Button></div></CardContent></Card>; })}{!shownGames.length && <Empty label="No accepted Games runs match this view." />}</div>}
+      {loading ? <div className="flex justify-center p-12"><PawLoader className="h-8 w-8 text-[#294f73]" /></div> : (
+        <Card className="overflow-hidden border-[#b8c9d8]">
+          <CardHeader className="border-b bg-[#e8f0f7]">
+            <CardTitle>{currentDay ? `Day ${currentDay.day_number} · ` : ''}{classOptions.find((item) => item.key === classKey)?.label || 'Select a class'}</CardTitle>
+            <CardDescription>{format === 'scent' ? shownScent.length : shownGames.length} accepted run{(format === 'scent' ? shownScent.length : shownGames.length) === 1 ? '' : 's'} in running order. Blank results remain Not recorded.</CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto p-0">
+            {format === 'scent' ? <ScentClassTable runs={shownScent} drafts={scentDrafts} dirtyIds={dirtyScentIds} updateDraft={updateScentDraft} /> : <GameClassTable runs={shownGames} drafts={gameDrafts} dirtyIds={dirtyGameIds} updateDraft={updateGameDraft} />}
+          </CardContent>
+        </Card>
+      )}
     </div>
   </MainLayout>;
 }
 
-function Empty({ label }: { label: string }) { return <Card className="border-dashed bg-[#f8fafc]"><CardContent className="p-10 text-center text-[#64748b]">{label}</CardContent></Card>; }
+function ScentClassTable({ runs, drafts, dirtyIds, updateDraft }: {
+  runs: ScentRun[];
+  drafts: Record<string, ScentDraft>;
+  dirtyIds: Set<string>;
+  updateDraft: (runId: string, patch: Partial<ScentDraft>) => void;
+}) {
+  if (!runs.length) return <p className="p-10 text-center text-[#64748b]">No accepted Scent runs match this class.</p>;
+  return <table className="w-full min-w-[1120px] border-collapse text-sm">
+    <thead className="bg-[#294f73] text-left text-white"><tr><th className="w-16 px-3 py-3 text-center">Order</th><th className="min-w-48 px-3 py-3">Dog / handler</th><th className="w-28 px-3 py-3">Stream</th><th className="w-44 px-3 py-3">Result</th><th className="w-24 px-3 py-3">Score</th><th className="w-32 px-3 py-3">Time<br/><span className="font-normal">m:ss.00</span></th><th className="w-24 px-3 py-3">Faults</th><th className="min-w-52 px-3 py-3">Judge notes</th><th className="w-24 px-3 py-3 text-center">Status</th></tr></thead>
+    <tbody>{runs.map((run) => {
+      const entry=first(run.sdda_entries), dog=first(entry?.sdda_dogs), draft=drafts[run.id], dirty=dirtyIds.has(run.id), recorded=Boolean(first(run.sdda_scores));
+      return <tr key={run.id} className={`border-b align-middle ${dirty?'bg-sky-50':'bg-white'}`}><td className="px-3 py-2 text-center text-lg font-bold text-[#294f73]">{run.running_position || '—'}</td><td className="px-3 py-2"><strong className="block text-base">{dog?.call_name || dog?.registered_name || 'Unnamed dog'}</strong><span className="text-xs text-[#64748b]">{entry?.handler_name} · SDDA {dog?.sdda_registration_number || 'pending'} · {run.run_group}</span></td><td className="px-3 py-2 font-semibold">{run.stream}</td><td className="px-3 py-2"><select aria-label={`Result for ${dog?.call_name || 'dog'}`} className="w-full rounded-md border bg-white px-2 py-2" value={draft?.result || ''} onChange={(event)=>updateDraft(run.id,{result:event.target.value})}><option value="">Not recorded</option><option value="qualifying">Qualifying</option><option value="non_qualifying">Non-qualifying</option><option value="absent">Absent</option><option value="withdrawn">Withdrawn</option><option value="excused">Excused</option></select></td><td className="px-3 py-2"><Input aria-label={`Score for ${dog?.call_name || 'dog'}`} className="bg-white text-right font-mono" inputMode="decimal" value={draft?.score || ''} onChange={(event)=>updateDraft(run.id,{score:event.target.value})}/></td><td className="px-3 py-2"><Input aria-label={`Time for ${dog?.call_name || 'dog'}`} className="bg-white text-right font-mono tabular-nums" inputMode="decimal" placeholder="0:00.00" value={draft?.time || ''} onChange={(event)=>updateDraft(run.id,{time:event.target.value})}/></td><td className="px-3 py-2"><Input aria-label={`Faults for ${dog?.call_name || 'dog'}`} className="bg-white text-right font-mono" inputMode="numeric" value={draft?.faults || '0'} onChange={(event)=>updateDraft(run.id,{faults:event.target.value})}/></td><td className="px-3 py-2"><Input aria-label={`Judge notes for ${dog?.call_name || 'dog'}`} className="bg-white" value={draft?.notes || ''} onChange={(event)=>updateDraft(run.id,{notes:event.target.value})}/></td><td className="px-3 py-2 text-center">{dirty?<Badge variant="outline" className="border-sky-500 text-sky-800">Unsaved</Badge>:recorded?<Badge className="bg-blue-700">Saved</Badge>:<span className="text-xs text-[#64748b]">Not recorded</span>}</td></tr>;
+    })}</tbody>
+  </table>;
+}
+
+function GameClassTable({ runs, drafts, dirtyIds, updateDraft }: {
+  runs: GameRun[];
+  drafts: Record<string, GameDraft>;
+  dirtyIds: Set<string>;
+  updateDraft: (runId: string, patch: Partial<GameDraft>) => void;
+}) {
+  if (!runs.length) return <p className="p-10 text-center text-[#64748b]">No accepted Games runs match this class.</p>;
+  return <table className="w-full min-w-[900px] border-collapse text-sm">
+    <thead className="bg-[#294f73] text-left text-white"><tr><th className="w-16 px-3 py-3 text-center">Order</th><th className="min-w-52 px-3 py-3">Dog / handler</th><th className="w-40 px-3 py-3">Division / entry</th><th className="w-44 px-3 py-3">Result</th><th className="w-32 px-3 py-3">Time<br/><span className="font-normal">m:ss.00</span></th><th className="min-w-56 px-3 py-3">Judge notes</th><th className="w-24 px-3 py-3 text-center">Status</th></tr></thead>
+    <tbody>{runs.map((run) => {
+      const entry=first(run.sdda_entries), dog=first(entry?.sdda_dogs), draft=drafts[run.id], dirty=dirtyIds.has(run.id), recorded=Boolean(first(run.sdda_game_scores));
+      return <tr key={run.id} className={`border-b align-middle ${dirty?'bg-sky-50':'bg-white'}`}><td className="px-3 py-2 text-center text-lg font-bold text-[#294f73]">{run.running_position || '—'}</td><td className="px-3 py-2"><strong className="block text-base">{dog?.call_name || dog?.registered_name || 'Unnamed dog'}</strong><span className="text-xs text-[#64748b]">{entry?.handler_name} · SDDA {dog?.sdda_registration_number || 'pending'}</span></td><td className="px-3 py-2"><strong>{run.aerial_division || '—'}</strong><span className="block text-xs text-[#64748b]">{run.entry_type}</span></td><td className="px-3 py-2"><select aria-label={`Result for ${dog?.call_name || 'dog'}`} className="w-full rounded-md border bg-white px-2 py-2" value={draft?.result || ''} onChange={(event)=>updateDraft(run.id,{result:event.target.value})}><option value="">Not recorded</option><option value="pass">Pass</option><option value="fail">Fail</option><option value="absent">Absent</option><option value="withdrawn">Withdrawn</option><option value="excused">Excused</option></select></td><td className="px-3 py-2"><Input aria-label={`Time for ${dog?.call_name || 'dog'}`} className="bg-white text-right font-mono tabular-nums" inputMode="decimal" placeholder="0:00.00" value={draft?.time || ''} onChange={(event)=>updateDraft(run.id,{time:event.target.value})}/></td><td className="px-3 py-2"><Input aria-label={`Judge notes for ${dog?.call_name || 'dog'}`} className="bg-white" value={draft?.notes || ''} onChange={(event)=>updateDraft(run.id,{notes:event.target.value})}/></td><td className="px-3 py-2 text-center">{dirty?<Badge variant="outline" className="border-sky-500 text-sky-800">Unsaved</Badge>:recorded?<Badge className="bg-blue-700">Saved</Badge>:<span className="text-xs text-[#64748b]">Not recorded</span>}</td></tr>;
+    })}</tbody>
+  </table>;
+}
