@@ -83,7 +83,7 @@ export default function TrialCloseoutPage() {
       const score = first(run.sdda_scores);
       return (
         score &&
-        (score.result === 'qualifying' || score.result === 'non_qualifying') &&
+        score.result === 'qualifying' &&
         (score.score == null || score.time_seconds == null)
       );
     }).length;
@@ -92,9 +92,7 @@ export default function TrialCloseoutPage() {
     ).length;
     const incompleteGames = gameRuns.filter((run) => {
       const score = first(run.sdda_game_scores);
-      return (
-        score && (score.result === 'pass' || score.result === 'fail') && score.time_seconds == null
-      );
+      return score && score.result === 'pass' && score.time_seconds == null;
     }).length;
     const missingDayDetails =
       (trial?.sdda_trial_offerings.filter(
@@ -149,8 +147,8 @@ export default function TrialCloseoutPage() {
         ready: incompleteScent + incompleteGames === 0,
         detail:
           incompleteScent + incompleteGames
-            ? `${incompleteScent + incompleteGames} scored run(s) are missing score/time details.`
-            : 'Recorded results include their required score/time details.',
+            ? `${incompleteScent + incompleteGames} qualifying/pass run(s) are missing required score/time details.`
+            : 'Qualifying Scent and passing Games results include their required score/time details; NQ, fail, absent, withdrawn, and excused results may remain blank.',
       },
       {
         label: 'Entry decisions complete',
