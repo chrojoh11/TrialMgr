@@ -1,8 +1,8 @@
 'use client';
 
-import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { BadgeCheck, Dog, Download, FilePlus2, FileUp, Pencil, Search } from 'lucide-react';
+import { BadgeCheck, Dog, Download, FilePlus2, Pencil, Search } from 'lucide-react';
 import { PawLoader } from '@/components/ui/pawLoader';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/mainLayout';
@@ -12,19 +12,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
-import { parseSddaEntryCsv, type SddaCsvEntry } from '@/lib/sdda/entryCsv';
 import {
   getSddaTrialWorkspace,
-  importSddaCsvEntries,
   listSddaEntries,
   listSddaEntryFinancials,
-  saveSddaTrialOfferings,
   promoteSddaWaitlistedSelection,
   setSddaSelectionDayOfStatus,
   setSddaEntryConfirmationStatus,
   type SddaTrialWorkspace,
 } from '@/lib/sdda/trialRepository';
-import { offeringKey } from '@/lib/sdda/offerings';
 import { createSddaMailingListWorkbook, formatSddaEntrySelectionColumns } from '@/lib/sdda/mailingListWorkbook';
 import { acceptedEntryChargeCents, financialBalanceDelta, financialLedgerTotals } from '@/lib/sdda/financialSummary';
 
@@ -37,13 +33,10 @@ export default function SddaEntriesPage() {
   const [trial, setTrial] = useState<SddaTrialWorkspace | null>(null);
   const [entries, setEntries] = useState<RosterEntry[]>([]);
   const [financials, setFinancials] = useState<EntryFinancial[]>([]);
-  const [preview, setPreview] = useState<SddaCsvEntry[]>([]);
-  const [fileErrors, setFileErrors] = useState<string[]>([]);
   const [result, setResult] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [importing, setImporting] = useState(false);
   const [savingEntryId, setSavingEntryId] = useState<string | null>(null);
   const [entryDecisionError, setEntryDecisionError] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -120,61 +113,6 @@ export default function SddaEntriesPage() {
     void load();
   }, [load]);
 
-  const chooseFile = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    try {
-      const parsed = parseSddaEntryCsv(await file.text());
-      setPreview(parsed.entries);
-      setFileErrors(parsed.errors);
-      setResult(null);
-    } catch (caught) {
-      setPreview([]);
-      setFileErrors([caught instanceof Error ? caught.message : 'Unable to read CSV.']);
-    }
-  };
-  const runImport = async () => {
-    if (!trial || !preview.length) return;
-    setImporting(true);
-    setError(null);
-    try {
-      const client = getSupabaseBrowser();
-      const selected = new Set(
-        trial.sdda_trial_offerings.map((offering) =>
-          offeringKey({
-            trialDayId: offering.trial_day_id,
-            level: offering.level,
-            component: offering.component,
-            stream: offering.stream,
-          })
-        )
-      );
-      for (const entry of preview) {
-        const day = trial.sdda_trial_days.find(
-          (candidate) => candidate.day_number === entry.trialDay
-        );
-        if (!day) continue;
-        entry.components.forEach((component) =>
-          selected.add(
-            offeringKey({ trialDayId: day.id, level: entry.level, component, stream: entry.stream })
-          )
-        );
-      }
-      await saveSddaTrialOfferings(client, trial.id, trial.sdda_trial_offerings, selected);
-      const updatedTrial = await getSddaTrialWorkspace(client, trial.id);
-      const imported = await importSddaCsvEntries(client, updatedTrial, preview);
-      setResult(
-        `${imported.imported} day/level selection${imported.imported === 1 ? '' : 's'} processed. Repeated dogs were combined into one entry, and offerings found in the CSV were added to the trial setup.`
-      );
-      setFileErrors(imported.errors);
-      setPreview([]);
-      await load();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Unable to import SDDA entries.');
-    } finally {
-      setImporting(false);
-    }
-  };
   const filtered = useMemo(
     () =>
       entries.filter((entry: any) => {
@@ -392,33 +330,6 @@ export default function SddaEntriesPage() {
             </Link>
           </Button>
         </div>
-        <details className="rounded-lg border bg-white">
-          <summary className="flex cursor-pointer list-none items-center px-5 py-4 font-semibold text-[#294f73]">
-            <FileUp className="mr-2 h-5 w-5" />
-            Import Google Form CSV
-          </summary>
-          <div className="border-t px-5 py-4">
-            <p className="mb-4 text-sm text-gray-600">
-              Upload the same Google Form response CSV used by the original SDDA TrialDesk. Day,
-              level, component, and stream offerings found in the file are added automatically.
-            </p>
-            <div className="space-y-4">
-              <Input type="file" accept=".csv,text/csv" onChange={chooseFile} />
-              {preview.length > 0 && (
-                <div className="flex items-center justify-between gap-3">
-                  <p>{preview.length} valid rows ready to import.</p>
-                  <Button onClick={runImport} disabled={importing}>
-                    {importing ? <PawLoader className="mr-2 h-4 w-4" /> : <FileUp className="mr-2 h-4 w-4" />}
-                    Import entries
-                  </Button>
-                </div>
-              )}
-              {fileErrors.length > 0 && (
-                <Alert variant="destructive"><AlertDescription><ul className="list-disc pl-5">{fileErrors.map((message) => <li key={message}>{message}</li>)}</ul></AlertDescription></Alert>
-              )}
-            </div>
-          </div>
-        </details>
         {loading ? (
           <div className="flex justify-center py-16">
             <PawLoader className="h-8 w-8" />
