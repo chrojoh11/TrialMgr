@@ -116,7 +116,7 @@ export default function HomePage() {
               <CardTitle>Entry Processing</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">Import Google Form or CSV responses with SDDA validation</p>
+              <p className="text-gray-600">Collect and review competitor or secretary-created entry forms</p>
             </CardContent>
           </Card>
 

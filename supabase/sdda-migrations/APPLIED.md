@@ -1,5 +1,12 @@
 # Applied SDDA migrations
 
+## `20261024_0063_checklist_policy_indexes.sql`
+
+- Applied: 2026-10-24 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Capability: separates checklist write policies by operation and indexes the checklist foreign-key paths used by trial access and audit lookups
+- Verification: Supabase migration completed successfully; database advisors were reviewed after application
+
 ## `20261024_0062_trial_checklists_and_workbook_control.sql`
 
 - Applied: 2026-10-24 (America/Edmonton)

@@ -11,7 +11,8 @@ const REGISTRY_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const workflow = [
   ['Running orders', 'Arrange officials, regular teams, second dogs, FEO and BIS.', 'running-order'],
-  ['Entries', 'Review built-in form entries or import Google Form responses.', 'entries'],
+  ['Entries', 'Review competitor and secretary-created entry forms.', 'entries'],
+  ['Trial-day Operations', 'Review conflicts, waitlists, withdrawals, reactive teams and incomplete records in one place.', 'operations'],
   ['Score sheets', 'Generate the correct official component-specific PDFs.', 'score-sheets'],
   ['Score entry', 'Record and amend audited Scent and Games results.', 'scoring'],
   ['Results', 'Review provisional class placements and print results.', 'results'],
@@ -50,7 +51,7 @@ export default function DashboardPage() {
     <div className="min-h-full bg-[#e9eef3] p-4 text-[#17212b] lg:p-8">
       <div className="mx-auto max-w-[1440px]">
         <header className="flex flex-col justify-between gap-6 rounded-t-[24px] rounded-b-md bg-[#294f73] px-8 py-8 text-white shadow-xl md:flex-row md:items-end">
-          <div><span className="text-[11px] font-extrabold uppercase tracking-[.15em]">SDDA trial operations</span><h1 className="my-2 font-serif text-5xl leading-none md:text-6xl">TrialDesk</h1><p className="text-[#deebe2]">From entry forms and Google responses to running orders, judge packets and the official SDDA workbook.</p></div>
+          <div><span className="text-[11px] font-extrabold uppercase tracking-[.15em]">SDDA trial operations</span><h1 className="my-2 font-serif text-5xl leading-none md:text-6xl">TrialDesk</h1><p className="text-[#deebe2]">From entry forms to running orders, judge packets and the official SDDA workbook.</p></div>
           <div className="grid gap-1 rounded-2xl border border-white/30 bg-white/5 px-5 py-4"><strong>Rules authority</strong><span className="font-serif text-xl">Master Rule Book v5.1</span><small className="text-[#d5e4d9]">Effective July 1, 2026</small></div>
         </header>
 
@@ -71,8 +72,8 @@ export default function DashboardPage() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Link href={active ? `/sdda-entry/${active.id}` : '/dashboard/trials/create'} className="rounded-xl border border-[#cbd5e1] bg-[#f1f5f9] p-4 hover:border-[#294f73]"><strong className="font-serif text-xl text-[#294f73]">Built-in entry form</strong><p className="mt-2 text-sm text-[#64748b]">Open, preview and share the trial’s SDDA entry form.</p></Link>
-            <Link href={activeHref('entries')} className="rounded-xl border border-[#cbd5e1] bg-[#f1f5f9] p-4 hover:border-[#294f73]"><strong className="font-serif text-xl text-[#294f73]">Google Form CSV</strong><p className="mt-2 text-sm text-[#64748b]">Import the familiar SDDA Google response file.</p></Link>
-            <Link href={activeHref('entries')} className="rounded-xl border border-[#cbd5e1] bg-[#f1f5f9] p-4 hover:border-[#294f73]"><strong className="font-serif text-xl text-[#294f73]">Entry roster</strong><p className="mt-2 text-sm text-[#64748b]">Use entries from either source in one roster.</p></Link>
+            <Link href={activeHref('operations')} className="rounded-xl border border-[#cbd5e1] bg-[#f1f5f9] p-4 hover:border-[#294f73]"><strong className="font-serif text-xl text-[#294f73]">Trial-day Operations</strong><p className="mt-2 text-sm text-[#64748b]">Review issues requiring secretary attention in one place.</p></Link>
+            <Link href={activeHref('entries')} className="rounded-xl border border-[#cbd5e1] bg-[#f1f5f9] p-4 hover:border-[#294f73]"><strong className="font-serif text-xl text-[#294f73]">Entry roster</strong><p className="mt-2 text-sm text-[#64748b]">Review all competitor and secretary-created entries in one roster.</p></Link>
             <div className="rounded-xl border border-[#cbd5e1] bg-white p-4 sm:col-span-2 lg:col-span-3"><span className="text-xs font-bold uppercase tracking-wider text-[#64748b]">Current trial</span><h3 className="mt-1 font-serif text-2xl">{active?.name || 'Create or select a trial'}</h3><p className="mt-1 text-sm text-[#64748b]">{active ? `${active.host_club}${active.venue ? ` • ${active.venue}` : ''}` : 'Trial-specific links activate after a trial is selected.'}</p></div>
           </div>
         </section>
