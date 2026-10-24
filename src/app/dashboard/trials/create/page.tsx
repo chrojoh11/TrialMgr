@@ -1,8 +1,8 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, Plus, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Calendar, Plus, X } from 'lucide-react';
 import { PawLoader } from '@/components/ui/pawLoader';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { createSddaTrial } from '@/lib/sdda/trialRepository';
-import type { SddaTrialFormat } from '@/lib/sdda/trialSetup';
+import { isSddaTrialDatePast, type SddaTrialFormat } from '@/lib/sdda/trialSetup';
 
 export default function CreateTrialPage() {
   const router = useRouter();
@@ -23,9 +23,15 @@ export default function CreateTrialPage() {
   const [trialFormat, setTrialFormat] = useState<SddaTrialFormat>('scent');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pastDateConfirmed, setPastDateConfirmed] = useState(false);
+  const pastDates = useMemo(() => dates.filter((date) => isSddaTrialDatePast(date)), [dates]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (pastDates.length && !pastDateConfirmed) {
+      setError('Confirm that the past trial date is intentional before creating this draft.');
+      return;
+    }
     try {
       setSaving(true);
       setError(null);
@@ -77,11 +83,12 @@ export default function CreateTrialPage() {
           <CardContent className="space-y-3">
             {dates.map((date, index) => (
               <div key={index} className="flex gap-2">
-                <Input type="date" required value={date} onChange={(e) => setDates((current) => current.map((value, i) => i === index ? e.target.value : value))} />
+                <Input type="date" required value={date} onChange={(e) => { setPastDateConfirmed(false); setDates((current) => current.map((value, i) => i === index ? e.target.value : value)); }} />
                 {dates.length > 1 && <Button type="button" variant="outline" size="sm" aria-label={`Remove day ${index + 1}`} onClick={() => setDates((current) => current.filter((_, i) => i !== index))}><X className="h-4 w-4" /></Button>}
               </div>
             ))}
             {dates.length < 4 && <Button type="button" variant="outline" onClick={() => setDates((current) => [...current, ''])}><Plus className="mr-2 h-4 w-4" />Add trial day</Button>}
+            {pastDates.length > 0 && <div className="rounded-lg border border-amber-400 bg-amber-50 p-4 text-amber-950"><div className="flex gap-3"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" /><div><p className="font-semibold">The selected trial date has already passed</p><p className="mt-1 text-sm">Past date{pastDates.length === 1 ? '' : 's'}: {pastDates.join(', ')}. Check the year carefully before continuing.</p><Label className="mt-3 flex cursor-pointer items-start gap-2 font-normal"><input type="checkbox" className="mt-1 h-4 w-4" checked={pastDateConfirmed} onChange={(event) => setPastDateConfirmed(event.target.checked)} /><span>Yes, this is correct. Create an intentional historical or test draft.</span></Label></div></div></div>}
           </CardContent>
         </Card>
         <Alert><AlertDescription>Create the draft with the information you know now. On the next screen you will choose offerings and fees for each day. SDDA trial numbers and judges may be entered later and can be replaced if an assignment changes.</AlertDescription></Alert>

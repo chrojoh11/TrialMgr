@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { formatSddaTrialStatus, validateSddaTrialSetup } from './trialSetup';
+import { formatSddaTrialStatus, isSddaTrialDatePast, validateSddaTrialSetup } from './trialSetup';
 
 test('normalizes and orders one-to-four SDDA trial days', () => {
   const result = validateSddaTrialSetup({
@@ -29,4 +29,11 @@ test('rejects zero or more than four trial days', () => {
 
 test('formats SDDA database statuses for secretaries', () => {
   assert.equal(formatSddaTrialStatus('entries_open'), 'Entries Open');
+});
+
+test('identifies past trial dates without treating today as past', () => {
+  const today = new Date(2026, 9, 24, 12, 0, 0);
+  assert.equal(isSddaTrialDatePast('2026-10-23', today), true);
+  assert.equal(isSddaTrialDatePast('2026-10-24', today), false);
+  assert.equal(isSddaTrialDatePast('2026-10-25', today), false);
 });

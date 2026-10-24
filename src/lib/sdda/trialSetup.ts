@@ -20,6 +20,17 @@ export interface SddaTrialSetupInput {
   trialFormat?: SddaTrialFormat;
 }
 
+/** Compare date-only values without UTC conversion shifting the local calendar day. */
+export function isSddaTrialDatePast(date: string, today = new Date()) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  const localToday = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, '0'),
+    String(today.getDate()).padStart(2, '0'),
+  ].join('-');
+  return date < localToday;
+}
+
 export function validateSddaTrialSetup(input: SddaTrialSetupInput) {
   const name = input.name.trim();
   const hostClub = input.hostClub.trim();
