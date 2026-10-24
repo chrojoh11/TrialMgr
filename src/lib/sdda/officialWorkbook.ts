@@ -149,10 +149,6 @@ function columnName(index: number) {
   return result;
 }
 
-function excelDate(iso: string) {
-  return iso ? Date.parse(`${iso}T00:00:00Z`) / 86400000 + 25569 : '';
-}
-
 function cellValue(run: OfficialWorkbookRun): string | number {
   if (run.runGroup === 'FEO') return 'FEO';
   if (!run.result) return 'E';
@@ -233,6 +229,11 @@ export function buildOfficialSddaWorkbook(template: Uint8Array, input: OfficialW
     const full = new RegExp(`<c\\b([^>]*\\br="${address}"[^>]*?)(?<!\\/)>(?:[\\s\\S]*?)<\\/c>`);
     const empty = new RegExp(`<c\\b([^>]*\\br="${address}"[^>]*)\\/>`);
     const existing = xml.match(full) || xml.match(empty);
+    if (existing?.[0].includes('<f')) {
+      throw new Error(
+        `The official workbook maps ${sheet}!${address} to a formula cell. Export stopped to preserve the SDDA formula.`
+      );
+    }
     let attrs = (existing?.[1] || ` r="${address}"`).replace(/\s+t="[^"]*"/g, '').replace(/\/\s*$/, '');
     if (time) {
       const currentStyle = Number(attrs.match(/\s+s="(\d+)"/)?.[1] || 0);
@@ -265,17 +266,8 @@ export function buildOfficialSddaWorkbook(template: Uint8Array, input: OfficialW
   };
 
   setName('TrialNumber', input.days[0].trialNumber);
-  setName('TrialDate', excelDate(input.days[0].trialDate));
   setName('TrialNumberDay2', input.days[1]?.trialNumber || '');
-  setName('TrialDateDay2', input.days[1] ? excelDate(input.days[1].trialDate) : '');
-  setName('TrialHost', input.hostClub || '');
-  setName('TrialSecretary', input.secretaryName || '');
   setName('TrialVenue', input.venue);
-  setName('TrialCityDay1', input.venue);
-  setName('TrialCityDay2', input.days[1] ? input.venue : '');
-  setName('TrialEmail', input.trialEmail || '');
-  setName('TrialEmailDay1', input.trialEmail || '');
-  setName('TrialEmailDay2', input.days[1] ? input.trialEmail || '' : '');
   const levelCode: Record<SddaLevel, string> = { Started: 'S', Advanced: 'A', Excellent: 'E', Elite: 'L' };
   const componentCode: Record<SddaComponent, string> = { Container: 'CS', Interior: 'IS', Exterior: 'ES' };
   for (const [index, day] of input.days.entries()) {

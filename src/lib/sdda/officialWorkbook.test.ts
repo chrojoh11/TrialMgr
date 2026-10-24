@@ -4,7 +4,21 @@ import test from 'node:test';
 import { strFromU8, unzipSync } from 'fflate';
 import { buildOfficialSddaWorkbook, officialWorkbookDogNumbers, reviewOfficialSddaWorkbook } from './officialWorkbook';
 
-const template = new Uint8Array(readFileSync('public/templates/sdda/TrialWorkbook-20260729.xlsx'));
+const templatePath = process.env.SDDA_WORKBOOK_TEMPLATE || 'public/templates/sdda/TrialWorkbook-20260729.xlsx';
+const template = new Uint8Array(readFileSync(templatePath));
+
+const formulaInventory = (files: ReturnType<typeof unzipSync>) =>
+  Object.entries(files)
+    .filter(([path]) => path.startsWith('xl/worksheets/') && path.endsWith('.xml'))
+    .flatMap(([path, bytes]) =>
+      [...strFromU8(bytes).matchAll(/<c\b[^>]*\br="([^"]+)"[^>]*?(?<!\/)>(?:[\s\S]*?)<\/c>/g)].flatMap(
+        (cell) => {
+          const formula = cell[0].match(/<f(?:\s[^>]*)?>([\s\S]*?)<\/f>/)?.[1];
+          return formula == null ? [] : [`${path}|${cell[1]}|${formula}`];
+        }
+      )
+    )
+    .sort();
 
 test('patches a fresh official SDDA workbook while preserving formulas and filling Games', () => {
   const output = buildOfficialSddaWorkbook(template, {
@@ -46,6 +60,49 @@ test('patches a fresh official SDDA workbook while preserving formulas and filli
   assert.match(started, /r="G5"[^>]*t="inlineStr"><is><t xml:space="preserve">E<\/t><\/is><\/c>/);
   assert.match(started, /r="C6"[^>]*><v>1234<\/v>/);
   assert.match(started, /r="O6"[^>]*><v>22<\/v>/);
+  assert.deepEqual(formulaInventory(files), formulaInventory(unzipSync(template)));
+});
+
+test('keeps every unrelated official workbook package part byte-identical', () => {
+  const output = buildOfficialSddaWorkbook(template, {
+    days: [
+      { dayNumber: 1, trialNumber: '3085', trialDate: '2026-10-11', judgeName: 'Judge One' },
+      { dayNumber: 2, trialNumber: '3086', trialDate: '2026-10-12', judgeName: 'Judge Two' },
+    ],
+    venue: 'Peachland Riding Club',
+    hostClub: 'WKK9',
+    secretaryName: 'Trial Secretary',
+    trialEmail: 'secretary@example.ca',
+    runs: [
+      { dayNumber: 1, level: 'Started', component: 'Container', stream: 'Amateur', dogNumber: '1001', runGroup: 'Regular', result: 'qualifying', score: 29, timeSeconds: 27.7 },
+      { dayNumber: 2, level: 'Elite', component: 'Exterior', stream: 'Working', dogNumber: '1002', runGroup: 'Regular', result: 'non_qualifying', score: 40, timeSeconds: 75.2 },
+    ],
+    gameRuns: [
+      { dayNumber: 1, gameType: 'Distance', dogNumber: '1001', entryType: 'Regular', result: 'pass', timeSeconds: 12.77, runningPosition: 1 },
+      { dayNumber: 2, gameType: 'Team', dogNumber: '1002', entryType: 'Regular', result: 'fail', runningPosition: 2 },
+    ],
+  });
+  const sourceFiles = unzipSync(template);
+  const outputFiles = unzipSync(output);
+  const deliberatelyChanged = new Set([
+    '[Content_Types].xml',
+    'xl/calcChain.xml',
+    'xl/styles.xml',
+    'xl/workbook.xml',
+    'xl/_rels/workbook.xml.rels',
+    'xl/worksheets/sheet1.xml',
+    'xl/worksheets/sheet3.xml',
+    'xl/worksheets/sheet5.xml',
+    'xl/worksheets/sheet7.xml',
+    'xl/worksheets/sheet9.xml',
+    'xl/worksheets/sheet11.xml',
+  ]);
+  assert.deepEqual(Object.keys(outputFiles).sort(), Object.keys(sourceFiles).filter((path) => path !== 'xl/calcChain.xml').sort());
+  for (const [path, bytes] of Object.entries(sourceFiles)) {
+    if (deliberatelyChanged.has(path)) continue;
+    assert.deepEqual(outputFiles[path], bytes, `${path} changed even though TrialDesk does not populate it`);
+  }
+  assert.deepEqual(formulaInventory(outputFiles), formulaInventory(sourceFiles));
 });
 
 test('keeps worksheet cell XML valid when populated template cells were self-closing', () => {
