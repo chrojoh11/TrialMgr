@@ -1,5 +1,16 @@
 # Applied SDDA migrations
 
+## `20261024_0059_repair_entry_schedule_overload.sql`
+
+- Applied: 2026-10-24 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Reported execution result: success, no rows returned
+- Repair: removed the accidental timestamp overload created by the first execution of migration 0058
+- Verification: exactly one `sdda_set_entry_schedule(uuid,text,text,text)` function remains
+- Time zones: permanent Mountain (`UTC-6`) and Pacific (`UTC-7`) schedule choices are supported
+- Security: anonymous execution is denied; authenticated execution is enabled and management authorization remains enforced
+- Data impact: function repair and default configuration only; existing trial schedules and records were not rewritten
+
 ## `20260820_0029_trial_closeout.sql`
 
 - Applied: 2026-08-20 (America/Edmonton)
