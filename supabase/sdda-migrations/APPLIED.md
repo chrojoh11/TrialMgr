@@ -1,5 +1,28 @@
 # Applied SDDA migrations
 
+## `20261024_0062_trial_checklists_and_workbook_control.sql`
+
+- Applied: 2026-10-24 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Capability: persistent sanction and closeout confirmations plus a filename/source/SHA-256 pin for the official workbook
+- Audit: checklist changes, workbook pinning, and desktop-Excel proof confirmation are retained
+- Safety: checklist and workbook writes require authenticated trial-management access
+
+## `20261024_0061_atomic_score_class_saves.sql`
+
+- Applied: 2026-10-24 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Capability: all changed cards in one score-entry save commit together or none do
+- Concurrency: optimistic version checks stop one secretary from silently overwriting another
+- Audit: amendments and cleared scores require a reason recorded with the class-save event
+
+## `20261024_0060_offering_trial_numbers.sql`
+
+- Applied: 2026-10-24 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Capability: every Scent level/component and Game can carry its own sanctioned trial number
+- Compatibility: existing day-level numbers remain as fallbacks and were copied to existing offerings
+
 ## `20261024_0059_repair_entry_schedule_overload.sql`
 
 - Applied: 2026-10-24 (America/Edmonton)

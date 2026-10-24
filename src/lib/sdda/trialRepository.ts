@@ -69,6 +69,11 @@ export interface SddaTrialWorkspace extends SddaTrialSummary {
   secretary_phone: string | null;
   payment_instructions: string | null;
   cancellation_policy: string | null;
+  workbook_source_url: string | null;
+  workbook_filename: string | null;
+  workbook_sha256: string | null;
+  workbook_pinned_at: string | null;
+  workbook_proofed_at: string | null;
   sdda_trial_days: Array<{
     id: string;
     day_number: number;
@@ -104,9 +109,7 @@ async function attachRosterDogsToRuns<T>(
     target_trial_id: trialId,
   });
   if (error) throw new Error(`Run dogs could not be loaded: ${error.message}`);
-  const dogById = new Map(
-    ((dogs || []) as SddaRosterDog[]).map((dog) => [dog.id, dog])
-  );
+  const dogById = new Map(((dogs || []) as SddaRosterDog[]).map((dog) => [dog.id, dog]));
 
   return runs.map((run) => {
     const runRecord = run as RunWithEntry;
@@ -150,8 +153,30 @@ export interface SddaRosterEntry {
   source: string | null;
   created_at: string;
   sdda_dogs: SddaRosterDog | null;
-  sdda_runs: Array<{ id: string; entry_id: string; trial_day_id: string; level: string; component: string; stream: string; run_group: string; selection_status: string; running_position: number | null; move_up_from_level: string | null; move_up_approved_at: string | null }>;
-  sdda_game_runs: Array<{ id: string; entry_id: string; trial_day_id: string; offering_id: string; entry_type: string; selection_status: string; requested_team_partner: string | null; aerial_division: string | null; sdda_game_offerings: { id: string; game_type: string } | null }>;
+  sdda_runs: Array<{
+    id: string;
+    entry_id: string;
+    trial_day_id: string;
+    level: string;
+    component: string;
+    stream: string;
+    run_group: string;
+    selection_status: string;
+    running_position: number | null;
+    move_up_from_level: string | null;
+    move_up_approved_at: string | null;
+  }>;
+  sdda_game_runs: Array<{
+    id: string;
+    entry_id: string;
+    trial_day_id: string;
+    offering_id: string;
+    entry_type: string;
+    selection_status: string;
+    requested_team_partner: string | null;
+    aerial_division: string | null;
+    sdda_game_offerings: { id: string; game_type: string } | null;
+  }>;
 }
 
 export async function listSddaTrials(client: SupabaseClient): Promise<SddaTrialSummary[]> {
@@ -205,7 +230,7 @@ export async function copySddaTrial(
   client: SupabaseClient,
   sourceTrialId: string,
   name: string,
-  dates: string[],
+  dates: string[]
 ) {
   const { data, error } = await client.rpc('sdda_copy_trial', {
     source_trial_id: sourceTrialId,
@@ -308,7 +333,7 @@ export async function getSddaTrialWorkspace(client: SupabaseClient, trialId: str
   const { data, error } = await client
     .from('sdda_trials')
     .select(
-      'id,name,host_club,venue,timezone,entry_open_at,general_entry_open_at,entry_close_at,status,created_at,trial_format,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name,entries_open),sdda_trial_offerings(id,trial_day_id,level,component,stream,sdda_trial_number,judge_name,capacity,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,sdda_trial_number,judge_name,capacity,entry_fee_cents,feo_fee_cents,feo_allowed)'
+      'id,name,host_club,venue,timezone,entry_open_at,general_entry_open_at,entry_close_at,status,created_at,trial_format,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,workbook_source_url,workbook_filename,workbook_sha256,workbook_pinned_at,workbook_proofed_at,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name,entries_open),sdda_trial_offerings(id,trial_day_id,level,component,stream,sdda_trial_number,judge_name,capacity,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,sdda_trial_number,judge_name,capacity,entry_fee_cents,feo_fee_cents,feo_allowed)'
     )
     .eq('id', trialId)
     .single();
@@ -319,7 +344,7 @@ export async function getSddaTrialWorkspace(client: SupabaseClient, trialId: str
 export async function saveSddaTrialPricing(
   client: SupabaseClient,
   trialId: string,
-  pricing: { componentFeeCents: number; threeComponentFeeCents: number; eliteFeeCents: number },
+  pricing: { componentFeeCents: number; threeComponentFeeCents: number; eliteFeeCents: number }
 ) {
   const { error } = await client.rpc('sdda_set_trial_pricing', {
     target_trial_id: trialId,
@@ -333,7 +358,7 @@ export async function saveSddaTrialPricing(
 export async function saveSddaTrialDayDetails(
   client: SupabaseClient,
   trialDayId: string,
-  details: { trialDate: string; trialNumber: string; judgeName: string },
+  details: { trialDate: string; trialNumber: string; judgeName: string }
 ) {
   const { error } = await client.rpc('sdda_update_trial_day_schedule', {
     target_trial_day_id: trialDayId,
@@ -347,7 +372,7 @@ export async function saveSddaTrialDayDetails(
 export async function replaceSddaTrialDaySchedule(
   client: SupabaseClient,
   trialId: string,
-  dates: string[],
+  dates: string[]
 ) {
   const { error } = await client.rpc('sdda_replace_trial_day_schedule', {
     target_trial_id: trialId,
@@ -359,7 +384,13 @@ export async function replaceSddaTrialDaySchedule(
 export async function saveSddaTrialPublicDetails(
   client: SupabaseClient,
   trialId: string,
-  details: { secretaryName: string; secretaryEmail: string; secretaryPhone: string; paymentInstructions: string; cancellationPolicy: string },
+  details: {
+    secretaryName: string;
+    secretaryEmail: string;
+    secretaryPhone: string;
+    paymentInstructions: string;
+    cancellationPolicy: string;
+  }
 ) {
   const { error } = await client.rpc('sdda_update_trial_public_details', {
     target_trial_id: trialId,
@@ -377,7 +408,7 @@ export async function saveSddaTrialEntrySchedule(
   trialId: string,
   generalOpenAt: string,
   closeAt: string,
-  timeZone: string,
+  timeZone: string
 ) {
   const { error } = await client.rpc('sdda_set_entry_schedule', {
     target_trial_id: trialId,
@@ -399,7 +430,15 @@ export async function saveSddaGameOfferings(
   selectedKeys: Set<string>,
   configuration: Record<
     string,
-    Pick<SddaGameOffering, 'sdda_trial_number' | 'judge_name' | 'capacity' | 'entry_fee_cents' | 'feo_fee_cents' | 'feo_allowed'>
+    Pick<
+      SddaGameOffering,
+      | 'sdda_trial_number'
+      | 'judge_name'
+      | 'capacity'
+      | 'entry_fee_cents'
+      | 'feo_fee_cents'
+      | 'feo_allowed'
+    >
   >
 ) {
   const currentKeys = new Map(
@@ -447,7 +486,15 @@ export async function saveSddaTrialOfferings(
   trialId: string,
   current: SddaTrialOffering[],
   selectedKeys: Set<string>,
-  configuration?: Record<string, { sdda_trial_number: string | null; judge_name: string | null; capacity: number | null; feo_allowed: boolean }>,
+  configuration?: Record<
+    string,
+    {
+      sdda_trial_number: string | null;
+      judge_name: string | null;
+      capacity: number | null;
+      feo_allowed: boolean;
+    }
+  >
 ) {
   const currentKeys = new Map(
     current.map((offering) => [
@@ -473,39 +520,62 @@ export async function saveSddaTrialOfferings(
       .in('id', removeIds);
     if (error) throw new Error(error.message);
   }
-  const rows = configuration ? [...selectedKeys].map(parseOfferingKey).filter((item) => {
-    const key = offeringKey(item);
-    const existing = currentKeys.get(key);
-    const configured = configuration[`${item.trialDayId}|${item.level}|${item.component}`];
-    const judgeName = configured?.judge_name || null;
-    const trialNumber = configured?.sdda_trial_number?.trim() || null;
-    const capacity = configured?.capacity || null;
-    const feoAllowed = configured?.feo_allowed || false;
-    return !existing || (existing.sdda_trial_number || null) !== trialNumber || (existing.judge_name || null) !== judgeName || existing.capacity !== capacity || Boolean(existing.feo_allowed) !== feoAllowed;
-  }) : additions;
+  const rows = configuration
+    ? [...selectedKeys].map(parseOfferingKey).filter((item) => {
+        const key = offeringKey(item);
+        const existing = currentKeys.get(key);
+        const configured = configuration[`${item.trialDayId}|${item.level}|${item.component}`];
+        const judgeName = configured?.judge_name || null;
+        const trialNumber = configured?.sdda_trial_number?.trim() || null;
+        const capacity = configured?.capacity || null;
+        const feoAllowed = configured?.feo_allowed || false;
+        return (
+          !existing ||
+          (existing.sdda_trial_number || null) !== trialNumber ||
+          (existing.judge_name || null) !== judgeName ||
+          existing.capacity !== capacity ||
+          Boolean(existing.feo_allowed) !== feoAllowed
+        );
+      })
+    : additions;
   if (rows.length) {
     const values = rows.map((item) => ({
-        trial_id: trialId,
-        trial_day_id: item.trialDayId,
-        level: item.level,
-        component: item.component,
-        stream: item.stream,
-        ...(configuration ? {
-          sdda_trial_number: configuration[`${item.trialDayId}|${item.level}|${item.component}`]?.sdda_trial_number?.trim() || null,
-          judge_name: configuration[`${item.trialDayId}|${item.level}|${item.component}`]?.judge_name || null,
-          capacity: configuration[`${item.trialDayId}|${item.level}|${item.component}`]?.capacity || null,
-          feo_allowed: configuration[`${item.trialDayId}|${item.level}|${item.component}`]?.feo_allowed || false,
-        } : {}),
-      }));
+      trial_id: trialId,
+      trial_day_id: item.trialDayId,
+      level: item.level,
+      component: item.component,
+      stream: item.stream,
+      ...(configuration
+        ? {
+            sdda_trial_number:
+              configuration[
+                `${item.trialDayId}|${item.level}|${item.component}`
+              ]?.sdda_trial_number?.trim() || null,
+            judge_name:
+              configuration[`${item.trialDayId}|${item.level}|${item.component}`]?.judge_name ||
+              null,
+            capacity:
+              configuration[`${item.trialDayId}|${item.level}|${item.component}`]?.capacity || null,
+            feo_allowed:
+              configuration[`${item.trialDayId}|${item.level}|${item.component}`]?.feo_allowed ||
+              false,
+          }
+        : {}),
+    }));
     const request = configuration
-      ? client.from('sdda_trial_offerings').upsert(values, { onConflict: 'trial_day_id,level,component,stream' })
+      ? client
+          .from('sdda_trial_offerings')
+          .upsert(values, { onConflict: 'trial_day_id,level,component,stream' })
       : client.from('sdda_trial_offerings').insert(values);
     const { error } = await request;
     if (error) throw new Error(error.message);
   }
 }
 
-export async function listSddaEntries(client: SupabaseClient, trialId: string): Promise<SddaRosterEntry[]> {
+export async function listSddaEntries(
+  client: SupabaseClient,
+  trialId: string
+): Promise<SddaRosterEntry[]> {
   const { data: entries, error } = await client
     .from('sdda_entries')
     .select(
@@ -518,28 +588,61 @@ export async function listSddaEntries(client: SupabaseClient, trialId: string): 
 
   const dogIds = [...new Set(entries.map((entry) => entry.dog_id))];
   const entryIds = entries.map((entry) => entry.id);
-  const [{ data: dogs, error: dogsError }, { data: runs, error: runsError }, { data: gameRuns, error: gamesError }] = await Promise.all([
+  const [
+    { data: dogs, error: dogsError },
+    { data: runs, error: runsError },
+    { data: gameRuns, error: gamesError },
+  ] = await Promise.all([
     client.rpc('sdda_trial_roster_dogs', { target_trial_id: trialId }),
-    client.from('sdda_runs').select('id,entry_id,trial_day_id,level,component,stream,run_group,selection_status,running_position,move_up_from_level,move_up_approved_at').in('entry_id', entryIds),
-    client.from('sdda_game_runs').select('id,entry_id,trial_day_id,offering_id,entry_type,selection_status,requested_team_partner,aerial_division').in('entry_id', entryIds),
+    client
+      .from('sdda_runs')
+      .select(
+        'id,entry_id,trial_day_id,level,component,stream,run_group,selection_status,running_position,move_up_from_level,move_up_approved_at'
+      )
+      .in('entry_id', entryIds),
+    client
+      .from('sdda_game_runs')
+      .select(
+        'id,entry_id,trial_day_id,offering_id,entry_type,selection_status,requested_team_partner,aerial_division'
+      )
+      .in('entry_id', entryIds),
   ]);
   if (dogsError) throw new Error(`Entry dogs could not be loaded: ${dogsError.message}`);
-  if (runsError) throw new Error(`Entry Scent selections could not be loaded: ${runsError.message}`);
-  if (gamesError) throw new Error(`Entry Games selections could not be loaded: ${gamesError.message}`);
+  if (runsError)
+    throw new Error(`Entry Scent selections could not be loaded: ${runsError.message}`);
+  if (gamesError)
+    throw new Error(`Entry Games selections could not be loaded: ${gamesError.message}`);
 
   const offeringIds = [...new Set((gameRuns || []).map((run) => run.offering_id))];
   const { data: gameOfferings, error: offeringsError } = offeringIds.length
     ? await client.from('sdda_game_offerings').select('id,game_type').in('id', offeringIds)
     : { data: [], error: null };
-  if (offeringsError) throw new Error(`Entry Games could not be identified: ${offeringsError.message}`);
+  if (offeringsError)
+    throw new Error(`Entry Games could not be identified: ${offeringsError.message}`);
 
   const rosterDogs = (dogs || []) as SddaRosterDog[];
-  const dogById = new Map(rosterDogs.filter((dog) => dogIds.includes(dog.id)).map((dog) => [dog.id, dog]));
-  const gameOfferingById = new Map((gameOfferings || []).map((offering) => [offering.id, offering]));
+  const dogById = new Map(
+    rosterDogs.filter((dog) => dogIds.includes(dog.id)).map((dog) => [dog.id, dog])
+  );
+  const gameOfferingById = new Map(
+    (gameOfferings || []).map((offering) => [offering.id, offering])
+  );
   const runsByEntry = new Map<string, typeof runs>();
-  const gamesByEntry = new Map<string, Array<(NonNullable<typeof gameRuns>)[number] & { sdda_game_offerings: (NonNullable<typeof gameOfferings>)[number] | null }>>();
-  for (const run of runs || []) runsByEntry.set(run.entry_id, [...(runsByEntry.get(run.entry_id) || []), run]);
-  for (const run of gameRuns || []) gamesByEntry.set(run.entry_id, [...(gamesByEntry.get(run.entry_id) || []), { ...run, sdda_game_offerings: gameOfferingById.get(run.offering_id) || null }]);
+  const gamesByEntry = new Map<
+    string,
+    Array<
+      NonNullable<typeof gameRuns>[number] & {
+        sdda_game_offerings: NonNullable<typeof gameOfferings>[number] | null;
+      }
+    >
+  >();
+  for (const run of runs || [])
+    runsByEntry.set(run.entry_id, [...(runsByEntry.get(run.entry_id) || []), run]);
+  for (const run of gameRuns || [])
+    gamesByEntry.set(run.entry_id, [
+      ...(gamesByEntry.get(run.entry_id) || []),
+      { ...run, sdda_game_offerings: gameOfferingById.get(run.offering_id) || null },
+    ]);
 
   return entries.map((entry) => ({
     ...entry,
@@ -562,7 +665,7 @@ export async function listSddaEntryFinancials(client: SupabaseClient, trialId: s
 export async function setSddaEntryConfirmationStatus(
   client: SupabaseClient,
   entryId: string,
-  status: 'received' | 'accepted' | 'waitlisted' | 'rejected',
+  status: 'received' | 'accepted' | 'waitlisted' | 'rejected'
 ) {
   const { error } = await client.rpc('sdda_set_entry_confirmation_status', {
     target_entry_id: entryId,
@@ -571,8 +674,17 @@ export async function setSddaEntryConfirmationStatus(
   if (error) throw new Error(error.message);
 }
 
-export async function promoteSddaWaitlistedSelection(client: SupabaseClient, kind: 'scent' | 'game', selectionId: string, increaseCapacity = false) {
-  const { error } = await client.rpc('sdda_promote_waitlisted_selection', { target_kind: kind, target_selection_id: selectionId, increase_capacity: increaseCapacity });
+export async function promoteSddaWaitlistedSelection(
+  client: SupabaseClient,
+  kind: 'scent' | 'game',
+  selectionId: string,
+  increaseCapacity = false
+) {
+  const { error } = await client.rpc('sdda_promote_waitlisted_selection', {
+    target_kind: kind,
+    target_selection_id: selectionId,
+    increase_capacity: increaseCapacity,
+  });
   if (error) throw new Error(error.message);
 }
 
@@ -581,7 +693,7 @@ export async function setSddaSelectionDayOfStatus(
   kind: 'scent' | 'game',
   selectionId: string,
   action: 'withdraw' | 'restore',
-  reason: string,
+  reason: string
 ) {
   const { error } = await client.rpc('sdda_set_selection_day_of_status', {
     target_kind: kind,
@@ -666,14 +778,19 @@ export async function setSddaGameRunGroup(
   runId: string,
   runGroup: SddaRunGroup
 ) {
-  const { error } = await client.from('sdda_game_runs').update({ run_group: runGroup }).eq('id', runId);
+  const { error } = await client
+    .from('sdda_game_runs')
+    .update({ run_group: runGroup })
+    .eq('id', runId);
   if (error) throw new Error(error.message);
 }
 
 export async function listSddaScoringRuns(client: SupabaseClient, trialId: string) {
   const { data, error } = await client
     .from('sdda_runs')
-    .select('id,trial_day_id,level,component,stream,run_group,selection_status,running_position,sdda_trial_days(day_number,trial_date),sdda_scores(id,result,score,time_seconds,faults,judge_notes,recorded_at,amended_at),sdda_entries!inner(id,handler_name,dog_id,confirmation_status,sdda_dogs(call_name,registered_name,sdda_registration_number))')
+    .select(
+      'id,trial_day_id,level,component,stream,run_group,selection_status,running_position,sdda_trial_days(day_number,trial_date),sdda_scores(id,result,score,time_seconds,faults,judge_notes,recorded_at,amended_at,recorded_by,sdda_profiles!sdda_scores_recorded_by_fkey(display_name,email)),sdda_entries!inner(id,handler_name,dog_id,confirmation_status,sdda_dogs(call_name,registered_name,sdda_registration_number))'
+    )
     .eq('trial_id', trialId)
     .eq('selection_status', 'accepted')
     .eq('sdda_entries.confirmation_status', 'accepted')
@@ -685,7 +802,9 @@ export async function listSddaScoringRuns(client: SupabaseClient, trialId: strin
 export async function listSddaGameScoringRuns(client: SupabaseClient, trialId: string) {
   const { data, error } = await client
     .from('sdda_game_runs')
-    .select('id,trial_day_id,offering_id,entry_type,aerial_division,selection_status,running_position,sdda_game_offerings(game_type,judge_name),sdda_game_scores(id,result,time_seconds,judge_notes,recorded_at,amended_at),sdda_entries!inner(id,handler_name,dog_id,confirmation_status,sdda_dogs(call_name,registered_name,sdda_registration_number)),sdda_trial_days(day_number,trial_date)')
+    .select(
+      'id,trial_day_id,offering_id,entry_type,aerial_division,selection_status,running_position,sdda_game_offerings(game_type,judge_name),sdda_game_scores(id,result,time_seconds,judge_notes,recorded_at,amended_at,recorded_by,sdda_profiles!sdda_game_scores_recorded_by_fkey(display_name,email)),sdda_entries!inner(id,handler_name,dog_id,confirmation_status,sdda_dogs(call_name,registered_name,sdda_registration_number)),sdda_trial_days(day_number,trial_date)'
+    )
     .eq('trial_id', trialId)
     .eq('selection_status', 'accepted')
     .eq('sdda_entries.confirmation_status', 'accepted')
@@ -694,10 +813,24 @@ export async function listSddaGameScoringRuns(client: SupabaseClient, trialId: s
   return attachRosterDogsToRuns(client, trialId, data || []);
 }
 
-export async function recordSddaScentScore(client: SupabaseClient, input: { runId: string; result: string; score: number | null; timeSeconds: number | null; faults: number; notes: string }) {
+export async function recordSddaScentScore(
+  client: SupabaseClient,
+  input: {
+    runId: string;
+    result: string;
+    score: number | null;
+    timeSeconds: number | null;
+    faults: number;
+    notes: string;
+  }
+) {
   const { error } = await client.rpc('sdda_record_scent_score', {
-    target_run_id: input.runId, requested_result: input.result, requested_score: input.score,
-    requested_time_seconds: input.timeSeconds, requested_faults: input.faults, requested_notes: input.notes,
+    target_run_id: input.runId,
+    requested_result: input.result,
+    requested_score: input.score,
+    requested_time_seconds: input.timeSeconds,
+    requested_faults: input.faults,
+    requested_notes: input.notes,
   });
   if (error) throw new Error(error.message);
 }
@@ -707,10 +840,15 @@ export async function clearSddaScentScore(client: SupabaseClient, runId: string)
   if (error) throw new Error(error.message);
 }
 
-export async function recordSddaGameScore(client: SupabaseClient, input: { runId: string; result: string; timeSeconds: number | null; notes: string }) {
+export async function recordSddaGameScore(
+  client: SupabaseClient,
+  input: { runId: string; result: string; timeSeconds: number | null; notes: string }
+) {
   const { error } = await client.rpc('sdda_record_game_score', {
-    target_game_run_id: input.runId, requested_result: input.result,
-    requested_time_seconds: input.timeSeconds, requested_notes: input.notes,
+    target_game_run_id: input.runId,
+    requested_result: input.result,
+    requested_time_seconds: input.timeSeconds,
+    requested_notes: input.notes,
   });
   if (error) throw new Error(error.message);
 }
@@ -720,24 +858,162 @@ export async function clearSddaGameScore(client: SupabaseClient, runId: string) 
   if (error) throw new Error(error.message);
 }
 
-export async function setSddaTrialCompletion(client: SupabaseClient, trialId: string, complete: boolean) {
-  const { error } = await client.rpc('sdda_set_trial_completion', { target_trial_id: trialId, complete });
+export async function saveSddaScoreClass(
+  client: SupabaseClient,
+  input: {
+    trialId: string;
+    scentChanges: Array<Record<string, unknown>>;
+    gameChanges: Array<Record<string, unknown>>;
+    amendmentReason?: string;
+  }
+) {
+  const { data, error } = await client.rpc('sdda_save_score_class', {
+    target_trial_id: input.trialId,
+    scent_changes: input.scentChanges,
+    game_changes: input.gameChanges,
+    amendment_reason: input.amendmentReason?.trim() || null,
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function setSddaTrialCompletion(
+  client: SupabaseClient,
+  trialId: string,
+  complete: boolean
+) {
+  const { error } = await client.rpc('sdda_set_trial_completion', {
+    target_trial_id: trialId,
+    complete,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export interface SddaChecklistItem {
+  trial_id: string;
+  checklist: 'sanction' | 'closeout';
+  item_key: string;
+  completed: boolean;
+  notes: string | null;
+  completed_at: string | null;
+  completed_by: string | null;
+  updated_at: string;
+}
+
+export async function listSddaChecklistItems(client: SupabaseClient, trialId: string) {
+  const { data, error } = await client
+    .from('sdda_trial_checklist_items')
+    .select('*')
+    .eq('trial_id', trialId);
+  if (error) throw new Error(error.message);
+  return (data || []) as SddaChecklistItem[];
+}
+
+export async function setSddaChecklistItem(
+  client: SupabaseClient,
+  input: {
+    trialId: string;
+    checklist: 'sanction' | 'closeout';
+    itemKey: string;
+    completed: boolean;
+    notes?: string;
+  }
+) {
+  const { error } = await client.rpc('sdda_set_checklist_item', {
+    target_trial_id: input.trialId,
+    target_checklist: input.checklist,
+    target_item_key: input.itemKey,
+    requested_completed: input.completed,
+    requested_notes: input.notes?.trim() || null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function pinSddaWorkbook(
+  client: SupabaseClient,
+  input: {
+    trialId: string;
+    sourceUrl: string;
+    filename: string;
+    sha256: string;
+    proofed: boolean;
+  }
+) {
+  const { error } = await client.rpc('sdda_pin_workbook', {
+    target_trial_id: input.trialId,
+    requested_source_url: input.sourceUrl,
+    requested_filename: input.filename,
+    requested_sha256: input.sha256,
+    mark_proofed: input.proofed,
+  });
   if (error) throw new Error(error.message);
 }
 
 export async function buildSddaTrialBackup(client: SupabaseClient, trialId: string) {
-  const tables = ['sdda_trials','sdda_trial_days','sdda_trial_members','sdda_trial_offerings','sdda_game_offerings','sdda_dogs','sdda_entries','sdda_runs','sdda_game_runs','sdda_scores','sdda_game_scores','sdda_financial_transactions','sdda_audit_records'] as const;
-  const records = await Promise.all(tables.map(async (table) => {
-    let query = client.from(table).select('*');
-    if (table === 'sdda_trials') query = query.eq('id', trialId);
-    else if (table === 'sdda_dogs') { const dogIds = (await client.from('sdda_entries').select('dog_id').eq('trial_id', trialId)).data?.map((row) => row.dog_id) || []; return [table, dogIds.length ? (await client.from(table).select('*').in('id', dogIds)).data || [] : []] as const; }
-    else if (table === 'sdda_scores') { const runIds = (await client.from('sdda_runs').select('id').eq('trial_id', trialId)).data?.map((row) => row.id) || []; return [table, runIds.length ? (await client.from(table).select('*').in('run_id', runIds)).data || [] : []] as const; }
-    else if (table === 'sdda_game_scores') { const runIds = (await client.from('sdda_game_runs').select('id').eq('trial_id', trialId)).data?.map((row) => row.id) || []; return [table, runIds.length ? (await client.from(table).select('*').in('game_run_id', runIds)).data || [] : []] as const; }
-    else query = query.eq('trial_id', trialId);
-    const { data, error } = await query; if (error) throw new Error(`Backup failed for ${table}: ${error.message}`);
-    return [table, data || []] as const;
-  }));
-  return { format: 'SDDA-TrialDesk-backup', version: 1, exported_at: new Date().toISOString(), trial_id: trialId, records: Object.fromEntries(records) };
+  const tables = [
+    'sdda_trials',
+    'sdda_trial_days',
+    'sdda_trial_members',
+    'sdda_trial_offerings',
+    'sdda_game_offerings',
+    'sdda_dogs',
+    'sdda_entries',
+    'sdda_runs',
+    'sdda_game_runs',
+    'sdda_scores',
+    'sdda_game_scores',
+    'sdda_financial_transactions',
+    'sdda_audit_records',
+    'sdda_trial_checklist_items',
+  ] as const;
+  const records = await Promise.all(
+    tables.map(async (table) => {
+      let query = client.from(table).select('*');
+      if (table === 'sdda_trials') query = query.eq('id', trialId);
+      else if (table === 'sdda_dogs') {
+        const dogIds =
+          (await client.from('sdda_entries').select('dog_id').eq('trial_id', trialId)).data?.map(
+            (row) => row.dog_id
+          ) || [];
+        return [
+          table,
+          dogIds.length ? (await client.from(table).select('*').in('id', dogIds)).data || [] : [],
+        ] as const;
+      } else if (table === 'sdda_scores') {
+        const runIds =
+          (await client.from('sdda_runs').select('id').eq('trial_id', trialId)).data?.map(
+            (row) => row.id
+          ) || [];
+        return [
+          table,
+          runIds.length
+            ? (await client.from(table).select('*').in('run_id', runIds)).data || []
+            : [],
+        ] as const;
+      } else if (table === 'sdda_game_scores') {
+        const runIds =
+          (await client.from('sdda_game_runs').select('id').eq('trial_id', trialId)).data?.map(
+            (row) => row.id
+          ) || [];
+        return [
+          table,
+          runIds.length
+            ? (await client.from(table).select('*').in('game_run_id', runIds)).data || []
+            : [],
+        ] as const;
+      } else query = query.eq('trial_id', trialId);
+      const { data, error } = await query;
+      if (error) throw new Error(`Backup failed for ${table}: ${error.message}`);
+      return [table, data || []] as const;
+    })
+  );
+  return {
+    format: 'SDDA-TrialDesk-backup',
+    version: 1,
+    exported_at: new Date().toISOString(),
+    trial_id: trialId,
+    records: Object.fromEntries(records),
+  };
 }
 
 export async function listSddaOfficialWorkbookRuns(client: SupabaseClient, trialId: string) {

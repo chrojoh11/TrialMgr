@@ -37,7 +37,9 @@ export function acceptedEntryChargeCents(
   if (entry.confirmation_status !== 'accepted') return 0;
   const games = new Map(gameOfferings.map((offering) => [offering.id, offering]));
   const grouped = new Map<string, ScentRun[]>();
-  for (const run of (entry.sdda_runs || []).filter((item) => isChargeableSelection(item.selection_status))) {
+  for (const run of (entry.sdda_runs || []).filter((item) =>
+    isChargeableSelection(item.selection_status)
+  )) {
     const key = `${run.trial_day_id}|${run.level}`;
     grouped.set(key, [...(grouped.get(key) || []), run]);
   }
@@ -48,7 +50,9 @@ export function acceptedEntryChargeCents(
       total += pricing.scentThreeComponentFeeCents;
     else total += runs.length * pricing.scentComponentFeeCents;
   }
-  for (const run of (entry.sdda_game_runs || []).filter((item) => isChargeableSelection(item.selection_status))) {
+  for (const run of (entry.sdda_game_runs || []).filter((item) =>
+    isChargeableSelection(item.selection_status)
+  )) {
     const offering = games.get(run.offering_id);
     if (offering)
       total += run.entry_type === 'FEO' ? offering.feo_fee_cents : offering.entry_fee_cents;
@@ -56,18 +60,22 @@ export function acceptedEntryChargeCents(
   return total;
 }
 
-export function sddaRemittanceCents(entries: FinancialEntry[], trialDayCount: number) {
+export function sddaRemittanceCents(entries: FinancialEntry[], sanctionedTrialCount: number) {
   let standardRuns = 0;
   let gameRuns = 0;
   const eliteDogs = new Set<string>();
   for (const entry of entries.filter((item) => item.confirmation_status === 'accepted')) {
-    for (const run of (entry.sdda_runs || []).filter((item) => isChargeableSelection(item.selection_status))) {
+    for (const run of (entry.sdda_runs || []).filter((item) =>
+      isChargeableSelection(item.selection_status)
+    )) {
       if (run.level === 'Elite') eliteDogs.add(`${entry.id}|${run.trial_day_id}`);
       else standardRuns += 1;
     }
-    gameRuns += entry.sdda_game_runs?.filter((item) => isChargeableSelection(item.selection_status)).length || 0;
+    gameRuns +=
+      entry.sdda_game_runs?.filter((item) => isChargeableSelection(item.selection_status)).length ||
+      0;
   }
-  return trialDayCount * 5000 + (standardRuns + gameRuns) * 500 + eliteDogs.size * 1000;
+  return sanctionedTrialCount * 5000 + (standardRuns + gameRuns) * 500 + eliteDogs.size * 1000;
 }
 
 export function minimumJudgeFeeCents(standardRuns: number, gameRuns: number) {
@@ -134,9 +142,15 @@ export interface FinancialHandlerIdentity {
 }
 
 const normalizeIdentityText = (value?: string | null) =>
-  String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
 const normalizeParticipantNumber = (value?: string | null) =>
-  String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+  String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '');
 const normalizePhone = (value?: string | null) => String(value || '').replace(/\D/g, '');
 
 function financialContactKey(entry: FinancialHandlerIdentity) {
@@ -164,11 +178,16 @@ export function resolveFinancialHandlerKeys<T extends FinancialHandlerIdentity>(
     if (participant && contact.startsWith('identity:'))
       participantByContact.set(contact, `participant:${participant}`);
   }
-  return new Map(entries.map((entry) => {
-    const direct = financialHandlerKey(entry);
-    const contact = financialContactKey(entry);
-    return [entry.id, direct.startsWith('participant:') ? direct : participantByContact.get(contact) || direct];
-  }));
+  return new Map(
+    entries.map((entry) => {
+      const direct = financialHandlerKey(entry);
+      const contact = financialContactKey(entry);
+      return [
+        entry.id,
+        direct.startsWith('participant:') ? direct : participantByContact.get(contact) || direct,
+      ];
+    })
+  );
 }
 
 export function allocateHandlerPayment(amount: number, entries: { id: string; balance: number }[]) {

@@ -176,7 +176,27 @@ export default function SddaFinancialsPage() {
     setError(null);
     setFormOpen(true);
   };
-  const sddaFees = trial ? sddaRemittanceCents(entries as any, trial.sdda_trial_days.length) : 0;
+  const sanctionedTrialNumbers = trial
+    ? new Set(
+        [
+          ...trial.sdda_trial_offerings.map(
+            (offering) =>
+              offering.sdda_trial_number ||
+              trial.sdda_trial_days.find((day) => day.id === offering.trial_day_id)
+                ?.sdda_trial_number ||
+              ''
+          ),
+          ...trial.sdda_game_offerings.map(
+            (offering) =>
+              offering.sdda_trial_number ||
+              trial.sdda_trial_days.find((day) => day.id === offering.trial_day_id)
+                ?.sdda_trial_number ||
+              ''
+          ),
+        ].filter(Boolean)
+      ).size
+    : 0;
+  const sddaFees = trial ? sddaRemittanceCents(entries as any, sanctionedTrialNumbers) : 0;
   const judgeBreakdown = useMemo(() => {
     if (!trial) return [];
     const rows = new Map<
@@ -417,7 +437,9 @@ export default function SddaFinancialsPage() {
             judge minimum. As judge expenses are recorded, they replace that estimate rather than
             being counted twice. The estimated SDDA fees are {money(sddaFees)} and are included only
             after you record the remittance as an expense. Fee waivers do not remove runs or reduce
-            these cost estimates.
+            these cost estimates. The application portion currently uses {sanctionedTrialNumbers}{' '}
+            distinct assigned trial number{sanctionedTrialNumbers === 1 ? '' : 's'}; confirm the
+            final sanctioned structure against SDDA’s invoice before payment.
           </AlertDescription>
         </Alert>
         <Card>
@@ -527,7 +549,9 @@ export default function SddaFinancialsPage() {
                     <div>
                       <h3 className="font-bold">{group[0].handler}</h3>
                       <p className="text-xs text-gray-600">
-                        Participant: {group.find((entry) => entry.participantNumber)?.participantNumber || 'pending'}
+                        Participant:{' '}
+                        {group.find((entry) => entry.participantNumber)?.participantNumber ||
+                          'pending'}
                       </p>
                       <p className="text-sm text-gray-600">
                         {group[0].email} · Net balance{' '}

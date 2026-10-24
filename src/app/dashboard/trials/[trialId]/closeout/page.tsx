@@ -9,10 +9,29 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
-import { buildSddaTrialBackup, getSddaTrialWorkspace, listSddaEntries, listSddaGameScoringRuns, listSddaScoringRuns, setSddaTrialCompletion, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
+import {
+  buildSddaTrialBackup,
+  getSddaTrialWorkspace,
+  listSddaChecklistItems,
+  listSddaEntries,
+  listSddaGameScoringRuns,
+  listSddaScoringRuns,
+  setSddaChecklistItem,
+  setSddaTrialCompletion,
+  type SddaChecklistItem,
+  type SddaTrialWorkspace,
+} from '@/lib/sdda/trialRepository';
 type Entry = Awaited<ReturnType<typeof listSddaEntries>>[number];
 type ScentRun = Awaited<ReturnType<typeof listSddaScoringRuns>>[number];
 type GameRun = Awaited<ReturnType<typeof listSddaGameScoringRuns>>[number];
+const CLOSEOUT_ITEMS = [
+  ['workbook_reviewed', 'Official workbook reviewed in desktop Excel'],
+  ['score_sheets_signed', 'Signed score sheets accounted for'],
+  ['incidents_complete', 'Incident reports completed or confirmed not required'],
+  ['financials_reconciled', 'Financial ledger reconciled'],
+  ['backup_downloaded', 'Complete TrialDesk backup downloaded'],
+  ['sdda_submitted', 'Results submitted to SDDA and paper forms returned'],
+] as const;
 function first<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] || null : value || null;
 }
@@ -23,6 +42,7 @@ export default function TrialCloseoutPage() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [scentRuns, setScentRuns] = useState<ScentRun[]>([]);
   const [gameRuns, setGameRuns] = useState<GameRun[]>([]);
+  const [checklist, setChecklist] = useState<SddaChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
@@ -32,11 +52,18 @@ export default function TrialCloseoutPage() {
     setError('');
     try {
       const client = getSupabaseBrowser();
-      const [workspace, roster, scents, games] = await Promise.all([getSddaTrialWorkspace(client, trialId), listSddaEntries(client, trialId), listSddaScoringRuns(client, trialId), listSddaGameScoringRuns(client, trialId)]);
+      const [workspace, roster, scents, games, items] = await Promise.all([
+        getSddaTrialWorkspace(client, trialId),
+        listSddaEntries(client, trialId),
+        listSddaScoringRuns(client, trialId),
+        listSddaGameScoringRuns(client, trialId),
+        listSddaChecklistItems(client, trialId),
+      ]);
       setTrial(workspace);
       setEntries(roster);
       setScentRuns(scents);
       setGameRuns(games);
+      setChecklist(items);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to review trial closeout.');
     } finally {
@@ -49,64 +76,136 @@ export default function TrialCloseoutPage() {
   const review = useMemo(() => {
     const accepted = entries.filter((entry) => entry.confirmation_status === 'accepted');
     const pending = entries.filter((entry) => entry.confirmation_status === 'received').length;
-    const unscoredScent = scentRuns.filter((run) => run.run_group !== 'FEO' && !first(run.sdda_scores)).length;
+    const unscoredScent = scentRuns.filter(
+      (run) => run.run_group !== 'FEO' && !first(run.sdda_scores)
+    ).length;
     const incompleteScent = scentRuns.filter((run) => {
       const score = first(run.sdda_scores);
-      return score && (score.result === 'qualifying' || score.result === 'non_qualifying') && (score.score == null || score.time_seconds == null);
+      return (
+        score &&
+        (score.result === 'qualifying' || score.result === 'non_qualifying') &&
+        (score.score == null || score.time_seconds == null)
+      );
     }).length;
-    const unscoredGames = gameRuns.filter((run) => run.entry_type !== 'FEO' && !first(run.sdda_game_scores)).length;
+    const unscoredGames = gameRuns.filter(
+      (run) => run.entry_type !== 'FEO' && !first(run.sdda_game_scores)
+    ).length;
     const incompleteGames = gameRuns.filter((run) => {
       const score = first(run.sdda_game_scores);
-      return score && (score.result === 'pass' || score.result === 'fail') && score.time_seconds == null;
+      return (
+        score && (score.result === 'pass' || score.result === 'fail') && score.time_seconds == null
+      );
     }).length;
-    const missingDayDetails = (trial?.sdda_trial_offerings.filter((offering) => !offering.sdda_trial_number?.trim() && !trial.sdda_trial_days.find((day) => day.id === offering.trial_day_id)?.sdda_trial_number?.trim()).length || 0) + (trial?.sdda_game_offerings.filter((offering) => !offering.sdda_trial_number?.trim() && !trial.sdda_trial_days.find((day) => day.id === offering.trial_day_id)?.sdda_trial_number?.trim()).length || 0);
-    const missingJudges = (trial?.sdda_trial_offerings.filter((offering) => !offering.judge_name?.trim() && !trial.sdda_trial_days.find((day) => day.id === offering.trial_day_id)?.judge_name?.trim()).length || 0) + (trial?.sdda_game_offerings.filter((offering) => !offering.judge_name?.trim() && !trial.sdda_trial_days.find((day) => day.id === offering.trial_day_id)?.judge_name?.trim()).length || 0);
+    const missingDayDetails =
+      (trial?.sdda_trial_offerings.filter(
+        (offering) =>
+          !offering.sdda_trial_number?.trim() &&
+          !trial.sdda_trial_days
+            .find((day) => day.id === offering.trial_day_id)
+            ?.sdda_trial_number?.trim()
+      ).length || 0) +
+      (trial?.sdda_game_offerings.filter(
+        (offering) =>
+          !offering.sdda_trial_number?.trim() &&
+          !trial.sdda_trial_days
+            .find((day) => day.id === offering.trial_day_id)
+            ?.sdda_trial_number?.trim()
+      ).length || 0);
+    const missingJudges =
+      (trial?.sdda_trial_offerings.filter(
+        (offering) =>
+          !offering.judge_name?.trim() &&
+          !trial.sdda_trial_days.find((day) => day.id === offering.trial_day_id)?.judge_name?.trim()
+      ).length || 0) +
+      (trial?.sdda_game_offerings.filter(
+        (offering) =>
+          !offering.judge_name?.trim() &&
+          !trial.sdda_trial_days.find((day) => day.id === offering.trial_day_id)?.judge_name?.trim()
+      ).length || 0);
     const blockers = [
       {
         label: 'Accepted entries exist',
         ready: accepted.length > 0,
-        detail: accepted.length ? `${accepted.length} entries accepted.` : 'Accept at least one entry before completing the trial.',
+        detail: accepted.length
+          ? `${accepted.length} entries accepted.`
+          : 'Accept at least one entry before completing the trial.',
       },
       {
         label: 'Accepted Scent runs scored',
         ready: unscoredScent === 0,
-        detail: unscoredScent ? `${unscoredScent} non-FEO run(s) are unscored.` : `${scentRuns.length} accepted Scent runs reviewed.`,
+        detail: unscoredScent
+          ? `${unscoredScent} non-FEO run(s) are unscored.`
+          : `${scentRuns.length} accepted Scent runs reviewed.`,
       },
       {
         label: 'Accepted Games runs scored',
         ready: unscoredGames === 0,
-        detail: unscoredGames ? `${unscoredGames} non-FEO run(s) are unscored.` : `${gameRuns.length} accepted Games runs reviewed.`,
+        detail: unscoredGames
+          ? `${unscoredGames} non-FEO run(s) are unscored.`
+          : `${gameRuns.length} accepted Games runs reviewed.`,
       },
       {
         label: 'Scores and times complete',
         ready: incompleteScent + incompleteGames === 0,
-        detail: incompleteScent + incompleteGames ? `${incompleteScent + incompleteGames} scored run(s) are missing score/time details.` : 'Recorded results include their required score/time details.',
+        detail:
+          incompleteScent + incompleteGames
+            ? `${incompleteScent + incompleteGames} scored run(s) are missing score/time details.`
+            : 'Recorded results include their required score/time details.',
       },
       {
         label: 'Entry decisions complete',
         ready: pending === 0,
-        detail: pending ? `${pending} received entries are still awaiting a decision.` : 'Every received entry has a decision.',
+        detail: pending
+          ? `${pending} received entries are still awaiting a decision.`
+          : 'Every received entry has a decision.',
       },
       {
         label: 'Offering trial numbers assigned',
         ready: missingDayDetails === 0,
-        detail: missingDayDetails ? `${missingDayDetails} offering(s) are missing an SDDA trial number.` : 'Every Scent class/component and Game resolves to a trial number.',
+        detail: missingDayDetails
+          ? `${missingDayDetails} offering(s) are missing an SDDA trial number.`
+          : 'Every Scent class/component and Game resolves to a trial number.',
       },
       {
         label: 'Judges assigned',
         ready: missingJudges === 0,
-        detail: missingJudges ? `${missingJudges} offering(s) have no component or day judge.` : 'Every offering resolves to a judge.',
+        detail: missingJudges
+          ? `${missingJudges} offering(s) have no component or day judge.`
+          : 'Every offering resolves to a judge.',
       },
     ];
     const warnings = [
       {
         label: 'Final exports reviewed',
         ready: false,
-        detail: 'Download and review results, official workbook, finances, activity journal, and the complete backup before locking.',
+        detail:
+          'Download and review results, official workbook, finances, activity journal, and the complete backup before locking.',
       },
     ];
-    return { blockers, warnings, canClose: blockers.every((item) => item.ready) };
-  }, [entries, scentRuns, gameRuns, trial]);
+    const closeoutReady = CLOSEOUT_ITEMS.every(([key]) =>
+      checklist.some(
+        (item) => item.checklist === 'closeout' && item.item_key === key && item.completed
+      )
+    );
+    return { blockers, warnings, canClose: blockers.every((item) => item.ready) && closeoutReady };
+  }, [entries, scentRuns, gameRuns, trial, checklist]);
+  const toggleCloseout = async (itemKey: string, completed: boolean) => {
+    setWorking(true);
+    setError('');
+    try {
+      await setSddaChecklistItem(getSupabaseBrowser(), {
+        trialId,
+        checklist: 'closeout',
+        itemKey,
+        completed,
+      });
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to update closeout checklist.');
+    } finally {
+      setWorking(false);
+    }
+  };
   const backup = async () => {
     if (!trial) return;
     setWorking(true);
@@ -128,13 +227,25 @@ export default function TrialCloseoutPage() {
     }
   };
   const changeCompletion = async (complete: boolean) => {
-    if (complete && !window.confirm('Complete this trial and lock operational editing? Download a backup first.')) return;
-    if (!complete && !window.confirm('Reopen this completed trial for corrections? This action is recorded.')) return;
+    if (
+      complete &&
+      !window.confirm('Complete this trial and lock operational editing? Download a backup first.')
+    )
+      return;
+    if (
+      !complete &&
+      !window.confirm('Reopen this completed trial for corrections? This action is recorded.')
+    )
+      return;
     setWorking(true);
     setError('');
     try {
       await setSddaTrialCompletion(getSupabaseBrowser(), trialId, complete);
-      setMessage(complete ? 'Trial completed and editing locked.' : 'Trial reopened in Entries Closed status.');
+      setMessage(
+        complete
+          ? 'Trial completed and editing locked.'
+          : 'Trial reopened in Entries Closed status.'
+      );
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to change trial completion.');
@@ -143,7 +254,14 @@ export default function TrialCloseoutPage() {
     }
   };
   return (
-    <MainLayout title="Trial closeout" breadcrumbItems={[{ label: 'Trials', href: '/dashboard/trials' }, { label: trial?.name || 'Trial', href: `/dashboard/trials/${trialId}` }, { label: 'Closeout' }]}>
+    <MainLayout
+      title="Trial closeout"
+      breadcrumbItems={[
+        { label: 'Trials', href: '/dashboard/trials' },
+        { label: trial?.name || 'Trial', href: `/dashboard/trials/${trialId}` },
+        { label: 'Closeout' },
+      ]}
+    >
       <div className="mx-auto max-w-5xl space-y-5">
         <Card className="border-[#cbd9e5] bg-[#f8fafc]">
           <CardHeader>
@@ -153,9 +271,20 @@ export default function TrialCloseoutPage() {
                   <Archive className="h-7 w-7" />
                   Trial closeout
                 </CardTitle>
-                <CardDescription>Review operational completeness, download a durable backup, and lock the trial after final exports are checked.</CardDescription>
+                <CardDescription>
+                  Review operational completeness, download a durable backup, and lock the trial
+                  after final exports are checked.
+                </CardDescription>
               </div>
-              <Badge className={trial?.status === 'completed' ? 'bg-blue-700 text-white' : 'bg-[#6688a6] text-white'}>{trial?.status.replaceAll('_', ' ') || 'Loading'}</Badge>
+              <Badge
+                className={
+                  trial?.status === 'completed'
+                    ? 'bg-blue-700 text-white'
+                    : 'bg-[#6688a6] text-white'
+                }
+              >
+                {trial?.status.replaceAll('_', ' ') || 'Loading'}
+              </Badge>
             </div>
           </CardHeader>
         </Card>
@@ -179,33 +308,107 @@ export default function TrialCloseoutPage() {
             <Checklist title="Review before final submission" items={review.warnings} />
             <Card>
               <CardHeader>
+                <CardTitle>Recorded closeout confirmations</CardTitle>
+                <CardDescription>
+                  These confirmations are required before locking the trial and are retained in the
+                  activity journal.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {CLOSEOUT_ITEMS.map(([key, label]) => {
+                  const item = checklist.find(
+                    (row) => row.checklist === 'closeout' && row.item_key === key
+                  );
+                  return (
+                    <label
+                      key={key}
+                      className="flex cursor-pointer items-center gap-3 rounded-md border bg-white p-3"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-5 w-5"
+                        checked={Boolean(item?.completed)}
+                        disabled={working}
+                        onChange={(event) => void toggleCloseout(key, event.target.checked)}
+                      />
+                      <span className="flex-1 font-semibold">{label}</span>
+                      {item?.completed_at && (
+                        <Badge variant="outline">
+                          {new Date(item.completed_at).toLocaleString()}
+                        </Badge>
+                      )}
+                    </label>
+                  );
+                })}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
                 <CardTitle>Final export package</CardTitle>
-                <CardDescription>Download these records before completing the trial.</CardDescription>
+                <CardDescription>
+                  Download these records before completing the trial.
+                </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-2 sm:grid-cols-2">
-                <ExportLink href={`/dashboard/trials/${trialId}/results`} label="Results & placements" />
-                <ExportLink href={`/dashboard/trials/${trialId}/workbook`} label="Official SDDA workbook" />
-                <ExportLink href={`/dashboard/trials/${trialId}/financials`} label="Financial statement" />
-                <ExportLink href={`/dashboard/trials/${trialId}/activity`} label="Activity journal" />
-                <Button variant="outline" className="sm:col-span-2" disabled={working} onClick={() => void backup()}>
+                <ExportLink
+                  href={`/dashboard/trials/${trialId}/results`}
+                  label="Results & placements"
+                />
+                <ExportLink
+                  href={`/dashboard/trials/${trialId}/workbook`}
+                  label="Official SDDA workbook"
+                />
+                <ExportLink
+                  href={`/dashboard/trials/${trialId}/financials`}
+                  label="Financial statement"
+                />
+                <ExportLink
+                  href={`/dashboard/trials/${trialId}/activity`}
+                  label="Activity journal"
+                />
+                <Button
+                  variant="outline"
+                  className="sm:col-span-2"
+                  disabled={working}
+                  onClick={() => void backup()}
+                >
                   <Download className="mr-2 h-4 w-4" />
                   Download complete trial backup (JSON)
                 </Button>
               </CardContent>
             </Card>
-            <Card className={trial?.status === 'completed' ? 'border-blue-400 bg-blue-50' : 'border-[#cbd5e1]'}>
+            <Card
+              className={
+                trial?.status === 'completed' ? 'border-blue-400 bg-blue-50' : 'border-[#cbd5e1]'
+              }
+            >
               <CardHeader>
-                <CardTitle>{trial?.status === 'completed' ? 'Trial is completed and locked' : 'Complete the trial'}</CardTitle>
-                <CardDescription>{trial?.status === 'completed' ? 'Operational records cannot be changed until an authorized secretary reopens the trial.' : 'Completion locks entries, offerings, running orders, scores, and finances at the database.'}</CardDescription>
+                <CardTitle>
+                  {trial?.status === 'completed'
+                    ? 'Trial is completed and locked'
+                    : 'Complete the trial'}
+                </CardTitle>
+                <CardDescription>
+                  {trial?.status === 'completed'
+                    ? 'Operational records cannot be changed until an authorized secretary reopens the trial.'
+                    : 'Completion locks entries, offerings, running orders, scores, and finances at the database.'}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {trial?.status === 'completed' ? (
-                  <Button variant="outline" disabled={working} onClick={() => void changeCompletion(false)}>
+                  <Button
+                    variant="outline"
+                    disabled={working}
+                    onClick={() => void changeCompletion(false)}
+                  >
                     <RotateCcw className="mr-2 h-4 w-4" />
                     Reopen for corrections
                   </Button>
                 ) : (
-                  <Button disabled={working || !review.canClose} onClick={() => void changeCompletion(true)}>
+                  <Button
+                    disabled={working || !review.canClose}
+                    onClick={() => void changeCompletion(true)}
+                  >
                     <LockKeyhole className="mr-2 h-4 w-4" />
                     Complete and lock trial
                   </Button>
@@ -218,7 +421,13 @@ export default function TrialCloseoutPage() {
     </MainLayout>
   );
 }
-function Checklist({ title, items }: { title: string; items: Array<{ label: string; ready: boolean; detail: string }> }) {
+function Checklist({
+  title,
+  items,
+}: {
+  title: string;
+  items: Array<{ label: string; ready: boolean; detail: string }>;
+}) {
   return (
     <Card>
       <CardHeader>
@@ -226,8 +435,15 @@ function Checklist({ title, items }: { title: string; items: Array<{ label: stri
       </CardHeader>
       <CardContent className="space-y-2">
         {items.map((item) => (
-          <div key={item.label} className={`flex gap-3 rounded-lg border p-3 ${item.ready ? 'border-blue-200 bg-blue-50' : 'border-sky-300 bg-sky-50'}`}>
-            {item.ready ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-blue-700" /> : <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-sky-800" />}
+          <div
+            key={item.label}
+            className={`flex gap-3 rounded-lg border p-3 ${item.ready ? 'border-blue-200 bg-blue-50' : 'border-sky-300 bg-sky-50'}`}
+          >
+            {item.ready ? (
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-blue-700" />
+            ) : (
+              <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-sky-800" />
+            )}
             <div>
               <strong>{item.label}</strong>
               <p className="text-sm text-[#64748b]">{item.detail}</p>
@@ -240,7 +456,10 @@ function Checklist({ title, items }: { title: string; items: Array<{ label: stri
 }
 function ExportLink({ href, label }: { href: string; label: string }) {
   return (
-    <a className="rounded-md border bg-white px-4 py-3 font-semibold text-[#294f73] hover:bg-[#f1f5f9]" href={href}>
+    <a
+      className="rounded-md border bg-white px-4 py-3 font-semibold text-[#294f73] hover:bg-[#f1f5f9]"
+      href={href}
+    >
       {label}
     </a>
   );
