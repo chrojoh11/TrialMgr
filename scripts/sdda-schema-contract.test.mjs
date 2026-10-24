@@ -687,3 +687,14 @@ test('supports audited per-day entry controls and owner-managed trial teams', ()
   assert.match(sql, /One or more selected trial days are closed for entries/i);
   assert.doesNotMatch(sql, /service_role|cwags|c-wags/i);
 });
+
+test('replaces the entry schedule RPC with permanent Mountain and Pacific time choices', () => {
+  const sql = readFileSync(new URL('../supabase/sdda-migrations/20261024_0058_fixed_canadian_time_zones.sql', import.meta.url), 'utf8');
+  assert.match(sql, /function public\.sdda_set_entry_schedule\(\s*target_trial_id uuid,\s*requested_general_open_local text,\s*requested_close_local text,\s*requested_timezone text/is);
+  assert.match(sql, /'Etc\/GMT\+6','Etc\/GMT\+7'/i);
+  assert.match(sql, /security definer set search_path=public set row_security=off/i);
+  assert.match(sql, /sdda_can_manage_trial\(target_trial_id\)/i);
+  assert.match(sql, /trial\.entry_schedule_updated/i);
+  assert.match(sql, /revoke all on function public\.sdda_set_entry_schedule\(uuid,text,text,text\) from public,anon,authenticated/i);
+  assert.doesNotMatch(sql, /timestamp without time zone/i);
+});
