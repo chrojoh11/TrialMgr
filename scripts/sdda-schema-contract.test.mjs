@@ -698,3 +698,12 @@ test('replaces the entry schedule RPC with permanent Mountain and Pacific time c
   assert.match(sql, /revoke all on function public\.sdda_set_entry_schedule\(uuid,text,text,text\) from public,anon,authenticated/i);
   assert.doesNotMatch(sql, /timestamp without time zone/i);
 });
+
+test('repairs the accidental entry-schedule overload without changing trial data', () => {
+  const sql = readFileSync(new URL('../supabase/sdda-migrations/20261024_0059_repair_entry_schedule_overload.sql', import.meta.url), 'utf8');
+  assert.match(sql, /drop function if exists public\.sdda_set_entry_schedule\(\s*uuid,\s*timestamp without time zone,\s*timestamp without time zone,\s*text\s*\)/is);
+  assert.match(sql, /function public\.sdda_set_entry_schedule\(\s*target_trial_id uuid,\s*requested_general_open_local text,\s*requested_close_local text,\s*requested_timezone text/is);
+  assert.match(sql, /'Etc\/GMT\+6','Etc\/GMT\+7'/i);
+  assert.match(sql, /trial\.entry_schedule_updated/i);
+  assert.doesNotMatch(sql, /update public\.sdda_trials\s+set timezone='Etc/i);
+});
