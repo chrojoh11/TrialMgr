@@ -45,6 +45,7 @@ export default function TrialCloseoutPage() {
   const [checklist, setChecklist] = useState<SddaChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
+  const [checklistWorking, setChecklistWorking] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const load = useCallback(async () => {
@@ -188,20 +189,44 @@ export default function TrialCloseoutPage() {
     return { blockers, warnings, canClose: blockers.every((item) => item.ready) && closeoutReady };
   }, [entries, scentRuns, gameRuns, trial, checklist]);
   const toggleCloseout = async (itemKey: string, completed: boolean) => {
-    setWorking(true);
+    const previous = checklist;
+    const timestamp = new Date().toISOString();
+    setChecklistWorking(itemKey);
     setError('');
+    setChecklist((current) => {
+      const existing = current.find(
+        (item) => item.checklist === 'closeout' && item.item_key === itemKey
+      );
+      const optimistic: SddaChecklistItem = {
+        trial_id: trialId,
+        checklist: 'closeout',
+        item_key: itemKey,
+        completed,
+        notes: existing?.notes || null,
+        completed_at: completed ? timestamp : null,
+        completed_by: existing?.completed_by || null,
+        updated_at: timestamp,
+      };
+      return existing
+        ? current.map((item) =>
+            item.checklist === 'closeout' && item.item_key === itemKey ? optimistic : item
+          )
+        : [...current, optimistic];
+    });
     try {
-      await setSddaChecklistItem(getSupabaseBrowser(), {
+      const client = getSupabaseBrowser();
+      await setSddaChecklistItem(client, {
         trialId,
         checklist: 'closeout',
         itemKey,
         completed,
       });
-      await load();
+      setChecklist(await listSddaChecklistItems(client, trialId));
     } catch (caught) {
+      setChecklist(previous);
       setError(caught instanceof Error ? caught.message : 'Unable to update closeout checklist.');
     } finally {
-      setWorking(false);
+      setChecklistWorking(null);
     }
   };
   const backup = async () => {
@@ -326,7 +351,7 @@ export default function TrialCloseoutPage() {
                         type="checkbox"
                         className="h-5 w-5"
                         checked={Boolean(item?.completed)}
-                        disabled={working}
+                        disabled={working || checklistWorking === key}
                         onChange={(event) => void toggleCloseout(key, event.target.checked)}
                       />
                       <span className="flex-1 font-semibold">{label}</span>
