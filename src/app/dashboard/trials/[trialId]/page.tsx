@@ -59,9 +59,9 @@ export default function SddaTrialWorkspacePage() {
   const [trial, setTrial] = useState<SddaTrialWorkspace | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [gamesSelected, setGamesSelected] = useState<Set<string>>(new Set());
-  const [gameConfiguration, setGameConfiguration] = useState<Record<string, { judge_name: string | null; capacity: number | null; entry_fee_cents: number; feo_fee_cents: number; feo_allowed: boolean }>>({});
+  const [gameConfiguration, setGameConfiguration] = useState<Record<string, { sdda_trial_number: string | null; judge_name: string | null; capacity: number | null; entry_fee_cents: number; feo_fee_cents: number; feo_allowed: boolean }>>({});
   const [gameConfigurationDirty, setGameConfigurationDirty] = useState(false);
-  const [scentConfiguration, setScentConfiguration] = useState<Record<string, { judge_name: string | null; capacity: number | null; feo_allowed: boolean }>>({});
+  const [scentConfiguration, setScentConfiguration] = useState<Record<string, { sdda_trial_number: string | null; judge_name: string | null; capacity: number | null; feo_allowed: boolean }>>({});
   const [scentConfigurationDirty, setScentConfigurationDirty] = useState(false);
   const [pricing, setPricing] = useState({ componentFee: '', threeComponentFee: '', eliteFee: '' });
   const [pricingDirty, setPricingDirty] = useState(false);
@@ -100,16 +100,16 @@ export default function SddaTrialWorkspacePage() {
         streams.forEach((stream) => normalizedScent.add(offeringKey({ trialDayId: item.trial_day_id, level: item.level, component: item.component, stream })));
       });
       setSelected(normalizedScent);
-      const scentConfig: Record<string, { judge_name: string | null; capacity: number | null; feo_allowed: boolean }> = {};
+      const scentConfig: Record<string, { sdda_trial_number: string | null; judge_name: string | null; capacity: number | null; feo_allowed: boolean }> = {};
       workspace.sdda_trial_offerings.forEach((item) => {
         const key = scentElementKey(item.trial_day_id, item.level, item.component);
-        if (!scentConfig[key]) scentConfig[key] = { judge_name: item.judge_name || null, capacity: item.capacity, feo_allowed: item.feo_allowed || false };
+        if (!scentConfig[key]) scentConfig[key] = { sdda_trial_number: item.sdda_trial_number || null, judge_name: item.judge_name || null, capacity: item.capacity, feo_allowed: item.feo_allowed || false };
       });
       setScentConfiguration(scentConfig);
       setScentConfigurationDirty(false);
       setGamesSelected(new Set(workspace.sdda_game_offerings.map((item) => gameOfferingKey(item.trial_day_id, item.game_type))));
       setGameConfiguration(Object.fromEntries(workspace.sdda_game_offerings.map((item) => [gameOfferingKey(item.trial_day_id, item.game_type), {
-        judge_name: item.judge_name, capacity: item.capacity, entry_fee_cents: item.entry_fee_cents, feo_fee_cents: item.feo_fee_cents, feo_allowed: item.feo_allowed || false,
+        sdda_trial_number: item.sdda_trial_number || null, judge_name: item.judge_name, capacity: item.capacity, entry_fee_cents: item.entry_fee_cents, feo_fee_cents: item.feo_fee_cents, feo_allowed: item.feo_allowed || false,
       }])));
       setGameConfigurationDirty(false);
       setPricing({ componentFee: workspace.scent_component_fee_cents ? (workspace.scent_component_fee_cents / 100).toFixed(2) : '', threeComponentFee: workspace.scent_three_component_fee_cents ? (workspace.scent_three_component_fee_cents / 100).toFixed(2) : '', eliteFee: workspace.elite_fee_cents ? (workspace.elite_fee_cents / 100).toFixed(2) : '' });
@@ -169,7 +169,11 @@ export default function SddaTrialWorkspacePage() {
   const gamesReady = !hasGames || gamesSelected.size > 0;
   const scentPricingReady = !hasScent || Number(pricing.componentFee) > 0 || Number(pricing.threeComponentFee) > 0 || Number(pricing.eliteFee) > 0;
   const gamesPricingReady = !hasGames || [...gamesSelected].every((key) => (gameConfiguration[key]?.entry_fee_cents || 0) > 0);
-  const dayAssignmentsComplete = (trial?.sdda_trial_days || []).every((day) => dayDetails[day.id]?.trialNumber.trim() && dayDetails[day.id]?.judgeName.trim());
+  const dayAssignmentsComplete = (trial?.sdda_trial_days || []).every((day) => {
+    const scent = Object.entries(scentConfiguration).filter(([key]) => key.startsWith(`${day.id}|`));
+    const games = Object.entries(gameConfiguration).filter(([key]) => key.startsWith(`${day.id}|`));
+    return [...scent, ...games].every(([, value]) => value.sdda_trial_number?.trim() && (value.judge_name?.trim() || dayDetails[day.id]?.judgeName.trim()));
+  });
   const competitorDetailsReady = Boolean(publicDetails.secretaryName.trim() && publicDetails.secretaryEmail.trim() && publicDetails.paymentInstructions.trim() && publicDetails.cancellationPolicy.trim());
   const entrySchedule = (() => {
     if (!trial || trial.status !== 'entries_open') return { label: 'Manually closed', accepting: false };
@@ -198,17 +202,22 @@ export default function SddaTrialWorkspacePage() {
 
   const updateScentJudge = (key: string, value: string) => {
     setSaved(false); setScentConfigurationDirty(true);
-    setScentConfiguration((current) => ({ ...current, [key]: { judge_name: value.trimStart() || null, capacity: current[key]?.capacity || null, feo_allowed: current[key]?.feo_allowed || false } }));
+    setScentConfiguration((current) => ({ ...current, [key]: { sdda_trial_number: current[key]?.sdda_trial_number || null, judge_name: value.trimStart() || null, capacity: current[key]?.capacity || null, feo_allowed: current[key]?.feo_allowed || false } }));
+  };
+
+  const updateScentTrialNumber = (key: string, value: string) => {
+    setSaved(false); setScentConfigurationDirty(true);
+    setScentConfiguration((current) => ({ ...current, [key]: { sdda_trial_number: value.trimStart() || null, judge_name: current[key]?.judge_name || null, capacity: current[key]?.capacity || null, feo_allowed: current[key]?.feo_allowed || false } }));
   };
 
   const updateScentCapacity = (key: string, value: string) => {
     setSaved(false); setScentConfigurationDirty(true);
-    setScentConfiguration((current) => ({ ...current, [key]: { judge_name: current[key]?.judge_name || null, capacity: value ? Math.max(1, Number(value)) : null, feo_allowed: current[key]?.feo_allowed || false } }));
+    setScentConfiguration((current) => ({ ...current, [key]: { sdda_trial_number: current[key]?.sdda_trial_number || null, judge_name: current[key]?.judge_name || null, capacity: value ? Math.max(1, Number(value)) : null, feo_allowed: current[key]?.feo_allowed || false } }));
   };
 
   const toggleScentFeo = (key: string) => {
     setSaved(false); setScentConfigurationDirty(true);
-    setScentConfiguration((current) => ({ ...current, [key]: { judge_name: current[key]?.judge_name || null, capacity: current[key]?.capacity || null, feo_allowed: !current[key]?.feo_allowed } }));
+    setScentConfiguration((current) => ({ ...current, [key]: { sdda_trial_number: current[key]?.sdda_trial_number || null, judge_name: current[key]?.judge_name || null, capacity: current[key]?.capacity || null, feo_allowed: !current[key]?.feo_allowed } }));
   };
 
   const allOfferingKeys = useMemo(() => new Set(
@@ -240,25 +249,26 @@ export default function SddaTrialWorkspacePage() {
     });
   };
 
-  const updateGameConfiguration = (key: string, field: 'judge_name' | 'capacity' | 'entry_fee_cents' | 'feo_fee_cents', value: string) => {
+  const updateGameConfiguration = (key: string, field: 'sdda_trial_number' | 'judge_name' | 'capacity' | 'entry_fee_cents' | 'feo_fee_cents', value: string) => {
     setSaved(false);
     setGameConfigurationDirty(true);
     setGameConfiguration((current) => ({
       ...current,
       [key]: {
+        sdda_trial_number: current[key]?.sdda_trial_number || null,
         judge_name: current[key]?.judge_name || null,
         capacity: current[key]?.capacity || null,
         entry_fee_cents: current[key]?.entry_fee_cents || 0,
         feo_fee_cents: current[key]?.feo_fee_cents || 0,
         feo_allowed: current[key]?.feo_allowed || false,
-        [field]: field === 'judge_name' ? (value.trimStart() || null) : field === 'capacity' ? (value ? Math.max(1, Number(value)) : null) : Math.max(0, Math.round(Number(value || 0) * 100)),
+        [field]: field === 'judge_name' || field === 'sdda_trial_number' ? (value.trimStart() || null) : field === 'capacity' ? (value ? Math.max(1, Number(value)) : null) : Math.max(0, Math.round(Number(value || 0) * 100)),
       },
     }));
   };
 
   const toggleGameFeo = (key: string) => {
     setSaved(false); setGameConfigurationDirty(true);
-    setGameConfiguration((current) => ({ ...current, [key]: { judge_name: current[key]?.judge_name || null, capacity: current[key]?.capacity || null, entry_fee_cents: current[key]?.entry_fee_cents || 0, feo_fee_cents: current[key]?.feo_fee_cents || 0, feo_allowed: !current[key]?.feo_allowed } }));
+    setGameConfiguration((current) => ({ ...current, [key]: { sdda_trial_number: current[key]?.sdda_trial_number || null, judge_name: current[key]?.judge_name || null, capacity: current[key]?.capacity || null, entry_fee_cents: current[key]?.entry_fee_cents || 0, feo_fee_cents: current[key]?.feo_fee_cents || 0, feo_allowed: !current[key]?.feo_allowed } }));
   };
 
   const allGameKeys = useMemo(() => new Set(
@@ -441,27 +451,28 @@ export default function SddaTrialWorkspacePage() {
             <CardContent className="space-y-5">
               <div className="grid gap-3 rounded-md border border-[#d7ddd8] bg-[#f1f5f9] p-4 sm:grid-cols-[1fr_1fr_2fr_auto] sm:items-end">
                 <div><Label htmlFor={`${day.id}-trial-date`}>Trial date</Label><Input id={`${day.id}-trial-date`} type="date" className="mt-1 bg-white" value={dayDetails[day.id]?.trialDate || ''} onChange={(event) => setDayDetails((current) => ({ ...current, [day.id]: { trialDate: event.target.value, trialNumber: current[day.id]?.trialNumber || '', judgeName: current[day.id]?.judgeName || '' } }))} /></div>
-                <div><Label htmlFor={`${day.id}-trial-number`}>SDDA trial number</Label><Input id={`${day.id}-trial-number`} className="mt-1 bg-white" placeholder="Enter when assigned" value={dayDetails[day.id]?.trialNumber || ''} onChange={(event) => setDayDetails((current) => ({ ...current, [day.id]: { trialDate: current[day.id]?.trialDate || day.trial_date, trialNumber: event.target.value, judgeName: current[day.id]?.judgeName || '' } }))} /></div>
+                <div><Label htmlFor={`${day.id}-trial-number`}>Default trial number</Label><Input id={`${day.id}-trial-number`} className="mt-1 bg-white" placeholder="Optional fallback" value={dayDetails[day.id]?.trialNumber || ''} onChange={(event) => setDayDetails((current) => ({ ...current, [day.id]: { trialDate: current[day.id]?.trialDate || day.trial_date, trialNumber: event.target.value, judgeName: current[day.id]?.judgeName || '' } }))} /></div>
                 <div><Label htmlFor={`${day.id}-judge-name`}>Day judge</Label><Input id={`${day.id}-judge-name`} className="mt-1 bg-white" placeholder="Enter or replace judge name" value={dayDetails[day.id]?.judgeName || ''} onChange={(event) => setDayDetails((current) => ({ ...current, [day.id]: { trialDate: current[day.id]?.trialDate || day.trial_date, trialNumber: current[day.id]?.trialNumber || '', judgeName: event.target.value } }))} /></div>
                 <Button type="button" variant="outline" disabled={savingDay === day.id} onClick={() => void saveDayDetails(day.id)}>{savingDay === day.id ? <PawLoader className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}Save day details</Button>
-              </div><p className="text-xs text-gray-600">The day judge is the default for every offering on this day. A class or Game judge entered below overrides it and can also be replaced later.</p>
+              </div><p className="text-xs text-gray-600">The day number and judge are optional defaults for existing records. Enter the SDDA-assigned number for each Scent class/component or Game below; a host may have several numbered trials on the same date.</p>
               {hasScent && SDDA_LEVELS.map((level) => (
                 <div key={level} className="space-y-2"><h3 className="font-semibold">{level}{level === 'Elite' ? ' (no stream)' : ''}</h3><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {SDDA_COMPONENTS.map((component) => {
                     const storageKeys = (level === 'Elite' ? (['Amateur'] as const) : SDDA_STREAMS).map((stream) => offeringKey({ trialDayId: day.id, level, component, stream }));
                     const active = storageKeys.every((key) => selected.has(key));
                     const configKey = scentElementKey(day.id, level, component);
-                    return <div key={configKey} className={`rounded-md border p-3 text-sm transition ${active ? 'border-blue-600 bg-blue-50 text-blue-900' : 'border-gray-200 bg-white'}`}><button type="button" onClick={() => toggleScentElement(day.id, level, component)} className="flex w-full items-center justify-between text-left"><span className="font-semibold">{component}</span>{active && <Check className="h-4 w-4" />}</button>{active && <div className="mt-3 space-y-3 border-t border-blue-200 pt-3"><div><Label htmlFor={`${configKey}-judge`}>Judge</Label><Input id={`${configKey}-judge`} className="mt-1 bg-white" placeholder={day.judge_name || 'Use day judge'} value={scentConfiguration[configKey]?.judge_name || ''} onChange={(event) => updateScentJudge(configKey, event.target.value)} /><p className="mt-1 text-xs text-gray-600">Both Amateur and Working use this judge.</p></div><div><Label htmlFor={`${configKey}-capacity`}>Shared capacity</Label><Input id={`${configKey}-capacity`} className="mt-1 bg-white" type="number" min="1" placeholder="Unlimited" value={scentConfiguration[configKey]?.capacity || ''} onChange={(event) => updateScentCapacity(configKey, event.target.value)} /><p className="mt-1 text-xs text-gray-600">Combined Amateur and Working limit for this day, level and component.</p></div><label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={scentConfiguration[configKey]?.feo_allowed || false} onChange={() => toggleScentFeo(configKey)} />Allow FEO entries</label></div>}</div>;
+                    return <div key={configKey} className={`rounded-md border p-3 text-sm transition ${active ? 'border-blue-600 bg-blue-50 text-blue-900' : 'border-gray-200 bg-white'}`}><button type="button" onClick={() => toggleScentElement(day.id, level, component)} className="flex w-full items-center justify-between text-left"><span className="font-semibold">{component}</span>{active && <Check className="h-4 w-4" />}</button>{active && <div className="mt-3 space-y-3 border-t border-blue-200 pt-3"><div><Label htmlFor={`${configKey}-trial-number`}>SDDA trial number</Label><Input id={`${configKey}-trial-number`} className="mt-1 bg-white" placeholder={day.sdda_trial_number || 'Required when assigned'} value={scentConfiguration[configKey]?.sdda_trial_number || ''} onChange={(event) => updateScentTrialNumber(configKey, event.target.value)} /><p className="mt-1 text-xs text-gray-600">Shared by Amateur and Working for this component.</p></div><div><Label htmlFor={`${configKey}-judge`}>Judge</Label><Input id={`${configKey}-judge`} className="mt-1 bg-white" placeholder={day.judge_name || 'Use day judge'} value={scentConfiguration[configKey]?.judge_name || ''} onChange={(event) => updateScentJudge(configKey, event.target.value)} /><p className="mt-1 text-xs text-gray-600">Both Amateur and Working use this judge.</p></div><div><Label htmlFor={`${configKey}-capacity`}>Shared capacity</Label><Input id={`${configKey}-capacity`} className="mt-1 bg-white" type="number" min="1" placeholder="Unlimited" value={scentConfiguration[configKey]?.capacity || ''} onChange={(event) => updateScentCapacity(configKey, event.target.value)} /><p className="mt-1 text-xs text-gray-600">Combined Amateur and Working limit for this day, level and component.</p></div><label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={scentConfiguration[configKey]?.feo_allowed || false} onChange={() => toggleScentFeo(configKey)} />Allow FEO entries</label></div>}</div>;
                   })}
                 </div></div>
               ))}
               {hasGames && <div className="space-y-2"><h3 className="font-semibold">SDDA Games</h3><div className="grid gap-3 sm:grid-cols-2">{SDDA_GAME_TYPES.map((game) => {
                 const key = gameOfferingKey(day.id, game);
                 const active = gamesSelected.has(key);
-                const config = gameConfiguration[key] || { judge_name: null, capacity: null, entry_fee_cents: 0, feo_fee_cents: 0, feo_allowed: false };
+                const config = gameConfiguration[key] || { sdda_trial_number: null, judge_name: null, capacity: null, entry_fee_cents: 0, feo_fee_cents: 0, feo_allowed: false };
                 return <div key={key} className={`rounded-md border p-3 text-sm transition ${active ? 'border-blue-600 bg-blue-50 text-blue-900' : 'border-gray-200 bg-white'}`}>
                   <button type="button" onClick={() => toggleGame(key)} className="flex w-full items-center justify-between text-left"><span className="font-semibold">{game}</span>{active && <Check className="h-4 w-4" />}</button>
                   {active && <div className="mt-3 grid gap-3 border-t border-blue-200 pt-3 sm:grid-cols-2">
+                    <div><Label htmlFor={`${key}-trial-number`}>SDDA trial number</Label><Input id={`${key}-trial-number`} className="bg-white" placeholder={day.sdda_trial_number || 'Required when assigned'} value={config.sdda_trial_number || ''} onChange={(event) => updateGameConfiguration(key, 'sdda_trial_number', event.target.value)} /></div>
                     <div className="sm:col-span-2"><Label htmlFor={`${key}-judge`}>Judge</Label><Input id={`${key}-judge`} className="bg-white" value={config.judge_name || ''} onChange={(event) => updateGameConfiguration(key, 'judge_name', event.target.value)} /></div>
                     <div><Label htmlFor={`${key}-capacity`}>Capacity</Label><Input id={`${key}-capacity`} className="bg-white" type="number" min="1" value={config.capacity || ''} onChange={(event) => updateGameConfiguration(key, 'capacity', event.target.value)} /></div>
                     <div><Label htmlFor={`${key}-fee`}>Regular fee ($)</Label><Input id={`${key}-fee`} className="bg-white" type="number" min="0" step="0.01" placeholder="0.00" value={config.entry_fee_cents ? config.entry_fee_cents / 100 : ''} onChange={(event) => updateGameConfiguration(key, 'entry_fee_cents', event.target.value)} /></div>

@@ -27,7 +27,7 @@ const templatePath = '/api/sdda/latest-workbook';
 const safeName = (value: string) => value.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '');
 const first = <T,>(value: T | T[] | null | undefined): T | undefined => Array.isArray(value) ? value[0] : value || undefined;
 
-type PreparedRun = OfficialWorkbookRun & { entryStatus: string };
+type PreparedRun = OfficialWorkbookRun & { entryStatus: string; trialDayId: string; trialNumber: string };
 
 export default function SddaOfficialWorkbookPage() {
   const trialId = useParams<{ trialId: string }>().trialId;
@@ -60,6 +60,8 @@ export default function SddaOfficialWorkbookPage() {
         const entry = first(record.sdda_entries);
         const dog = first(entry?.sdda_dogs);
         const score = first(record.sdda_scores);
+        const offering = workspace.sdda_trial_offerings.find((item) => item.trial_day_id === record.trial_day_id && item.level === record.level && item.component === record.component && item.stream === record.stream);
+        const day = workspace.sdda_trial_days.find((item) => item.id === record.trial_day_id);
         return {
           dayNumber: days.get(record.trial_day_id) || 0,
           level: record.level,
@@ -71,6 +73,8 @@ export default function SddaOfficialWorkbookPage() {
           score: score?.score == null ? null : Number(score.score),
           timeSeconds: score?.time_seconds == null ? null : Number(score.time_seconds),
           entryStatus: entry?.entry_status || '',
+          trialDayId: record.trial_day_id,
+          trialNumber: offering?.sdda_trial_number || day?.sdda_trial_number || '',
         } as PreparedRun;
       }));
     } catch (caught) {
@@ -82,21 +86,32 @@ export default function SddaOfficialWorkbookPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const dayGroups = useMemo(() => {
-    const days = trial?.sdda_trial_days || [];
-    return Array.from({ length: Math.ceil(days.length / 2) }, (_, index) => days.slice(index * 2, index * 2 + 2));
+  const exportGroups = useMemo(() => {
+    if (!trial) return [];
+    const groups = new Map<string, { day: SddaTrialWorkspace['sdda_trial_days'][number]; trialNumber: string }>();
+    for (const day of trial.sdda_trial_days) {
+      const numbers = new Set([
+        ...trial.sdda_trial_offerings.filter((item) => item.trial_day_id === day.id).map((item) => item.sdda_trial_number || day.sdda_trial_number || ''),
+        ...trial.sdda_game_offerings.filter((item) => item.trial_day_id === day.id).map((item) => item.sdda_trial_number || day.sdda_trial_number || ''),
+      ]);
+      if (!numbers.size) numbers.add(day.sdda_trial_number || '');
+      for (const trialNumber of numbers) groups.set(`${day.id}|${trialNumber}`, { day, trialNumber });
+    }
+    return [...groups.values()];
   }, [trial]);
   const enteredRuns = useMemo(() => runs.filter((run) => run.entryStatus === 'entered'), [runs]);
   const excludedRuns = runs.length - enteredRuns.length;
 
   const groupInput = (index: number) => {
     if (!trial) return null;
-    const days = dayGroups[index];
-    const selectedDays = new Set(days.map((day) => day.day_number));
+    const group = exportGroups[index];
+    const days = [group.day];
+    const selectedDays = new Set([group.day.day_number]);
+    const selectedNumber = group.trialNumber;
     return {
       days: days.map((day) => ({
         dayNumber: day.day_number,
-        trialNumber: day.sdda_trial_number || '',
+        trialNumber: selectedNumber,
         trialDate: day.trial_date,
         judgeName: day.judge_name || undefined,
       })),
@@ -106,22 +121,26 @@ export default function SddaOfficialWorkbookPage() {
       trialEmail: trial.secretary_email || undefined,
       scentJudges: trial.sdda_trial_offerings.flatMap((offering) => {
         const dayNumber = trial.sdda_trial_days.find((day) => day.id === offering.trial_day_id)?.day_number;
-        if (!dayNumber || !offering.judge_name?.trim() || !selectedDays.has(dayNumber)) return [];
+        const day = trial.sdda_trial_days.find((item) => item.id === offering.trial_day_id);
+        if (!dayNumber || !offering.judge_name?.trim() || !selectedDays.has(dayNumber) || (offering.sdda_trial_number || day?.sdda_trial_number || '') !== selectedNumber) return [];
         return [{ dayNumber, level: offering.level, component: offering.component, judgeName: offering.judge_name.trim() }];
       }),
       gameJudges: trial.sdda_game_offerings.flatMap((offering) => {
         const dayNumber = trial.sdda_trial_days.find((day) => day.id === offering.trial_day_id)?.day_number;
-        if (!dayNumber || !offering.judge_name?.trim() || !selectedDays.has(dayNumber)) return [];
+        const day = trial.sdda_trial_days.find((item) => item.id === offering.trial_day_id);
+        if (!dayNumber || !offering.judge_name?.trim() || !selectedDays.has(dayNumber) || (offering.sdda_trial_number || day?.sdda_trial_number || '') !== selectedNumber) return [];
         return [{ dayNumber, gameType: offering.game_type, judgeName: offering.judge_name.trim() }];
       }),
-      runs: enteredRuns.filter((run) => selectedDays.has(run.dayNumber)),
+      runs: enteredRuns.filter((run) => selectedDays.has(run.dayNumber) && run.trialNumber === selectedNumber),
       gameRuns: gameRuns.flatMap((record) => {
         const entry = first(record.sdda_entries);
         const dog = first(entry?.sdda_dogs);
         const score = first(record.sdda_game_scores);
         const offering = first(record.sdda_game_offerings);
         const dayNumber = trial.sdda_trial_days.find((day) => day.id === record.trial_day_id)?.day_number || 0;
-        if (!offering || entry?.confirmation_status !== 'accepted' || !selectedDays.has(dayNumber)) return [];
+        const configured = trial.sdda_game_offerings.find((item) => item.id === record.offering_id);
+        const number = configured?.sdda_trial_number || trial.sdda_trial_days.find((day) => day.id === record.trial_day_id)?.sdda_trial_number || '';
+        if (!offering || entry?.confirmation_status !== 'accepted' || !selectedDays.has(dayNumber) || number !== selectedNumber) return [];
         return [{ dayNumber, gameType: offering.game_type, dogNumber: dog?.sdda_registration_number || '', entryType: record.entry_type, result: score?.result, timeSeconds: score?.time_seconds == null ? null : Number(score.time_seconds), runningPosition: record.running_position }];
       }),
     };
@@ -129,7 +148,6 @@ export default function SddaOfficialWorkbookPage() {
 
   const exportGroup = async (index: number) => {
     if (!trial) return;
-    const days = dayGroups[index];
     const input = groupInput(index);
     if (!input) return;
     try {
@@ -146,7 +164,7 @@ export default function SddaOfficialWorkbookPage() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `${safeName(trial.name)}-official-SDDA-workbook-days-${days.map((day) => day.day_number).join('-')}.xlsx`;
+      anchor.download = `${safeName(trial.name)}-official-SDDA-workbook-trial-${safeName(exportGroups[index].trialNumber || 'number-pending')}.xlsx`;
       anchor.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (caught) {
@@ -161,13 +179,12 @@ export default function SddaOfficialWorkbookPage() {
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
       <Card><CardHeader><CardTitle className="flex items-center"><FileSpreadsheet className="mr-2 h-5 w-5" />SDDA Trial Results Workbook</CardTitle><CardDescription>Downloads the newest official SDDA workbook and fills its designated Scent and Games input cells. Official formulas, validation, print areas, Summary, High-in-Trial, fees, labels, and formatted-results sheets remain in place.</CardDescription></CardHeader><CardContent className="flex flex-wrap gap-2"><Badge variant="outline">{enteredRuns.length} entered scent runs</Badge><Badge variant="outline">{gameRuns.length} Games runs</Badge>{excludedRuns > 0 && <Badge variant="outline">{excludedRuns} waitlisted/withdrawn runs excluded</Badge>}</CardContent></Card>
       <Alert><AlertDescription>Open the downloaded workbook in desktop Microsoft Excel so its original formulas recalculate. Every Scent NQ is exported with a numeric zero score; a recorded time is preserved and an unrecorded time remains blank. Review the official Summary and results before submission. SDDA Games sheets are preserved exactly and use their dedicated Games entry and scoring workflow.</AlertDescription></Alert>
-      {loading ? <div className="flex justify-center py-16"><PawLoader className="h-8 w-8" /></div> : dayGroups.map((days, index) => {
-        const selected = new Set(days.map((day) => day.day_number));
-        const count = enteredRuns.filter((run) => selected.has(run.dayNumber)).length;
+      {loading ? <div className="flex justify-center py-16"><PawLoader className="h-8 w-8" /></div> : exportGroups.map((group, index) => {
+        const count = enteredRuns.filter((run) => run.dayNumber === group.day.day_number && run.trialNumber === group.trialNumber).length;
         const input = groupInput(index);
         const issues = input ? reviewOfficialSddaWorkbook(input, registryNumbers || undefined) : [];
         const blockers = issues.filter((issue) => issue.severity === 'blocker');
-        return <Card key={index}><CardHeader><CardTitle>Days {days.map((day) => day.day_number).join('–')}</CardTitle><CardDescription>{days.map((day) => `${day.trial_date}${day.sdda_trial_number ? ` · ${day.sdda_trial_number}` : ' · trial number pending'}`).join(' | ')}</CardDescription></CardHeader><CardContent className="space-y-4"><div className="flex items-center gap-3"><Button onClick={() => void exportGroup(index)} disabled={exporting !== null || count === 0 || blockers.length > 0}>{exporting === index ? <PawLoader className="mr-2 h-4 w-4" /> : <Download className="mr-2 h-4 w-4" />}Export official workbook</Button><Badge variant="outline">{count} runs</Badge></div>{issues.length > 0 ? <div className="space-y-2">{issues.map((issue) => <div key={issue.message} className={`rounded-md border px-3 py-2 text-sm ${issue.severity === 'blocker' ? 'border-red-300 bg-red-50 text-red-900' : 'border-sky-300 bg-sky-50 text-sky-900'}`}><strong>{issue.severity === 'blocker' ? 'Required: ' : 'Review: '}</strong>{issue.message}</div>)}</div> : <div className="rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm text-blue-900">Workbook data checks passed.</div>}</CardContent></Card>;
+        return <Card key={`${group.day.id}|${group.trialNumber}`}><CardHeader><CardTitle>Trial {group.trialNumber || 'number pending'}</CardTitle><CardDescription>Day {group.day.day_number} · {group.day.trial_date}</CardDescription></CardHeader><CardContent className="space-y-4"><div className="flex items-center gap-3"><Button onClick={() => void exportGroup(index)} disabled={exporting !== null || count + (input?.gameRuns?.length || 0) === 0 || blockers.length > 0}>{exporting === index ? <PawLoader className="mr-2 h-4 w-4" /> : <Download className="mr-2 h-4 w-4" />}Export official workbook</Button><Badge variant="outline">{count} Scent runs</Badge><Badge variant="outline">{input?.gameRuns?.length || 0} Games runs</Badge></div>{issues.length > 0 ? <div className="space-y-2">{issues.map((issue) => <div key={issue.message} className={`rounded-md border px-3 py-2 text-sm ${issue.severity === 'blocker' ? 'border-red-300 bg-red-50 text-red-900' : 'border-sky-300 bg-sky-50 text-sky-900'}`}><strong>{issue.severity === 'blocker' ? 'Required: ' : 'Review: '}</strong>{issue.message}</div>)}</div> : <div className="rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm text-blue-900">Workbook data checks passed.</div>}</CardContent></Card>;
       })}
     </div>
   </MainLayout>;

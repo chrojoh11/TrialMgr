@@ -32,6 +32,7 @@ export interface SddaTrialOffering {
   level: SddaLevel;
   component: SddaComponent;
   stream: SddaStream;
+  sdda_trial_number: string | null;
   judge_name: string | null;
   capacity: number | null;
   feo_allowed: boolean;
@@ -47,6 +48,7 @@ export interface SddaGameOffering {
   id: string;
   trial_day_id: string;
   game_type: SddaGameType;
+  sdda_trial_number: string | null;
   judge_name: string | null;
   capacity: number | null;
   entry_fee_cents: number;
@@ -306,7 +308,7 @@ export async function getSddaTrialWorkspace(client: SupabaseClient, trialId: str
   const { data, error } = await client
     .from('sdda_trials')
     .select(
-      'id,name,host_club,venue,timezone,entry_open_at,general_entry_open_at,entry_close_at,status,created_at,trial_format,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name,entries_open),sdda_trial_offerings(id,trial_day_id,level,component,stream,judge_name,capacity,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,judge_name,capacity,entry_fee_cents,feo_fee_cents,feo_allowed)'
+      'id,name,host_club,venue,timezone,entry_open_at,general_entry_open_at,entry_close_at,status,created_at,trial_format,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name,entries_open),sdda_trial_offerings(id,trial_day_id,level,component,stream,sdda_trial_number,judge_name,capacity,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,sdda_trial_number,judge_name,capacity,entry_fee_cents,feo_fee_cents,feo_allowed)'
     )
     .eq('id', trialId)
     .single();
@@ -397,7 +399,7 @@ export async function saveSddaGameOfferings(
   selectedKeys: Set<string>,
   configuration: Record<
     string,
-    Pick<SddaGameOffering, 'judge_name' | 'capacity' | 'entry_fee_cents' | 'feo_fee_cents' | 'feo_allowed'>
+    Pick<SddaGameOffering, 'sdda_trial_number' | 'judge_name' | 'capacity' | 'entry_fee_cents' | 'feo_fee_cents' | 'feo_allowed'>
   >
 ) {
   const currentKeys = new Map(
@@ -415,6 +417,7 @@ export async function saveSddaGameOfferings(
       trial_id: trialId,
       trial_day_id: key.slice(0, separator),
       game_type: key.slice(separator + 1) as SddaGameType,
+      sdda_trial_number: configuration[key]?.sdda_trial_number?.trim() || null,
       judge_name: configuration[key]?.judge_name || null,
       capacity: configuration[key]?.capacity || null,
       entry_fee_cents: configuration[key]?.entry_fee_cents || 0,
@@ -444,7 +447,7 @@ export async function saveSddaTrialOfferings(
   trialId: string,
   current: SddaTrialOffering[],
   selectedKeys: Set<string>,
-  configuration?: Record<string, { judge_name: string | null; capacity: number | null; feo_allowed: boolean }>,
+  configuration?: Record<string, { sdda_trial_number: string | null; judge_name: string | null; capacity: number | null; feo_allowed: boolean }>,
 ) {
   const currentKeys = new Map(
     current.map((offering) => [
@@ -475,9 +478,10 @@ export async function saveSddaTrialOfferings(
     const existing = currentKeys.get(key);
     const configured = configuration[`${item.trialDayId}|${item.level}|${item.component}`];
     const judgeName = configured?.judge_name || null;
+    const trialNumber = configured?.sdda_trial_number?.trim() || null;
     const capacity = configured?.capacity || null;
     const feoAllowed = configured?.feo_allowed || false;
-    return !existing || (existing.judge_name || null) !== judgeName || existing.capacity !== capacity || Boolean(existing.feo_allowed) !== feoAllowed;
+    return !existing || (existing.sdda_trial_number || null) !== trialNumber || (existing.judge_name || null) !== judgeName || existing.capacity !== capacity || Boolean(existing.feo_allowed) !== feoAllowed;
   }) : additions;
   if (rows.length) {
     const values = rows.map((item) => ({
@@ -487,6 +491,7 @@ export async function saveSddaTrialOfferings(
         component: item.component,
         stream: item.stream,
         ...(configuration ? {
+          sdda_trial_number: configuration[`${item.trialDayId}|${item.level}|${item.component}`]?.sdda_trial_number?.trim() || null,
           judge_name: configuration[`${item.trialDayId}|${item.level}|${item.component}`]?.judge_name || null,
           capacity: configuration[`${item.trialDayId}|${item.level}|${item.component}`]?.capacity || null,
           feo_allowed: configuration[`${item.trialDayId}|${item.level}|${item.component}`]?.feo_allowed || false,
@@ -680,7 +685,7 @@ export async function listSddaScoringRuns(client: SupabaseClient, trialId: strin
 export async function listSddaGameScoringRuns(client: SupabaseClient, trialId: string) {
   const { data, error } = await client
     .from('sdda_game_runs')
-    .select('id,trial_day_id,entry_type,aerial_division,selection_status,running_position,sdda_game_offerings(game_type,judge_name),sdda_game_scores(id,result,time_seconds,judge_notes,recorded_at,amended_at),sdda_entries!inner(id,handler_name,dog_id,confirmation_status,sdda_dogs(call_name,registered_name,sdda_registration_number)),sdda_trial_days(day_number,trial_date)')
+    .select('id,trial_day_id,offering_id,entry_type,aerial_division,selection_status,running_position,sdda_game_offerings(game_type,judge_name),sdda_game_scores(id,result,time_seconds,judge_notes,recorded_at,amended_at),sdda_entries!inner(id,handler_name,dog_id,confirmation_status,sdda_dogs(call_name,registered_name,sdda_registration_number)),sdda_trial_days(day_number,trial_date)')
     .eq('trial_id', trialId)
     .eq('selection_status', 'accepted')
     .eq('sdda_entries.confirmation_status', 'accepted')

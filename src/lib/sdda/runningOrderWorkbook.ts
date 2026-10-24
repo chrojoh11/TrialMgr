@@ -43,11 +43,19 @@ export function buildSddaRunningOrderWorkbook(
   for (const day of [...trial.sdda_trial_days].sort((a, b) => a.day_number - b.day_number)) {
     const label = dayLabel(day.trial_date, day.day_number);
     const dayRuns = runs.filter((run) => run.trial_day_id === day.id);
+    const scentTrialNumber = (level: string, component: string, stream?: string) =>
+      (trial.sdda_trial_offerings || []).find((offering) => offering.trial_day_id === day.id && offering.level === level && offering.component === component && (!stream || offering.stream === stream))?.sdda_trial_number || day.sdda_trial_number || '';
+    const gameTrialNumber = (gameType: string) =>
+      (trial.sdda_game_offerings || []).find((offering) => offering.trial_day_id === day.id && offering.game_type === gameType)?.sdda_trial_number || day.sdda_trial_number || '';
+    const dayTrialNumbers = [...new Set([
+      ...(trial.sdda_trial_offerings || []).filter((offering) => offering.trial_day_id === day.id).map((offering) => offering.sdda_trial_number),
+      ...(trial.sdda_game_offerings || []).filter((offering) => offering.trial_day_id === day.id).map((offering) => offering.sdda_trial_number),
+    ].filter(Boolean))];
     const rows: any[][] = [
       [`${label} Runs`],
       [],
       [
-        `Trial # ${day.sdda_trial_number || ''}`,
+        `Trial #${dayTrialNumbers.length === 1 ? ` ${dayTrialNumbers[0]}` : dayTrialNumbers.length ? ' — see class headings' : ` ${day.sdda_trial_number || ''}`}`,
         '',
         '',
         '',
@@ -94,7 +102,8 @@ export function buildSddaRunningOrderWorkbook(
 
       rows.push([]);
       const banner = rows.length;
-      rows.push([`${label} — ${level}`]);
+      const levelNumbers = [...new Set(SDDA_COMPONENTS.map((component) => scentTrialNumber(level, component)).filter(Boolean))];
+      rows.push([`${label} — ${level}${levelNumbers.length ? ` — Trial # ${levelNumbers.join(' / ')}` : ''}`]);
       rows[banner][13] = `Class total: ${lists.reduce((sum, list) => sum + list.length, 0)} runs`;
       merges.push(
         { s: { r: banner, c: 0 }, e: { r: banner, c: 12 } },
@@ -316,7 +325,7 @@ export function buildSddaRunningOrderWorkbook(
         [`${label} Games`],
         [],
         [
-          `Trial # ${day.sdda_trial_number || ''}`,
+          `Trial #${dayTrialNumbers.length === 1 ? ` ${dayTrialNumbers[0]}` : dayTrialNumbers.length ? ' — see Game headings' : ` ${day.sdda_trial_number || ''}`}`,
           '',
           '',
           '',
@@ -362,7 +371,8 @@ export function buildSddaRunningOrderWorkbook(
 
         gameRows.push([]);
         const banner = gameRows.length;
-        gameRows.push([`${label} — ${gameType}`]);
+        const number = gameTrialNumber(gameType);
+        gameRows.push([`${label} — ${gameType}${number ? ` — Trial # ${number}` : ''}`]);
         gameRows[banner][12] = `${list.length} runs`;
         gameMerges.push(
           { s: { r: banner, c: 0 }, e: { r: banner, c: 11 } },

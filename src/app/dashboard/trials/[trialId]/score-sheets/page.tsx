@@ -52,10 +52,11 @@ export default function SddaScoreSheetsPage() {
             : record.sdda_entries;
           const dog = Array.isArray(entry?.sdda_dogs) ? entry.sdda_dogs[0] : entry?.sdda_dogs;
           const day = days.get(record.trial_day_id)!;
+          const offering = workspace.sdda_trial_offerings.find((item) => item.trial_day_id === record.trial_day_id && item.level === record.level && item.component === record.component && item.stream === record.stream);
           return {
             id: record.id,
             dayNumber: day.day_number,
-            trialNumber: day.sdda_trial_number || workspace.name,
+            trialNumber: offering?.sdda_trial_number || day.sdda_trial_number || workspace.name,
             trialDate: day.trial_date,
             level: record.level,
             component: record.component,
@@ -146,16 +147,17 @@ export default function SddaScoreSheetsPage() {
         const entry = Array.isArray(run.sdda_entries) ? run.sdda_entries[0] : run.sdda_entries;
         const dog = Array.isArray(entry?.sdda_dogs) ? entry.sdda_dogs[0] : entry?.sdda_dogs;
         const day = days.get(run.trial_day_id)!;
+        const configuredOffering = trial.sdda_game_offerings.find((item) => item.id === run.offering_id);
         return {
           id: run.id,
           dayNumber: day.day_number,
-          trialNumber: day.sdda_trial_number || trial.name,
+          trialNumber: configuredOffering?.sdda_trial_number || day.sdda_trial_number || trial.name,
           trialDate: day.trial_date,
           gameType: offering.game_type,
           dogName: dog?.registered_name || dog?.call_name || '',
           breed: dog?.breed || '',
           dogNumber: dog?.sdda_registration_number || 'Pending',
-          judgeName: offering.judge_name || '',
+          judgeName: configuredOffering?.judge_name || offering.judge_name || day.judge_name || '',
           entryType: run.entry_type,
           order: run.running_position || index + 1,
           requestedTeamPartner: run.requested_team_partner || '',
@@ -288,12 +290,7 @@ export default function SddaScoreSheetsPage() {
                   <FileText className="mr-2 h-5 w-5" />
                   Day {day.day_number} - {day.trial_date}
                 </CardTitle>
-                <CardDescription>
-                  {day.sdda_trial_number
-                    ? `SDDA trial ${day.sdda_trial_number}`
-                    : 'SDDA trial number pending'}{' '}
-                  - {counts.get(day.day_number) || 0} sheets
-                </CardDescription>
+                <CardDescription>{[...new Set(runs.filter((run) => run.dayNumber === day.day_number).map((run) => run.trialNumber))].filter(Boolean).map((number) => `SDDA ${number}`).join(' · ') || 'Trial numbers pending'} - {counts.get(day.day_number) || 0} sheets</CardDescription>
               </CardHeader>
               <CardContent>
                 <Button
