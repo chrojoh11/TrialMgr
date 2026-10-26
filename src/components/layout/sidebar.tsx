@@ -17,6 +17,7 @@ import {
   ExternalLink,
   FileSpreadsheet,
   FileText,
+  Gavel,
   Home,
   ListOrdered,
   LockKeyhole,
@@ -142,6 +143,14 @@ export function Sidebar({ className = '', isMobileOpen = false, onCloseMobile }:
         >
           <Home className="h-5 w-5" />
           Dashboard
+        </Link>
+        <Link
+          href="/dashboard/judges"
+          onClick={onCloseMobile}
+          className={`mt-1 flex items-center gap-3 rounded-lg px-3 py-3 font-semibold ${pathname === '/dashboard/judges' ? 'bg-[#dbe8f2] text-[#294f73]' : 'text-[#475569] hover:bg-white'}`}
+        >
+          <Gavel className="h-5 w-5" />
+          SDDA Judges
         </Link>
         {isAdministrator && (
           <Link

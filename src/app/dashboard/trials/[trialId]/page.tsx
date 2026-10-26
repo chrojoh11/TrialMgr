@@ -12,13 +12,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { JudgeSelect } from '@/components/sdda/judgeSelect';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { SDDA_COMPONENTS, SDDA_LEVELS, SDDA_STREAMS, offeringKey } from '@/lib/sdda/offerings';
 import { formatSddaTrialStatus } from '@/lib/sdda/trialSetup';
 import { acceptedEntryChargeCents, financialBalanceDelta } from '@/lib/sdda/financialSummary';
 import { findSddaScheduleConflicts } from '@/lib/sdda/runningOrder';
 import { listSddaFinancialTransactions } from '@/lib/sdda/operationsRepository';
-import { gameOfferingKey, getSddaTrialWorkspace, listSddaEntries, listSddaGameScoringRuns, listSddaScoringRuns, saveSddaGameOfferings, saveSddaTrialDayDetails, saveSddaTrialEntrySchedule, saveSddaTrialOfferings, saveSddaTrialPricing, saveSddaTrialPublicDetails, SDDA_GAME_TYPES, setSddaTrialDayEntriesOpen, setSddaTrialEntryStatus, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
+import { gameOfferingKey, getSddaTrialWorkspace, listActiveSddaJudges, listSddaEntries, listSddaGameScoringRuns, listSddaScoringRuns, saveSddaGameOfferings, saveSddaTrialDayDetails, saveSddaTrialEntrySchedule, saveSddaTrialOfferings, saveSddaTrialPricing, saveSddaTrialPublicDetails, SDDA_GAME_TYPES, setSddaTrialDayEntriesOpen, setSddaTrialEntryStatus, type SddaJudge, type SddaTrialWorkspace } from '@/lib/sdda/trialRepository';
 
 const scentElementKey = (trialDayId: string, level: string, component: string) => `${trialDayId}|${level}|${component}`;
 const firstRelation = <T,>(value: T | T[] | null | undefined): T | null => Array.isArray(value) ? value[0] || null : value || null;
@@ -57,6 +58,7 @@ const currentPermanentTimeZone = (value: string) => value === 'America/Edmonton'
 export default function SddaTrialWorkspacePage() {
   const trialId = useParams<{ trialId: string }>().trialId;
   const [trial, setTrial] = useState<SddaTrialWorkspace | null>(null);
+  const [judges, setJudges] = useState<SddaJudge[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [gamesSelected, setGamesSelected] = useState<Set<string>>(new Set());
   const [gameConfiguration, setGameConfiguration] = useState<Record<string, { sdda_trial_number: string | null; judge_name: string | null; capacity: number | null; entry_fee_cents: number; feo_fee_cents: number; feo_allowed: boolean }>>({});
@@ -85,13 +87,15 @@ export default function SddaTrialWorkspacePage() {
       setLoading(true);
       setError(null);
       const client = getSupabaseBrowser();
-      const [workspace, roster, scentRuns, gameRuns, transactions] = await Promise.all([
+      const [workspace, roster, scentRuns, gameRuns, transactions, activeJudges] = await Promise.all([
         getSddaTrialWorkspace(client, trialId),
         listSddaEntries(client, trialId),
         listSddaScoringRuns(client, trialId),
         listSddaGameScoringRuns(client, trialId),
         listSddaFinancialTransactions(client, trialId),
+        listActiveSddaJudges(client),
       ]);
+      setJudges(activeJudges);
       workspace.sdda_trial_days.sort((a, b) => a.day_number - b.day_number);
       setTrial(workspace);
       const normalizedScent = new Set<string>();
@@ -453,7 +457,7 @@ export default function SddaTrialWorkspacePage() {
               <div className="grid gap-3 rounded-md border border-[#d7ddd8] bg-[#f1f5f9] p-4 sm:grid-cols-[1fr_1fr_2fr_auto] sm:items-end">
                 <div><Label htmlFor={`${day.id}-trial-date`}>Trial date</Label><Input id={`${day.id}-trial-date`} type="date" className="mt-1 bg-white" value={dayDetails[day.id]?.trialDate || ''} onChange={(event) => setDayDetails((current) => ({ ...current, [day.id]: { trialDate: event.target.value, trialNumber: current[day.id]?.trialNumber || '', judgeName: current[day.id]?.judgeName || '' } }))} /></div>
                 <div><Label htmlFor={`${day.id}-trial-number`}>Default trial number</Label><Input id={`${day.id}-trial-number`} className="mt-1 bg-white" placeholder="Optional fallback" value={dayDetails[day.id]?.trialNumber || ''} onChange={(event) => setDayDetails((current) => ({ ...current, [day.id]: { trialDate: current[day.id]?.trialDate || day.trial_date, trialNumber: event.target.value, judgeName: current[day.id]?.judgeName || '' } }))} /></div>
-                <div><Label htmlFor={`${day.id}-judge-name`}>Day judge</Label><Input id={`${day.id}-judge-name`} className="mt-1 bg-white" placeholder="Enter or replace judge name" value={dayDetails[day.id]?.judgeName || ''} onChange={(event) => setDayDetails((current) => ({ ...current, [day.id]: { trialDate: current[day.id]?.trialDate || day.trial_date, trialNumber: current[day.id]?.trialNumber || '', judgeName: event.target.value } }))} /></div>
+                <div><Label htmlFor={`${day.id}-judge-name`}>Day judge</Label><div className="mt-1"><JudgeSelect id={`${day.id}-judge-name`} judges={judges} placeholder="Search current SDDA judges" value={dayDetails[day.id]?.judgeName || ''} onChange={(value) => setDayDetails((current) => ({ ...current, [day.id]: { trialDate: current[day.id]?.trialDate || day.trial_date, trialNumber: current[day.id]?.trialNumber || '', judgeName: value } }))} /></div></div>
                 <Button type="button" variant="outline" disabled={savingDay === day.id} onClick={() => void saveDayDetails(day.id)}>{savingDay === day.id ? <PawLoader className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}Save day details</Button>
               </div><p className="text-xs text-gray-600">The day number and judge are optional defaults for existing records. Enter the SDDA-assigned number for each Scent class/component or Game below; a host may have several numbered trials on the same date.</p>
               {hasScent && SDDA_LEVELS.map((level) => (
@@ -462,7 +466,7 @@ export default function SddaTrialWorkspacePage() {
                     const storageKeys = (level === 'Elite' ? (['Amateur'] as const) : SDDA_STREAMS).map((stream) => offeringKey({ trialDayId: day.id, level, component, stream }));
                     const active = storageKeys.every((key) => selected.has(key));
                     const configKey = scentElementKey(day.id, level, component);
-                    return <div key={configKey} className={`rounded-md border p-3 text-sm transition ${active ? 'border-blue-600 bg-blue-50 text-blue-900' : 'border-gray-200 bg-white'}`}><button type="button" onClick={() => toggleScentElement(day.id, level, component)} className="flex w-full items-center justify-between text-left"><span className="font-semibold">{component}</span>{active && <Check className="h-4 w-4" />}</button>{active && <div className="mt-3 space-y-3 border-t border-blue-200 pt-3"><div><Label htmlFor={`${configKey}-trial-number`}>SDDA trial number</Label><Input id={`${configKey}-trial-number`} className="mt-1 bg-white" placeholder={day.sdda_trial_number || 'Required when assigned'} value={scentConfiguration[configKey]?.sdda_trial_number || ''} onChange={(event) => updateScentTrialNumber(configKey, event.target.value)} /><p className="mt-1 text-xs text-gray-600">Shared by Amateur and Working for this component.</p></div><div><Label htmlFor={`${configKey}-judge`}>Judge</Label><Input id={`${configKey}-judge`} className="mt-1 bg-white" placeholder={day.judge_name || 'Use day judge'} value={scentConfiguration[configKey]?.judge_name || ''} onChange={(event) => updateScentJudge(configKey, event.target.value)} /><p className="mt-1 text-xs text-gray-600">Both Amateur and Working use this judge.</p></div><div><Label htmlFor={`${configKey}-capacity`}>Shared capacity</Label><Input id={`${configKey}-capacity`} className="mt-1 bg-white" type="number" min="1" placeholder="Unlimited" value={scentConfiguration[configKey]?.capacity || ''} onChange={(event) => updateScentCapacity(configKey, event.target.value)} /><p className="mt-1 text-xs text-gray-600">Combined Amateur and Working limit for this day, level and component.</p></div><label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={scentConfiguration[configKey]?.feo_allowed || false} onChange={() => toggleScentFeo(configKey)} />Allow FEO entries</label></div>}</div>;
+                    return <div key={configKey} className={`rounded-md border p-3 text-sm transition ${active ? 'border-blue-600 bg-blue-50 text-blue-900' : 'border-gray-200 bg-white'}`}><button type="button" onClick={() => toggleScentElement(day.id, level, component)} className="flex w-full items-center justify-between text-left"><span className="font-semibold">{component}</span>{active && <Check className="h-4 w-4" />}</button>{active && <div className="mt-3 space-y-3 border-t border-blue-200 pt-3"><div><Label htmlFor={`${configKey}-trial-number`}>SDDA trial number</Label><Input id={`${configKey}-trial-number`} className="mt-1 bg-white" placeholder={day.sdda_trial_number || 'Required when assigned'} value={scentConfiguration[configKey]?.sdda_trial_number || ''} onChange={(event) => updateScentTrialNumber(configKey, event.target.value)} /><p className="mt-1 text-xs text-gray-600">Shared by Amateur and Working for this component.</p></div><div><Label htmlFor={`${configKey}-judge`}>Judge</Label><div className="mt-1"><JudgeSelect id={`${configKey}-judge`} judges={judges} placeholder={day.judge_name || 'Use day judge'} value={scentConfiguration[configKey]?.judge_name || ''} onChange={(value) => updateScentJudge(configKey, value)} /></div><p className="mt-1 text-xs text-gray-600">Both Amateur and Working use this judge.</p></div><div><Label htmlFor={`${configKey}-capacity`}>Shared capacity</Label><Input id={`${configKey}-capacity`} className="mt-1 bg-white" type="number" min="1" placeholder="Unlimited" value={scentConfiguration[configKey]?.capacity || ''} onChange={(event) => updateScentCapacity(configKey, event.target.value)} /><p className="mt-1 text-xs text-gray-600">Combined Amateur and Working limit for this day, level and component.</p></div><label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={scentConfiguration[configKey]?.feo_allowed || false} onChange={() => toggleScentFeo(configKey)} />Allow FEO entries</label></div>}</div>;
                   })}
                 </div></div>
               ))}
@@ -474,7 +478,7 @@ export default function SddaTrialWorkspacePage() {
                   <button type="button" onClick={() => toggleGame(key)} className="flex w-full items-center justify-between text-left"><span className="font-semibold">{game}</span>{active && <Check className="h-4 w-4" />}</button>
                   {active && <div className="mt-3 grid gap-3 border-t border-blue-200 pt-3 sm:grid-cols-2">
                     <div><Label htmlFor={`${key}-trial-number`}>SDDA trial number</Label><Input id={`${key}-trial-number`} className="bg-white" placeholder={day.sdda_trial_number || 'Required when assigned'} value={config.sdda_trial_number || ''} onChange={(event) => updateGameConfiguration(key, 'sdda_trial_number', event.target.value)} /></div>
-                    <div className="sm:col-span-2"><Label htmlFor={`${key}-judge`}>Judge</Label><Input id={`${key}-judge`} className="bg-white" value={config.judge_name || ''} onChange={(event) => updateGameConfiguration(key, 'judge_name', event.target.value)} /></div>
+                    <div className="sm:col-span-2"><Label htmlFor={`${key}-judge`}>Judge</Label><div className="mt-1"><JudgeSelect id={`${key}-judge`} judges={judges} placeholder={day.judge_name || 'Use day judge'} value={config.judge_name || ''} onChange={(value) => updateGameConfiguration(key, 'judge_name', value)} /></div></div>
                     <div><Label htmlFor={`${key}-capacity`}>Capacity</Label><Input id={`${key}-capacity`} className="bg-white" type="number" min="1" value={config.capacity || ''} onChange={(event) => updateGameConfiguration(key, 'capacity', event.target.value)} /></div>
                     <div><Label htmlFor={`${key}-fee`}>Regular fee ($)</Label><Input id={`${key}-fee`} className="bg-white" type="number" min="0" step="0.01" placeholder="0.00" value={config.entry_fee_cents ? config.entry_fee_cents / 100 : ''} onChange={(event) => updateGameConfiguration(key, 'entry_fee_cents', event.target.value)} /></div>
                     <label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={config.feo_allowed} onChange={() => toggleGameFeo(key)} />Allow FEO entries</label>

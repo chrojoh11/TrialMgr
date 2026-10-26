@@ -14,6 +14,8 @@ import {
 } from './offerings';
 import type { SddaCsvEntry } from './entryCsv';
 import type { SddaRunGroup } from './domain';
+import { SDDA_JUDGE_DIRECTORY_FALLBACK, type SddaJudge } from './judgeDirectory';
+export type { SddaJudge } from './judgeDirectory';
 
 export interface SddaTrialSummary {
   id: string;
@@ -24,6 +26,19 @@ export interface SddaTrialSummary {
   created_at: string;
   trial_format: SddaTrialFormat;
   sdda_trial_days: Array<{ day_number: number; trial_date: string }>;
+}
+
+export async function listActiveSddaJudges(client: SupabaseClient): Promise<SddaJudge[]> {
+  const { data, error } = await client
+    .from('sdda_judges')
+    .select('sdda_contact_id,display_name,source_checked_on')
+    .eq('active', true)
+    .order('display_name');
+  if (error && /sdda_judges|schema cache|relation .* does not exist/i.test(error.message)) {
+    return SDDA_JUDGE_DIRECTORY_FALLBACK;
+  }
+  if (error) throw new Error(`SDDA judge directory could not be loaded: ${error.message}`);
+  return (data || []) as SddaJudge[];
 }
 
 export interface SddaTrialOffering {

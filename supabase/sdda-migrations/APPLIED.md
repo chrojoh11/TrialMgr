@@ -403,3 +403,14 @@ No legacy C-WAGS migration was applied.
 - Secretary boundary: authorized secretary-created and secretary-edited entries remain available outside the public schedule
 - Preservation: existing entries and selections are unchanged; existing scheduled opening moments are preserved as general opening times
 - Control: whole-trial and per-day manual closures remain available
+
+## `20261026_0064_active_judge_directory.sql`
+
+- Applied: 2026-10-26 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Database branch: `main` / Production
+- Execution result: success; 43 active judge records verified
+- Capability: trial-day, Scent-offering, and Games-offering judge fields use a maintained SDDA judge directory
+- Source: official SDDA Trial Workbook judge directory dated 2026-09-21, with the official SDDA Judges page retained as the review link
+- Security: signed-in users can read the directory; only database-appointed administrators can add, update, deactivate, or delete records; anonymous access is revoked
+- Data impact: additive only; no trial, entry, score, finance, or historical judge assignment was changed

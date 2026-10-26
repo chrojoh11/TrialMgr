@@ -707,3 +707,17 @@ test('repairs the accidental entry-schedule overload without changing trial data
   assert.match(sql, /trial\.entry_schedule_updated/i);
   assert.doesNotMatch(sql, /update public\.sdda_trials\s+set timezone='Etc/i);
 });
+
+test('publishes an authenticated active SDDA judge directory with administrator-only writes', () => {
+  const sql = readFileSync(
+    new URL('../supabase/sdda-migrations/20261026_0064_active_judge_directory.sql', import.meta.url),
+    'utf8'
+  );
+  assert.match(sql, /create table if not exists public\.sdda_judges/i);
+  assert.match(sql, /alter table public\.sdda_judges enable row level security/i);
+  assert.match(sql, /for select\s+to authenticated\s+using \(true\)/i);
+  assert.match(sql, /for (?:insert|update|delete)[\s\S]*sdda_is_administrator/i);
+  assert.match(sql, /revoke all on public\.sdda_judges from anon/i);
+  assert.match(sql, /https:\/\/www\.sdda\.ca\/sporting-detection-dogs-association-judges\//i);
+  assert.doesNotMatch(sql, /service_role|cwags|c-wags/i);
+});
