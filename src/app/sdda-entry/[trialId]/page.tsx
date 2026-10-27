@@ -4,8 +4,8 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { createEntryReceiptPdf } from '@/lib/sdda/entryReceiptPdf';
 import { joinFormalAlerts, splitFormalAlerts } from '@/lib/sdda/formalAlerts';
-type Day = { id: string; day_number: number; trial_date: string; entries_open: boolean };
-type Offer = { id: string; trial_day_id: string; level: string; component: string; stream: string; feo_allowed: boolean };
+type Day = { id: string; day_number: number; trial_date: string; entries_open: boolean; judge_name?: string | null };
+type Offer = { id: string; trial_day_id: string; level: string; component: string; stream: string; feo_allowed: boolean; judge_name?: string | null };
 type Choice = {
   key: string;
   trial_day_id: string;
@@ -20,6 +20,7 @@ type GameOffer = {
   entry_fee_cents: number;
   feo_fee_cents: number;
   feo_allowed: boolean;
+  judge_name?: string | null;
 };
 type Setup = {
   name: string;
@@ -144,7 +145,7 @@ export default function Page() {
         void client
           .from('sdda_trials')
           .select(
-            'name,host_club,venue,trial_format,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,sdda_trial_days(id,day_number,trial_date,entries_open),sdda_trial_offerings(id,trial_day_id,level,component,stream,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,entry_fee_cents,feo_fee_cents,feo_allowed)'
+            'name,host_club,venue,trial_format,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,sdda_trial_days(id,day_number,trial_date,entries_open,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,feo_allowed,judge_name),sdda_game_offerings(id,trial_day_id,game_type,entry_fee_cents,feo_fee_cents,feo_allowed,judge_name)'
           )
           .eq('id', trialId)
           .single()
@@ -164,7 +165,7 @@ export default function Page() {
         client
           .from('sdda_trials')
           .select(
-            'name,host_club,venue,trial_format,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,sdda_trial_days(id,day_number,trial_date,entries_open),sdda_trial_offerings(id,trial_day_id,level,component,stream,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,entry_fee_cents,feo_fee_cents,feo_allowed)'
+            'name,host_club,venue,trial_format,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,sdda_trial_days(id,day_number,trial_date,entries_open,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,feo_allowed,judge_name),sdda_game_offerings(id,trial_day_id,game_type,entry_fee_cents,feo_fee_cents,feo_allowed,judge_name)'
           )
           .eq('id', trialId)
           .single(),
@@ -850,6 +851,9 @@ export default function Page() {
                                       />
                                       {c.component}
                                     </label>
+                                    <p className="mt-1 text-xs text-slate-600">
+                                      Judge: {c.offerings.find((offering) => offering.judge_name?.trim())?.judge_name || setup.days.find((day) => day.id === c.trial_day_id)?.judge_name || 'To be assigned'}
+                                    </p>
                                     {chosen.has(c.key) && (
                                       <div className="mt-3 space-y-3">
                                         {c.level !== 'Elite' && (
@@ -915,6 +919,9 @@ export default function Page() {
                                 />
                                 {g.game_type}
                               </label>
+                              <p className="mt-1 text-xs text-slate-600">
+                                Judge: {g.judge_name || setup.days.find((day) => day.id === g.trial_day_id)?.judge_name || 'To be assigned'}
+                              </p>
                               {gameChosen.has(g.id) && (
                                 <div className="mt-3 space-y-3">
                                   {g.feo_allowed && <label className="flex items-center gap-2 rounded-lg border border-[#9eb7aa] bg-[#f1f5f9] p-3 font-semibold"><input type="checkbox" checked={gameEntryType[g.id] === 'FEO'} onChange={(e) => setGameEntryType((current) => ({ ...current, [g.id]: e.target.checked ? 'FEO' : 'Regular' }))} />Enter this Game For Exhibition Only (FEO) · ${(g.feo_fee_cents / 100).toFixed(2)}</label>}
@@ -1061,6 +1068,7 @@ export default function Page() {
                       · {c.component}
                       {c.level === 'Elite' ? '' : ` · ${runStream[c.key] || 'Amateur'}`}
                       {runGroup[c.key] === 'FEO' && <> · <b>FEO</b></>}
+                      <br /><span className="text-sm text-slate-600">Judge: {c.offerings.find((offering) => offering.judge_name?.trim())?.judge_name || setup.days.find((day) => day.id === c.trial_day_id)?.judge_name || 'To be assigned'}</span>
                     </div>
                   ))}
                 {setup.game_offerings
@@ -1071,6 +1079,7 @@ export default function Page() {
                       {g.game_type} · <b>{gameEntryType[g.id] || 'Regular'}</b>
                       {g.game_type === 'Aerial' && ` · ${aerialDivision[g.id]}`}
                       {g.game_type === 'Team' && ` · Partner: ${teamPartner[g.id]}`}
+                      <br /><span className="text-sm text-slate-600">Judge: {g.judge_name || setup.days.find((day) => day.id === g.trial_day_id)?.judge_name || 'To be assigned'}</span>
                     </div>
                   ))}
               </div>

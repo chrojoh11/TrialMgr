@@ -437,3 +437,13 @@ No legacy C-WAGS migration was applied.
 - Security: anonymous access and pinning are denied; authenticated access is restricted by `sdda_can_manage_trial`
 - Preservation: the uploaded workbook is retained byte-for-byte and verified by checksum before export; switching back to the current official workbook remains available
 - Audit: uploading and pinning a historical workbook records a secretary-facing `workbook.uploaded_and_pinned` event
+
+## `20261026_0067_public_entry_judges.sql`
+
+- Applied: 2026-10-26 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Database branch: `main` / Production
+- Execution result: success; six judge fields verified in the live entry-setup function and anonymous entry-form execution retained
+- Capability: public and secretary entry forms show the assigned judge for every offered Scent component and Game
+- Fallback: an offering-specific judge takes precedence, then the day judge; unassigned offerings display `To be assigned`
+- Preservation: no trial, entry, score, finance, registry, or audit data was changed

@@ -752,3 +752,15 @@ test('stores historical official workbooks privately and scopes them to trial ma
   assert.match(sql, /workbook\.uploaded_and_pinned/i);
   assert.match(sql, /revoke all on function public\.sdda_pin_uploaded_workbook[\s\S]*from public,anon,authenticated/i);
 });
+
+test('shows assigned Scent and Games judges on the public entry form', () => {
+  const sql = readFileSync(
+    new URL('../supabase/sdda-migrations/20261026_0067_public_entry_judges.sql', import.meta.url),
+    'utf8'
+  );
+  assert.match(sql, /function public\.sdda_public_trial_entry_setup\(target_trial_id uuid\)/i);
+  assert.match(sql, /'offerings'[\s\S]*'judge_name',o\.judge_name/i);
+  assert.match(sql, /'game_offerings'[\s\S]*'judge_name',g\.judge_name/i);
+  assert.match(sql, /'days'[\s\S]*'judge_name',d\.judge_name/i);
+  assert.match(sql, /grant execute on function public\.sdda_public_trial_entry_setup\(uuid\) to anon,authenticated/i);
+});
