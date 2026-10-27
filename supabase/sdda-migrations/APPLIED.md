@@ -425,3 +425,15 @@ No legacy C-WAGS migration was applied.
 - Anonymous boundary: reduced callable `SECURITY DEFINER` functions from 22 to the 9 current public entry, receipt, timing, and registry endpoints
 - Secretary boundary: registry status, trial-access helpers, secretary entry loading, and secretary entry updates now require an authenticated session
 - Preservation: no trial, entry, score, finance, registry, or audit data was changed
+
+## `20261026_0066_historical_workbook_upload.sql`
+
+- Applied: 2026-10-26 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Database branch: `main` / Production
+- Execution result: success; private bucket, trial metadata column, four storage policies, and function privileges verified live
+- Capability: authorized trial managers can upload and pin the exact official `.xlsx` workbook previously downloaded for a trial
+- Storage: uploaded workbooks are private, limited to 20 MB, and stored under the managed trial ID and SHA-256 checksum
+- Security: anonymous access and pinning are denied; authenticated access is restricted by `sdda_can_manage_trial`
+- Preservation: the uploaded workbook is retained byte-for-byte and verified by checksum before export; switching back to the current official workbook remains available
+- Audit: uploading and pinning a historical workbook records a secretary-facing `workbook.uploaded_and_pinned` event

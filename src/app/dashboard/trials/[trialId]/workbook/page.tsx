@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { CheckCircle2, Download, FileSpreadsheet, Pin } from 'lucide-react';
+import { CheckCircle2, Download, FileSpreadsheet, Pin, Upload } from 'lucide-react';
 import { PawLoader } from '@/components/ui/pawLoader';
 import MainLayout from '@/components/layout/mainLayout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -21,6 +21,7 @@ import {
   listSddaGameScoringRuns,
   listSddaOfficialWorkbookRuns,
   pinSddaWorkbook,
+  pinUploadedSddaWorkbook,
   type SddaTrialWorkspace,
 } from '@/lib/sdda/trialRepository';
 
@@ -55,6 +56,7 @@ export default function SddaOfficialWorkbookPage() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState<number | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -62,20 +64,39 @@ export default function SddaOfficialWorkbookPage() {
       setLoading(true);
       setError(null);
       const client = getSupabaseBrowser();
-      const [workspace, records, games, templateResponse] = await Promise.all([
+      const [workspace, records, games] = await Promise.all([
         getSddaTrialWorkspace(client, trialId),
         listSddaOfficialWorkbookRuns(client, trialId),
         listSddaGameScoringRuns(client, trialId),
-        fetch(templatePath),
       ]);
-      if (!templateResponse.ok)
-        throw new Error('The untouched official SDDA workbook template could not be loaded.');
-      const downloaded = new Uint8Array(await templateResponse.arrayBuffer());
+      let downloaded: Uint8Array;
+      let source: string;
+      let filename: string;
+      if (workspace.workbook_storage_path) {
+        const stored = await client.storage
+          .from('sdda-workbooks')
+          .download(workspace.workbook_storage_path);
+        if (stored.error)
+          throw new Error(`The pinned historical workbook could not be loaded: ${stored.error.message}`);
+        downloaded = new Uint8Array(await stored.data.arrayBuffer());
+        source = `private:sdda-workbooks/${workspace.workbook_storage_path}`;
+        filename = workspace.workbook_filename || 'SDDA-TrialWorkbook.xlsx';
+      } else {
+        const templateResponse = await fetch(templatePath);
+        if (!templateResponse.ok)
+          throw new Error('The untouched official SDDA workbook template could not be loaded.');
+        downloaded = new Uint8Array(await templateResponse.arrayBuffer());
+        source = templateResponse.headers.get('x-sdda-source') || '';
+        filename =
+          templateResponse.headers.get('x-sdda-filename') || 'SDDA-TrialWorkbook.xlsx';
+      }
       const checksum = await sha256(downloaded);
+      if (workspace.workbook_storage_path && workspace.workbook_sha256 !== checksum)
+        throw new Error('The stored historical workbook no longer matches its pinned checksum.');
       setTemplateBytes(downloaded);
       setTemplateMeta({
-        source: templateResponse.headers.get('x-sdda-source') || '',
-        filename: templateResponse.headers.get('x-sdda-filename') || 'SDDA-TrialWorkbook.xlsx',
+        source,
+        filename,
         sha256: checksum,
       });
       setRegistryNumbers(officialWorkbookDogNumbers(downloaded));
@@ -299,6 +320,69 @@ export default function SddaOfficialWorkbookPage() {
     }
   };
 
+  const uploadHistoricalWorkbook = async (file: File) => {
+    if (!trial) return;
+    try {
+      setUploading(true);
+      setError(null);
+      if (!/\.xlsx$/i.test(file.name)) throw new Error('Choose an SDDA .xlsx workbook.');
+      if (file.size > 20 * 1024 * 1024)
+        throw new Error('The workbook is larger than the 20 MB private-storage limit.');
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      try {
+        officialWorkbookDogNumbers(bytes);
+      } catch {
+        throw new Error(
+          'This file is not a compatible official SDDA workbook. Its SDDA Dogs sheet could not be read.'
+        );
+      }
+      const checksum = await sha256(bytes);
+      const storagePath = `${trialId}/${checksum}.xlsx`;
+      const client = getSupabaseBrowser();
+      const uploaded = await client.storage.from('sdda-workbooks').upload(storagePath, file, {
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        upsert: true,
+      });
+      if (uploaded.error) throw new Error(uploaded.error.message);
+      await pinUploadedSddaWorkbook(client, {
+        trialId,
+        filename: file.name,
+        sha256: checksum,
+        storagePath,
+      });
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to upload the workbook.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const switchToCurrentWorkbook = async () => {
+    if (!trial) return;
+    try {
+      setUploading(true);
+      setError(null);
+      const response = await fetch(templatePath, { cache: 'no-store' });
+      if (!response.ok) throw new Error('The current official workbook could not be downloaded.');
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      await pinSddaWorkbook(getSupabaseBrowser(), {
+        trialId,
+        sourceUrl: response.headers.get('x-sdda-source') || '',
+        filename: response.headers.get('x-sdda-filename') || 'SDDA-TrialWorkbook.xlsx',
+        sha256: await sha256(bytes),
+        proofed: false,
+      });
+      await load();
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : 'Unable to switch to the current workbook.'
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <MainLayout
       title="Official SDDA workbook"
@@ -336,11 +420,52 @@ export default function SddaOfficialWorkbookPage() {
             </div>
             {templateMeta && (
               <div className="rounded-md border bg-slate-50 p-3 text-sm">
-                <strong>Current SDDA file:</strong> {templateMeta.filename}
+                <strong>
+                  {trial?.workbook_storage_path ? 'Pinned historical file:' : 'Current SDDA file:'}
+                </strong>{' '}
+                {templateMeta.filename}
                 <br />
                 <span className="font-mono text-xs">SHA-256 {templateMeta.sha256}</span>
               </div>
             )}
+            <div className="rounded-md border border-blue-200 bg-blue-50 p-4">
+              <p className="font-semibold text-[#294f73]">Use an earlier official workbook</p>
+              <p className="mt-1 text-sm text-slate-700">
+                Upload the untouched SDDA workbook originally downloaded for this trial. TrialDesk
+                stores it privately, pins its checksum, and uses that exact file for future exports.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <label className="inline-flex cursor-pointer items-center rounded-md border border-[#294f73] bg-white px-4 py-2 text-sm font-semibold text-[#294f73] hover:bg-slate-50">
+                  {uploading ? (
+                    <PawLoader className="mr-2 h-4 w-4" />
+                  ) : (
+                    <Upload className="mr-2 h-4 w-4" />
+                  )}
+                  Upload and pin workbook
+                  <input
+                    type="file"
+                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    className="sr-only"
+                    disabled={uploading}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      event.target.value = '';
+                      if (file) void uploadHistoricalWorkbook(file);
+                    }}
+                  />
+                </label>
+                {trial?.workbook_storage_path && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={uploading}
+                    onClick={() => void switchToCurrentWorkbook()}
+                  >
+                    Use current SDDA workbook instead
+                  </Button>
+                )}
+              </div>
+            </div>
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"

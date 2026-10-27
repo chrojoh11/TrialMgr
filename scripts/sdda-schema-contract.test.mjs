@@ -736,3 +736,19 @@ test('removes implicit access to SECURITY DEFINER helpers and republishes only i
   assert.doesNotMatch(sql, /grant execute on function public\.sdda_apply_entry_update\(/i);
   assert.doesNotMatch(sql, /grant execute on function public\.sdda_(?:protect_administrator_appointment|validate_dog_against_registry|guard_completed_trial_mutation)\(/i);
 });
+
+test('stores historical official workbooks privately and scopes them to trial managers', () => {
+  const sql = readFileSync(
+    new URL('../supabase/sdda-migrations/20261026_0066_historical_workbook_upload.sql', import.meta.url),
+    'utf8'
+  );
+  assert.match(sql, /insert into storage\.buckets[\s\S]*'sdda-workbooks'[\s\S]*false/i);
+  assert.match(sql, /create policy sdda_workbooks_manager_read on storage\.objects[\s\S]*sdda_can_manage_trial/i);
+  assert.match(sql, /create policy sdda_workbooks_manager_insert on storage\.objects[\s\S]*for insert to authenticated/i);
+  assert.match(sql, /create policy sdda_workbooks_manager_update on storage\.objects[\s\S]*for update to authenticated/i);
+  assert.match(sql, /add column if not exists workbook_storage_path text/i);
+  assert.match(sql, /function public\.sdda_pin_uploaded_workbook\(/i);
+  assert.match(sql, /requested_storage_path <> target_trial_id::text\|\|'\/'\|\|requested_sha256\|\|'\.xlsx'/i);
+  assert.match(sql, /workbook\.uploaded_and_pinned/i);
+  assert.match(sql, /revoke all on function public\.sdda_pin_uploaded_workbook[\s\S]*from public,anon,authenticated/i);
+});

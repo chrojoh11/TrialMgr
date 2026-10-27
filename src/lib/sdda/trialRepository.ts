@@ -87,6 +87,7 @@ export interface SddaTrialWorkspace extends SddaTrialSummary {
   workbook_source_url: string | null;
   workbook_filename: string | null;
   workbook_sha256: string | null;
+  workbook_storage_path: string | null;
   workbook_pinned_at: string | null;
   workbook_proofed_at: string | null;
   sdda_trial_days: Array<{
@@ -348,7 +349,7 @@ export async function getSddaTrialWorkspace(client: SupabaseClient, trialId: str
   const { data, error } = await client
     .from('sdda_trials')
     .select(
-      'id,name,host_club,venue,timezone,entry_open_at,general_entry_open_at,entry_close_at,status,created_at,trial_format,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,workbook_source_url,workbook_filename,workbook_sha256,workbook_pinned_at,workbook_proofed_at,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name,entries_open),sdda_trial_offerings(id,trial_day_id,level,component,stream,sdda_trial_number,judge_name,capacity,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,sdda_trial_number,judge_name,capacity,entry_fee_cents,feo_fee_cents,feo_allowed)'
+      'id,name,host_club,venue,timezone,entry_open_at,general_entry_open_at,entry_close_at,status,created_at,trial_format,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,workbook_source_url,workbook_filename,workbook_sha256,workbook_storage_path,workbook_pinned_at,workbook_proofed_at,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name,entries_open),sdda_trial_offerings(id,trial_day_id,level,component,stream,sdda_trial_number,judge_name,capacity,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,sdda_trial_number,judge_name,capacity,entry_fee_cents,feo_fee_cents,feo_allowed)'
     )
     .eq('id', trialId)
     .single();
@@ -960,6 +961,19 @@ export async function pinSddaWorkbook(
     requested_filename: input.filename,
     requested_sha256: input.sha256,
     mark_proofed: input.proofed,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function pinUploadedSddaWorkbook(
+  client: SupabaseClient,
+  input: { trialId: string; filename: string; sha256: string; storagePath: string }
+) {
+  const { error } = await client.rpc('sdda_pin_uploaded_workbook', {
+    target_trial_id: input.trialId,
+    requested_filename: input.filename,
+    requested_sha256: input.sha256,
+    requested_storage_path: input.storagePath,
   });
   if (error) throw new Error(error.message);
 }
