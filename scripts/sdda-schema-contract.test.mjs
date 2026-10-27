@@ -721,3 +721,18 @@ test('publishes an authenticated active SDDA judge directory with administrator-
   assert.match(sql, /https:\/\/www\.sdda\.ca\/sporting-detection-dogs-association-judges\//i);
   assert.doesNotMatch(sql, /service_role|cwags|c-wags/i);
 });
+
+test('removes implicit access to SECURITY DEFINER helpers and republishes only intended RPCs', () => {
+  const sql = readFileSync(
+    new URL('../supabase/sdda-migrations/20261026_0065_harden_function_permissions.sql', import.meta.url),
+    'utf8'
+  );
+  assert.match(sql, /revoke execute on function public\.sdda_apply_entry_update\(uuid,jsonb,uuid,text\) from public, anon, authenticated/i);
+  assert.match(sql, /revoke execute on function public\.sdda_submit_public_entry_v3\(uuid,jsonb\) from public, anon, authenticated/i);
+  assert.match(sql, /revoke execute on function public\.sdda_handle_new_auth_user\(\) from public, anon, authenticated/i);
+  assert.match(sql, /grant execute on function public\.sdda_handle_new_auth_user\(\) to supabase_auth_admin/i);
+  assert.match(sql, /grant execute on function public\.sdda_submit_public_entry_v6\(uuid,jsonb\) to anon, authenticated/i);
+  assert.match(sql, /grant execute on function public\.sdda_update_entry_as_secretary\(uuid,jsonb\) to authenticated/i);
+  assert.doesNotMatch(sql, /grant execute on function public\.sdda_apply_entry_update\(/i);
+  assert.doesNotMatch(sql, /grant execute on function public\.sdda_(?:protect_administrator_appointment|validate_dog_against_registry|guard_completed_trial_mutation)\(/i);
+});

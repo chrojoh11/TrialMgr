@@ -414,3 +414,14 @@ No legacy C-WAGS migration was applied.
 - Source: official SDDA Trial Workbook judge directory dated 2026-09-21, with the official SDDA Judges page retained as the review link
 - Security: signed-in users can read the directory; only database-appointed administrators can add, update, deactivate, or delete records; anonymous access is revoked
 - Data impact: additive only; no trial, entry, score, finance, or historical judge assignment was changed
+
+## `20261026_0065_harden_function_permissions.sql`
+
+- Applied: 2026-10-26 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Database branch: `main` / Production
+- Execution result: success; live function privileges verified after application
+- Security: removed Data API execution from trigger-only routines, the internal entry-update helper, retired entry-submit versions, and the removed reported-Gold endpoint
+- Anonymous boundary: reduced callable `SECURITY DEFINER` functions from 22 to the 9 current public entry, receipt, timing, and registry endpoints
+- Secretary boundary: registry status, trial-access helpers, secretary entry loading, and secretary entry updates now require an authenticated session
+- Preservation: no trial, entry, score, finance, registry, or audit data was changed
