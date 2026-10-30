@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { createEntryReceiptPdf } from '@/lib/sdda/entryReceiptPdf';
 import { joinFormalAlerts, splitFormalAlerts } from '@/lib/sdda/formalAlerts';
+import { publicEntryAvailability } from '@/lib/sdda/publicEntryAvailability';
 type Day = { id: string; day_number: number; trial_date: string; entries_open: boolean; judge_name?: string | null };
 type Offer = { id: string; trial_day_id: string; level: string; component: string; stream: string; feo_allowed: boolean; judge_name?: string | null };
 type Choice = {
@@ -64,7 +65,7 @@ type EditData = Omit<typeof empty, 'formal_alert_1' | 'formal_alert_2'> & {
   }>;
 };
 type RegistryDog = { found: boolean; registration_number?: string; call_name?: string; breed?: string; snapshot_source?: string; snapshot_refreshed_at?: string };
-type EntryTiming = { name: string; host_club: string; venue?: string; timezone: string; entry_open_at?: string; general_entry_open_at?: string; entry_close_at?: string };
+type EntryTiming = { name: string; host_club: string; venue?: string; timezone: string; status: string; entry_open_at?: string; general_entry_open_at?: string; entry_close_at?: string };
 const box = 'rounded-2xl border border-[#cbd5e1] bg-[#f8fafc] p-5 shadow-sm';
 const field = 'w-full rounded-lg border border-[#bfc8c1] bg-white px-3 py-2';
 const levelOrder = ['Started', 'Advanced', 'Excellent', 'Elite'];
@@ -139,6 +140,11 @@ export default function Page() {
     return () => window.clearInterval(timer);
   }, [entryTiming]);
   useEffect(() => {
+    if (!entryTiming || publicEntryAvailability(entryTiming, clock) !== 'open') return;
+    const timer = window.setTimeout(() => window.location.reload(), 500);
+    return () => window.clearTimeout(timer);
+  }, [entryTiming, clock]);
+  useEffect(() => {
     const client = getSupabaseBrowser();
     if (secretaryEntryId || secretaryNew) {
       if (secretaryNew) {
@@ -205,6 +211,7 @@ export default function Page() {
     }
     void client.rpc('sdda_public_trial_entry_setup', { target_trial_id: trialId }).then(async ({ data, error }) => {
       if (!error) return setSetup(data as Setup);
+      if (!error.message.includes('not accepting online entries')) return setError(error.message);
       const timingResult = await client.rpc('sdda_public_trial_entry_timing', { target_trial_id: trialId });
       if (timingResult.error || !timingResult.data) return setError(error.message);
       setEntryTiming(timingResult.data as EntryTiming);
@@ -561,8 +568,10 @@ export default function Page() {
   if (entryTiming) {
     const opensAt = entryTiming.entry_open_at ? new Date(entryTiming.entry_open_at).getTime() : Number.NaN;
     const remaining = opensAt - clock;
-    if (remaining <= 0) window.setTimeout(() => window.location.reload(), 500);
-    return <Shell title={entryTiming.name} subtitle={`${entryTiming.host_club}${entryTiming.venue ? ` • ${entryTiming.venue}` : ''}`}><section className={`${box} text-center`}><h2 className="font-serif text-3xl text-[#294f73]">Entries have not opened yet</h2>{Number.isFinite(remaining) && remaining > 0 ? <><p className="mt-3 text-sm text-[#64748b]">Registered-participant entries open in</p><p className="mt-2 text-4xl font-bold tabular-nums text-[#17324d]">{formatCountdown(remaining)}</p><p className="mt-3 text-sm text-[#64748b]">{formatTrialTime(entryTiming.entry_open_at!, entryTiming.timezone)}</p>{entryTiming.general_entry_open_at && <p className="mt-2 text-sm text-[#64748b]">General entries open {formatTrialTime(entryTiming.general_entry_open_at, entryTiming.timezone)}</p>}</> : <p className="mt-3 text-[#64748b]">Opening time has not been scheduled. Please check the premium list or contact the trial secretary.</p>}<button type="button" className="mt-6 rounded-lg bg-[#294f73] px-5 py-3 font-bold text-white" onClick={() => window.location.reload()}>Check entry availability</button></section></Shell>;
+    const availability = publicEntryAvailability(entryTiming, clock);
+    const upcoming = availability === 'upcoming';
+    const closed = availability === 'closed';
+    return <Shell title={entryTiming.name} subtitle={`${entryTiming.host_club}${entryTiming.venue ? ` • ${entryTiming.venue}` : ''}`}><section className={`${box} text-center`}><h2 className="font-serif text-3xl text-[#294f73]">{closed ? 'Online entries are closed' : upcoming ? 'Entries have not opened yet' : 'Online entries are not available'}</h2>{upcoming ? <><p className="mt-3 text-sm text-[#64748b]">Registered-participant entries open in</p><p className="mt-2 text-4xl font-bold tabular-nums text-[#17324d]">{formatCountdown(remaining)}</p><p className="mt-3 text-sm text-[#64748b]">{formatTrialTime(entryTiming.entry_open_at!, entryTiming.timezone)}</p>{entryTiming.general_entry_open_at && <p className="mt-2 text-sm text-[#64748b]">General entries open {formatTrialTime(entryTiming.general_entry_open_at, entryTiming.timezone)}</p>}</> : <p className="mt-3 text-[#64748b]">{closed ? 'This trial is no longer accepting online entries. Contact the trial secretary if a correction is required.' : 'The secretary has not made this entry form publicly available. Please check the premium list or contact the trial secretary.'}</p>}<button type="button" className="mt-6 rounded-lg bg-[#294f73] px-5 py-3 font-bold text-white" onClick={() => window.location.reload()}>Check entry availability</button></section></Shell>;
   }
   if (receipt)
     return (

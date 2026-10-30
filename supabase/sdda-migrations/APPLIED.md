@@ -447,3 +447,14 @@ No legacy C-WAGS migration was applied.
 - Capability: public and secretary entry forms show the assigned judge for every offered Scent component and Game
 - Fallback: an offering-specific judge takes precedence, then the day judge; unassigned offerings display `To be assigned`
 - Preservation: no trial, entry, score, finance, registry, or audit data was changed
+
+## `20261030_0068_public_entry_timing_status.sql`
+
+- Applied: 2026-10-30 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Database branch: `main` / Production
+- Execution result: success; Wkk9 returned its elapsed closing time and public timing access remained available
+- Capability: the public entry form distinguishes upcoming, open, closed, and otherwise unavailable trials
+- Repair: removed the past-opening reload loop that affected Wkk9 after its public closing time
+- Security: the timing endpoint exposes only existing public trial timing and status information; anonymous table access remains unavailable
+- Preservation: no trial status, schedule, entry, score, finance, registry, or audit data was changed

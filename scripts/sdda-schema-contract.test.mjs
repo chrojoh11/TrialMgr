@@ -764,3 +764,14 @@ test('shows assigned Scent and Games judges on the public entry form', () => {
   assert.match(sql, /'days'[\s\S]*'judge_name',d\.judge_name/i);
   assert.match(sql, /grant execute on function public\.sdda_public_trial_entry_setup\(uuid\) to anon,authenticated/i);
 });
+
+test('returns trial status so an elapsed public entry form cannot reload forever', () => {
+  const sql = readFileSync(
+    new URL('../supabase/sdda-migrations/20261030_0068_public_entry_timing_status.sql', import.meta.url),
+    'utf8'
+  );
+  assert.match(sql, /function public\.sdda_public_trial_entry_timing\(target_trial_id uuid\)/i);
+  assert.match(sql, /'status',status/i);
+  assert.match(sql, /where id=target_trial_id/i);
+  assert.match(sql, /grant execute on function public\.sdda_public_trial_entry_timing\(uuid\) to anon,authenticated/i);
+});
