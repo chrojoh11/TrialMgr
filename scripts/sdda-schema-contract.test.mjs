@@ -775,3 +775,17 @@ test('returns trial status so an elapsed public entry form cannot reload forever
   assert.match(sql, /where id=target_trial_id/i);
   assert.match(sql, /grant execute on function public\.sdda_public_trial_entry_timing\(uuid\) to anon,authenticated/i);
 });
+
+test('publishes selection capacity and configurable host terms without exposing tables', () => {
+  const sql = readFileSync(
+    new URL('../supabase/sdda-migrations/20261030_0069_public_entry_capacity_terms.sql', import.meta.url),
+    'utf8'
+  );
+  assert.match(sql, /add column if not exists additional_entry_terms text/i);
+  assert.match(sql, /function public\.sdda_update_trial_additional_entry_terms\(/i);
+  assert.match(sql, /sdda_can_manage_trial\(target_trial_id\)/i);
+  assert.match(sql, /'accepted_count'[\s\S]*selection_status='accepted'/i);
+  assert.match(sql, /revoke all on function public\.sdda_public_trial_entry_setup\(uuid\) from public,anon,authenticated/i);
+  assert.match(sql, /grant execute on function public\.sdda_public_trial_entry_setup\(uuid\) to anon,authenticated/i);
+  assert.doesNotMatch(sql, /grant (?:select|insert|update|delete).* to anon/i);
+});

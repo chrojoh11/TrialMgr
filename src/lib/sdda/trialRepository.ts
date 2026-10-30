@@ -84,6 +84,7 @@ export interface SddaTrialWorkspace extends SddaTrialSummary {
   secretary_phone: string | null;
   payment_instructions: string | null;
   cancellation_policy: string | null;
+  additional_entry_terms: string | null;
   workbook_source_url: string | null;
   workbook_filename: string | null;
   workbook_sha256: string | null;
@@ -349,7 +350,7 @@ export async function getSddaTrialWorkspace(client: SupabaseClient, trialId: str
   const { data, error } = await client
     .from('sdda_trials')
     .select(
-      'id,name,host_club,venue,timezone,entry_open_at,general_entry_open_at,entry_close_at,status,created_at,trial_format,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,workbook_source_url,workbook_filename,workbook_sha256,workbook_storage_path,workbook_pinned_at,workbook_proofed_at,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name,entries_open),sdda_trial_offerings(id,trial_day_id,level,component,stream,sdda_trial_number,judge_name,capacity,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,sdda_trial_number,judge_name,capacity,entry_fee_cents,feo_fee_cents,feo_allowed)'
+      'id,name,host_club,venue,timezone,entry_open_at,general_entry_open_at,entry_close_at,status,created_at,trial_format,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,additional_entry_terms,workbook_source_url,workbook_filename,workbook_sha256,workbook_storage_path,workbook_pinned_at,workbook_proofed_at,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name,entries_open),sdda_trial_offerings(id,trial_day_id,level,component,stream,sdda_trial_number,judge_name,capacity,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,sdda_trial_number,judge_name,capacity,entry_fee_cents,feo_fee_cents,feo_allowed)'
     )
     .eq('id', trialId)
     .single();
@@ -406,6 +407,7 @@ export async function saveSddaTrialPublicDetails(
     secretaryPhone: string;
     paymentInstructions: string;
     cancellationPolicy: string;
+    additionalEntryTerms: string;
   }
 ) {
   const { error } = await client.rpc('sdda_update_trial_public_details', {
@@ -417,6 +419,12 @@ export async function saveSddaTrialPublicDetails(
     requested_cancellation_policy: details.cancellationPolicy,
   });
   if (error) throw new Error(error.message);
+
+  const { error: termsError } = await client.rpc('sdda_update_trial_additional_entry_terms', {
+    target_trial_id: trialId,
+    requested_additional_entry_terms: details.additionalEntryTerms,
+  });
+  if (termsError) throw new Error(termsError.message);
 }
 
 export async function saveSddaTrialEntrySchedule(

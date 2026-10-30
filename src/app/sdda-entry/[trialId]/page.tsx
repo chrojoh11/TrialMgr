@@ -3,10 +3,10 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { createEntryReceiptPdf } from '@/lib/sdda/entryReceiptPdf';
-import { joinFormalAlerts, splitFormalAlerts } from '@/lib/sdda/formalAlerts';
+import { isStandardFormalAlert, joinFormalAlerts, SDDA_FORMAL_ALERT_OPTIONS, splitFormalAlerts } from '@/lib/sdda/formalAlerts';
 import { publicEntryAvailability } from '@/lib/sdda/publicEntryAvailability';
 type Day = { id: string; day_number: number; trial_date: string; entries_open: boolean; judge_name?: string | null };
-type Offer = { id: string; trial_day_id: string; level: string; component: string; stream: string; feo_allowed: boolean; judge_name?: string | null };
+type Offer = { id: string; trial_day_id: string; level: string; component: string; stream: string; feo_allowed: boolean; judge_name?: string | null; capacity?: number | null; accepted_count?: number };
 type Choice = {
   key: string;
   trial_day_id: string;
@@ -22,6 +22,8 @@ type GameOffer = {
   feo_fee_cents: number;
   feo_allowed: boolean;
   judge_name?: string | null;
+  capacity?: number | null;
+  accepted_count?: number;
 };
 type Setup = {
   name: string;
@@ -30,6 +32,7 @@ type Setup = {
   trial_format: 'scent' | 'games' | 'combined';
   payment_instructions?: string;
   cancellation_policy?: string;
+  additional_entry_terms?: string;
   secretary_name?: string;
   secretary_email?: string;
   secretary_phone?: string;
@@ -151,7 +154,7 @@ export default function Page() {
         void client
           .from('sdda_trials')
           .select(
-            'name,host_club,venue,trial_format,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,sdda_trial_days(id,day_number,trial_date,entries_open,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,feo_allowed,judge_name),sdda_game_offerings(id,trial_day_id,game_type,entry_fee_cents,feo_fee_cents,feo_allowed,judge_name)'
+            'name,host_club,venue,trial_format,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,additional_entry_terms,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,sdda_trial_days(id,day_number,trial_date,entries_open,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,feo_allowed,judge_name,capacity),sdda_game_offerings(id,trial_day_id,game_type,entry_fee_cents,feo_fee_cents,feo_allowed,judge_name,capacity)'
           )
           .eq('id', trialId)
           .single()
@@ -171,7 +174,7 @@ export default function Page() {
         client
           .from('sdda_trials')
           .select(
-            'name,host_club,venue,trial_format,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,sdda_trial_days(id,day_number,trial_date,entries_open,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,feo_allowed,judge_name),sdda_game_offerings(id,trial_day_id,game_type,entry_fee_cents,feo_fee_cents,feo_allowed,judge_name)'
+            'name,host_club,venue,trial_format,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,additional_entry_terms,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,sdda_trial_days(id,day_number,trial_date,entries_open,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,feo_allowed,judge_name,capacity),sdda_game_offerings(id,trial_day_id,game_type,entry_fee_cents,feo_fee_cents,feo_allowed,judge_name,capacity)'
           )
           .eq('id', trialId)
           .single(),
@@ -351,6 +354,38 @@ export default function Page() {
     return total;
   }, [setup, choices, chosen]);
   const configuredEntryFeesCents = configuredScentFeesCents + configuredGameFeesCents;
+  const feeBreakdown = useMemo(() => {
+    if (!setup) return [] as Array<{ label: string; amountCents: number }>;
+    const lines: Array<{ label: string; amountCents: number }> = [];
+    const scentGroups = new Map<string, Choice[]>();
+    for (const choice of choices.filter((item) => chosen.has(item.key))) {
+      const key = `${choice.trial_day_id}|${choice.level}`;
+      scentGroups.set(key, [...(scentGroups.get(key) || []), choice]);
+    }
+    for (const selected of scentGroups.values()) {
+      const first = selected[0];
+      const day = setup.days.find((item) => item.id === first.trial_day_id)?.day_number || '?';
+      const packagePrice = first.level !== 'Elite' && selected.length === 3 && setup.scent_three_component_fee_cents > 0;
+      const amountCents = first.level === 'Elite'
+        ? setup.elite_fee_cents || 0
+        : packagePrice
+          ? setup.scent_three_component_fee_cents
+          : selected.length * (setup.scent_component_fee_cents || 0);
+      lines.push({
+        label: `Day ${day} ${first.level} Scent — ${first.level === 'Elite' ? 'per dog' : packagePrice ? 'all 3 components' : `${selected.length} component${selected.length === 1 ? '' : 's'}`}`,
+        amountCents,
+      });
+    }
+    for (const game of setup.game_offerings.filter((item) => gameChosen.has(item.id))) {
+      const day = setup.days.find((item) => item.id === game.trial_day_id)?.day_number || '?';
+      const entryType = gameEntryType[game.id] || 'Regular';
+      lines.push({
+        label: `Day ${day} ${game.game_type} — ${entryType}`,
+        amountCents: entryType === 'FEO' ? game.feo_fee_cents : game.entry_fee_cents,
+      });
+    }
+    return lines;
+  }, [setup, choices, chosen, gameChosen, gameEntryType]);
   const money = (cents: number) => new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(cents / 100);
   const set = (key: string, value: string | boolean | number) => setForm((v) => ({ ...v, [key]: value }));
   const toggle = (key: string) =>
@@ -555,7 +590,8 @@ export default function Page() {
         ? `${window.location.origin}/sdda-entry/${trialId}?code=${encodeURIComponent(receipt.confirmation_code)}&token=${encodeURIComponent(receipt.receipt_token)}`
         : undefined,
       amountOwingCents: configuredEntryFeesCents,
-      amountLabel: chosen.size ? 'Configured Games fees' : 'Amount owing',
+      amountLabel: 'Amount owing when accepted',
+      feeBreakdown,
     });
     const blob = new Blob([Uint8Array.from(bytes).buffer], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
@@ -564,6 +600,32 @@ export default function Page() {
     a.download = `${receipt.confirmation_code}-entry-receipt.pdf`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function startAnotherDog() {
+    setForm({
+      ...empty,
+      handler_name: form.handler_name,
+      handler_email: form.handler_email,
+      handler_phone: form.handler_phone,
+      handler_address: form.handler_address,
+      participant_number: form.participant_number,
+    });
+    setChosen(new Set());
+    setGameChosen(new Set());
+    setGameEntryType({});
+    setTeamPartner({});
+    setAerialDivision({});
+    setRunGroup({});
+    setRunStream({});
+    setRegistryDog(null);
+    setRecoveryCredentials(null);
+    setReceipt(null);
+    setEditing(false);
+    setCanEdit(true);
+    setError('');
+    setStep(1);
+    window.history.replaceState(null, '', `/sdda-entry/${trialId}`);
+    scrollTo(0, 0);
   }
   if (entryTiming) {
     const opensAt = entryTiming.entry_open_at ? new Date(entryTiming.entry_open_at).getTime() : Number.NaN;
@@ -592,7 +654,7 @@ export default function Page() {
             {form.handler_name} with {form.dog_call_name} · {chosen.size + gameChosen.size} runs
             requested
           </p>
-          {(chosen.size > 0 || gameChosen.size > 0) && <div className="mt-4 rounded-xl border border-[#b6c8d8] bg-[#edf6ef] p-4"><small className="font-bold uppercase text-[#475569]">Amount owing when accepted</small><p className="text-3xl font-bold text-[#294f73]">{money(configuredEntryFeesCents)}</p><p className="mt-1 text-sm text-gray-600">Scent {money(configuredScentFeesCents)} · Games {money(configuredGameFeesCents)}</p></div>}
+          {(chosen.size > 0 || gameChosen.size > 0) && <FeeBreakdown lines={feeBreakdown} totalCents={configuredEntryFeesCents} money={money} />}
           <div className="mt-4 rounded-xl border bg-white p-4">
             <h2 className="mb-2 font-bold">Selections received</h2>
             <ul className="list-disc space-y-1 pl-5">
@@ -615,6 +677,13 @@ export default function Page() {
               onClick={() => void downloadReceipt()}
             >
               Download receipt PDF
+            </button>
+            <button
+              type="button"
+              className="rounded-lg border border-[#294f73] bg-white px-5 py-3 font-bold text-[#294f73]"
+              onClick={() => startAnotherDog()}
+            >
+              Enter another dog
             </button>
             {canEdit && (
               <>
@@ -863,6 +932,7 @@ export default function Page() {
                                     <p className="mt-1 text-xs text-slate-600">
                                       Judge: {c.offerings.find((offering) => offering.judge_name?.trim())?.judge_name || setup.days.find((day) => day.id === c.trial_day_id)?.judge_name || 'To be assigned'}
                                     </p>
+                                    <CapacityNotice capacity={c.offerings[0]?.capacity} acceptedCount={c.offerings[0]?.accepted_count} />
                                     {chosen.has(c.key) && (
                                       <div className="mt-3 space-y-3">
                                         {c.level !== 'Elite' && (
@@ -931,6 +1001,7 @@ export default function Page() {
                               <p className="mt-1 text-xs text-slate-600">
                                 Judge: {g.judge_name || setup.days.find((day) => day.id === g.trial_day_id)?.judge_name || 'To be assigned'}
                               </p>
+                              <CapacityNotice capacity={g.capacity} acceptedCount={g.accepted_count} />
                               {gameChosen.has(g.id) && (
                                 <div className="mt-3 space-y-3">
                                   {g.feo_allowed && <label className="flex items-center gap-2 rounded-lg border border-[#9eb7aa] bg-[#f1f5f9] p-3 font-semibold"><input type="checkbox" checked={gameEntryType[g.id] === 'FEO'} onChange={(e) => setGameEntryType((current) => ({ ...current, [g.id]: e.target.checked ? 'FEO' : 'Regular' }))} />Enter this Game For Exhibition Only (FEO) · ${(g.feo_fee_cents / 100).toFixed(2)}</label>}
@@ -992,18 +1063,10 @@ export default function Page() {
               <Section title="Safety and title notes">
                 <Grid>
                   <F label="Formal Alert 1 — Started teams leave blank">
-                    <input
-                      className={field}
-                      value={form.formal_alert_1}
-                      onChange={(e) => set('formal_alert_1', e.target.value)}
-                    />
+                    <FormalAlertPicker value={form.formal_alert_1} onChange={(value) => set('formal_alert_1', value)} />
                   </F>
                   <F label="Formal Alert 2 (optional) — Started teams leave blank">
-                    <input
-                      className={field}
-                      value={form.formal_alert_2}
-                      onChange={(e) => set('formal_alert_2', e.target.value)}
-                    />
+                    <FormalAlertPicker value={form.formal_alert_2} onChange={(value) => set('formal_alert_2', value)} />
                   </F>
                   <F label="Championship title watch">
                     <textarea
@@ -1033,6 +1096,10 @@ export default function Page() {
                 </div>
                 <p className="mt-3 text-xs text-gray-600">Declaration from the official SDDA Sample Trial Entry Form. The trial’s premium list and current SDDA rules also apply. <a className="font-semibold text-[#294f73] underline" href="https://www.sdda.ca/sdda-forms/" target="_blank" rel="noreferrer">View official SDDA forms</a>.</p>
               </Section>
+              {setup.additional_entry_terms?.trim() && <Section title="Additional host acknowledgement">
+                <div className="whitespace-pre-wrap rounded-xl border border-[#bfc8c1] bg-white p-5 text-sm leading-6 text-gray-800">{setup.additional_entry_terms}</div>
+                <p className="mt-2 text-xs text-gray-600">These trial-specific terms are provided by the host and are covered by the acknowledgement below.</p>
+              </Section>}
               <Section title="Payment and cancellation">
                 <p className="whitespace-pre-wrap">
                   {setup.payment_instructions ||
@@ -1048,7 +1115,7 @@ export default function Page() {
                     checked={form.waiver_accepted}
                     onChange={(e) => set('waiver_accepted', e.target.checked)}
                   />
-                  <span><b>I have read and agree to the SDDA entry declaration displayed above.</b> I also reviewed my entry and agree to this trial’s payment and cancellation terms. *</span>
+                  <span><b>I have read and agree to the SDDA entry declaration displayed above.</b> I also reviewed my entry and agree to this trial’s payment, cancellation, and any additional host terms displayed above. *</span>
                 </label>
               </Section>
             </div>
@@ -1066,8 +1133,8 @@ export default function Page() {
                 {form.dog_registration_number || 'registration pending'}
                 <br />
                 {chosen.size + gameChosen.size} runs
-                {(chosen.size > 0 || gameChosen.size > 0) && <><br /><span className="text-[#294f73]"><b>Amount owing when accepted:</b> {money(configuredEntryFeesCents)}</span></>}
               </div>
+              {(chosen.size > 0 || gameChosen.size > 0) && <FeeBreakdown lines={feeBreakdown} totalCents={configuredEntryFeesCents} money={money} />}
               <div className="mt-4 space-y-2">
                 {choices
                   .filter((c) => chosen.has(c.key))
@@ -1169,4 +1236,45 @@ function F({ label, children }: { label: string; children: React.ReactNode }) {
       {children}
     </label>
   );
+}
+
+function CapacityNotice({ capacity, acceptedCount }: { capacity?: number | null; acceptedCount?: number }) {
+  if (!capacity) return <p className="mt-2 text-xs font-semibold text-blue-700">Space available — no capacity limit entered</p>;
+  if (acceptedCount === undefined) return <p className="mt-2 text-xs font-semibold text-slate-600">Capacity: {capacity}</p>;
+  const remaining = Math.max(0, capacity - acceptedCount);
+  if (remaining === 0) return <p className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-bold text-amber-900">At capacity — this selection will be reviewed for the waitlist</p>;
+  return <p className="mt-2 text-xs font-semibold text-blue-700">{remaining} {remaining === 1 ? 'space' : 'spaces'} currently available</p>;
+}
+
+function FormalAlertPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const custom = value === '__custom__' || Boolean(value && !isStandardFormalAlert(value));
+  return <div className="space-y-2">
+    <select
+      className={field}
+      value={custom ? '__other' : value}
+      onChange={(event) => {
+        if (event.target.value === '__other') {
+          onChange('__custom__');
+        } else {
+          onChange(event.target.value);
+        }
+      }}
+    >
+      <option value="">No formal alert</option>
+      {SDDA_FORMAL_ALERT_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+      <option value="__other">Other — describe</option>
+    </select>
+    {custom && <input className={field} value={value === '__custom__' ? '' : value} onChange={(event) => onChange(event.target.value || '__custom__')} placeholder="Describe the trained formal alert" />}
+  </div>;
+}
+
+function FeeBreakdown({ lines, totalCents, money }: { lines: Array<{ label: string; amountCents: number }>; totalCents: number; money: (cents: number) => string }) {
+  return <div className="mt-4 rounded-xl border border-[#b6c8d8] bg-[#edf6ef] p-4">
+    <h3 className="font-bold text-[#294f73]">Entry fee breakdown</h3>
+    <div className="mt-2 divide-y divide-[#cbd9e5] text-sm">
+      {lines.map((line, index) => <div className="flex justify-between gap-4 py-2" key={`${line.label}-${index}`}><span>{line.label}</span><b>{money(line.amountCents)}</b></div>)}
+    </div>
+    <div className="mt-2 flex justify-between border-t-2 border-[#6688a6] pt-3 text-lg font-bold text-[#294f73]"><span>Amount owing when accepted</span><span>{money(totalCents)}</span></div>
+    <p className="mt-2 text-xs text-gray-600">All-three-component pricing is shown as its configured package price. No coupon or discount is deducted.</p>
+  </div>;
 }

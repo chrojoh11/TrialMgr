@@ -458,3 +458,14 @@ No legacy C-WAGS migration was applied.
 - Repair: removed the past-opening reload loop that affected Wkk9 after its public closing time
 - Security: the timing endpoint exposes only existing public trial timing and status information; anonymous table access remains unavailable
 - Preservation: no trial status, schedule, entry, score, finance, registry, or audit data was changed
+
+## `20261030_0069_public_entry_capacity_terms.sql`
+
+- Applied: 2026-10-30 (America/Edmonton)
+- Project: `SDDA-Trialdesk` (`hsxwwtvzfulxdqimkgcc`)
+- Database branch: `main` / Production
+- Execution result: success; optional terms column, manager-only update function, public capacity counts, and explicit function privileges verified live
+- Capability: competitors can see spaces available or an at-capacity/waitlist warning for each Scent component and Game
+- Terms: hosts may add an optional trial-specific acknowledgement without changing the official SDDA declaration
+- Security: anonymous users can read only the capacity counts and public terms returned by the existing entry-setup RPC; they cannot update terms or read entry records
+- Preservation: no trial, entry, score, finance, registry, or audit data was rewritten
