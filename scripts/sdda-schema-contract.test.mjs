@@ -789,3 +789,34 @@ test('publishes selection capacity and configurable host terms without exposing 
   assert.match(sql, /grant execute on function public\.sdda_public_trial_entry_setup\(uuid\) to anon,authenticated/i);
   assert.doesNotMatch(sql, /grant (?:select|insert|update|delete).* to anon/i);
 });
+
+test('reserves capacity in submission order and reports immediate waitlist status', () => {
+  const sql = readFileSync(
+    new URL('../supabase/sdda-migrations/20261031_0070_reserve_capacity_on_submission.sql', import.meta.url),
+    'utf8'
+  );
+  assert.match(sql, /selection_status in \('received','accepted'\)/i);
+  assert.match(sql, /function public\.sdda_reserve_entry_selections\(target_entry_id uuid\)/i);
+  assert.match(sql, /perform 1 from public\.sdda_trials where id=target_trial_id for update/i);
+  assert.match(sql, /'waitlisted_count'/i);
+  assert.match(sql, /result:=public\.sdda_submit_public_entry_v5[\s\S]*return result\|\|reservation/i);
+  assert.match(sql, /requested_status='accepted'[\s\S]*sdda_allocate_entry_selections/i);
+  assert.match(sql, /'occupied_count'[\s\S]*selection_status in \('received','accepted'\)/i);
+  assert.match(sql, /revoke all on function public\.sdda_reserve_entry_selections\(uuid\) from public,anon,authenticated/i);
+  assert.match(sql, /grant execute on function public\.sdda_submit_public_entry_v6\(uuid,jsonb\) to anon,authenticated/i);
+  assert.doesNotMatch(sql, /grant execute on function public\.sdda_reserve_entry_selections/i);
+});
+
+test('configures optional volunteer tasks without exposing historical entry responses', () => {
+  const sql = readFileSync(
+    new URL('../supabase/sdda-migrations/20261031_0071_configurable_volunteer_options.sql', import.meta.url),
+    'utf8'
+  );
+  assert.match(sql, /volunteer_section_enabled boolean not null default false/i);
+  assert.match(sql, /volunteer_tasks text\[\] not null default/i);
+  assert.match(sql, /volunteer_preferences text\[\] not null default/i);
+  assert.match(sql, /sdda_update_trial_volunteer_options/i);
+  assert.match(sql, /not \(item=any\(coalesce\(configured_tasks/i);
+  assert.match(sql, /revoke all on function public\.sdda_apply_entry_update\(uuid,jsonb,uuid,text\) from public,anon,authenticated/i);
+  assert.match(sql, /grant execute on function public\.sdda_public_trial_entry_setup\(uuid\) to anon,authenticated/i);
+});

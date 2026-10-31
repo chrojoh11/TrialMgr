@@ -6,7 +6,7 @@ import { createEntryReceiptPdf } from '@/lib/sdda/entryReceiptPdf';
 import { isStandardFormalAlert, joinFormalAlerts, SDDA_FORMAL_ALERT_OPTIONS, splitFormalAlerts } from '@/lib/sdda/formalAlerts';
 import { publicEntryAvailability } from '@/lib/sdda/publicEntryAvailability';
 type Day = { id: string; day_number: number; trial_date: string; entries_open: boolean; judge_name?: string | null };
-type Offer = { id: string; trial_day_id: string; level: string; component: string; stream: string; feo_allowed: boolean; judge_name?: string | null; capacity?: number | null; accepted_count?: number };
+type Offer = { id: string; trial_day_id: string; level: string; component: string; stream: string; feo_allowed: boolean; judge_name?: string | null; capacity?: number | null; occupied_count?: number };
 type Choice = {
   key: string;
   trial_day_id: string;
@@ -23,7 +23,7 @@ type GameOffer = {
   feo_allowed: boolean;
   judge_name?: string | null;
   capacity?: number | null;
-  accepted_count?: number;
+  occupied_count?: number;
 };
 type Setup = {
   name: string;
@@ -33,6 +33,8 @@ type Setup = {
   payment_instructions?: string;
   cancellation_policy?: string;
   additional_entry_terms?: string;
+  volunteer_section_enabled?: boolean;
+  volunteer_tasks?: string[];
   secretary_name?: string;
   secretary_email?: string;
   secretary_phone?: string;
@@ -99,6 +101,7 @@ const empty = {
   title_watch_note: '',
   reactivity: 'None',
   waiver_accepted: false,
+  volunteer_preferences: [] as string[],
 };
 export default function Page() {
   const trialId = useParams<{ trialId: string }>().trialId;
@@ -136,6 +139,8 @@ export default function Page() {
   const [receipt, setReceipt] = useState<{
     confirmation_code: string;
     receipt_token: string;
+    reserved_count?: number;
+    waitlisted_count?: number;
   } | null>(null);
   useEffect(() => {
     if (!entryTiming) return;
@@ -154,7 +159,7 @@ export default function Page() {
         void client
           .from('sdda_trials')
           .select(
-            'name,host_club,venue,trial_format,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,additional_entry_terms,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,sdda_trial_days(id,day_number,trial_date,entries_open,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,feo_allowed,judge_name,capacity),sdda_game_offerings(id,trial_day_id,game_type,entry_fee_cents,feo_fee_cents,feo_allowed,judge_name,capacity)'
+            'name,host_club,venue,trial_format,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,additional_entry_terms,volunteer_section_enabled,volunteer_tasks,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,sdda_trial_days(id,day_number,trial_date,entries_open,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,feo_allowed,judge_name,capacity),sdda_game_offerings(id,trial_day_id,game_type,entry_fee_cents,feo_fee_cents,feo_allowed,judge_name,capacity)'
           )
           .eq('id', trialId)
           .single()
@@ -174,7 +179,7 @@ export default function Page() {
         client
           .from('sdda_trials')
           .select(
-            'name,host_club,venue,trial_format,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,additional_entry_terms,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,sdda_trial_days(id,day_number,trial_date,entries_open,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,feo_allowed,judge_name,capacity),sdda_game_offerings(id,trial_day_id,game_type,entry_fee_cents,feo_fee_cents,feo_allowed,judge_name,capacity)'
+            'name,host_club,venue,trial_format,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,additional_entry_terms,volunteer_section_enabled,volunteer_tasks,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,sdda_trial_days(id,day_number,trial_date,entries_open,judge_name),sdda_trial_offerings(id,trial_day_id,level,component,stream,feo_allowed,judge_name,capacity),sdda_game_offerings(id,trial_day_id,game_type,entry_fee_cents,feo_fee_cents,feo_allowed,judge_name,capacity)'
           )
           .eq('id', trialId)
           .single(),
@@ -388,6 +393,12 @@ export default function Page() {
   }, [setup, choices, chosen, gameChosen, gameEntryType]);
   const money = (cents: number) => new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(cents / 100);
   const set = (key: string, value: string | boolean | number) => setForm((v) => ({ ...v, [key]: value }));
+  const toggleVolunteerPreference = (task: string) => setForm((current) => ({
+    ...current,
+    volunteer_preferences: current.volunteer_preferences.includes(task)
+      ? current.volunteer_preferences.filter((item) => item !== task)
+      : [...current.volunteer_preferences, task],
+  }));
   const toggle = (key: string) =>
     setChosen((v) => {
       const n = new Set(v);
@@ -520,7 +531,7 @@ export default function Page() {
           });
     setBusy(false);
     if (error) return setError(error.message);
-    const r = data as { confirmation_code: string; receipt_token?: string };
+    const r = data as { confirmation_code: string; receipt_token?: string; reserved_count?: number; waitlisted_count?: number };
     const token = r.receipt_token || receipt?.receipt_token || receiptToken;
     if (secretaryNew) {
       if (!token) return setError('The new entry was saved, but its secretary record could not be finalized.');
@@ -542,7 +553,12 @@ export default function Page() {
         verification_email: form.handler_email.trim(),
       });
     }
-    setReceipt({ confirmation_code: r.confirmation_code, receipt_token: token });
+    setReceipt({
+      confirmation_code: r.confirmation_code,
+      receipt_token: token,
+      reserved_count: r.reserved_count,
+      waitlisted_count: r.waitlisted_count,
+    });
     setEditing(false);
     localStorage.setItem(
       `sdda-receipt-${r.confirmation_code}`,
@@ -573,11 +589,21 @@ export default function Page() {
             `Day ${setup.days.find((d) => d.id === g.trial_day_id)?.day_number || '?'} - ${g.game_type}${g.game_type === 'Aerial' ? ` - ${aerialDivision[g.id] || 'category pending'}` : ''} - ${gameEntryType[g.id] || 'Regular'}${g.game_type === 'Team' ? ` - Partner: ${teamPartner[g.id]}` : ''}`
         )
     );
+    if (form.volunteer_preferences.length) {
+      selections.push(`Volunteer availability: ${form.volunteer_preferences.join(', ')}`);
+    }
     return selections;
   }
   async function downloadReceipt() {
     if (!receipt || !setup) return;
     const selections = selectionLabels();
+    if (receipt.waitlisted_count !== undefined) {
+      selections.unshift(
+        receipt.waitlisted_count
+          ? `Capacity status: ${receipt.waitlisted_count} ${receipt.waitlisted_count === 1 ? 'selection is' : 'selections are'} waitlisted.`
+          : 'Capacity status: available spaces reserved pending secretary acceptance.'
+      );
+    }
     const totalRuns = chosen.size + gameChosen.size;
     const bytes = await createEntryReceiptPdf({
       confirmationCode: receipt.confirmation_code,
@@ -609,6 +635,7 @@ export default function Page() {
       handler_phone: form.handler_phone,
       handler_address: form.handler_address,
       participant_number: form.participant_number,
+      volunteer_preferences: form.volunteer_preferences,
     });
     setChosen(new Set());
     setGameChosen(new Set());
@@ -655,6 +682,17 @@ export default function Page() {
             requested
           </p>
           {(chosen.size > 0 || gameChosen.size > 0) && <FeeBreakdown lines={feeBreakdown} totalCents={configuredEntryFeesCents} money={money} />}
+          {receipt.waitlisted_count !== undefined && (receipt.waitlisted_count ? (
+            <div className="mt-4 rounded-xl border border-amber-400 bg-amber-50 p-4 text-amber-950">
+              <p className="font-bold">{receipt.waitlisted_count} {receipt.waitlisted_count === 1 ? 'selection is' : 'selections are'} waitlisted.</p>
+              <p className="mt-1 text-sm">Those selections did not have space when this entry was submitted. The secretary will contact you if a space becomes available.</p>
+            </div>
+          ) : (
+            <div className="mt-4 rounded-xl border border-blue-300 bg-blue-50 p-4 text-blue-950">
+              <p className="font-bold">Available spaces have been reserved for this entry.</p>
+              <p className="mt-1 text-sm">The entry remains subject to secretary review and acceptance.</p>
+            </div>
+          ))}
           <div className="mt-4 rounded-xl border bg-white p-4">
             <h2 className="mb-2 font-bold">Selections received</h2>
             <ul className="list-disc space-y-1 pl-5">
@@ -932,7 +970,7 @@ export default function Page() {
                                     <p className="mt-1 text-xs text-slate-600">
                                       Judge: {c.offerings.find((offering) => offering.judge_name?.trim())?.judge_name || setup.days.find((day) => day.id === c.trial_day_id)?.judge_name || 'To be assigned'}
                                     </p>
-                                    <CapacityNotice capacity={c.offerings[0]?.capacity} acceptedCount={c.offerings[0]?.accepted_count} />
+                                    <CapacityNotice capacity={c.offerings[0]?.capacity} occupiedCount={c.offerings[0]?.occupied_count} />
                                     {chosen.has(c.key) && (
                                       <div className="mt-3 space-y-3">
                                         {c.level !== 'Elite' && (
@@ -1001,7 +1039,7 @@ export default function Page() {
                               <p className="mt-1 text-xs text-slate-600">
                                 Judge: {g.judge_name || setup.days.find((day) => day.id === g.trial_day_id)?.judge_name || 'To be assigned'}
                               </p>
-                              <CapacityNotice capacity={g.capacity} acceptedCount={g.accepted_count} />
+                              <CapacityNotice capacity={g.capacity} occupiedCount={g.occupied_count} />
                               {gameChosen.has(g.id) && (
                                 <div className="mt-3 space-y-3">
                                   {g.feo_allowed && <label className="flex items-center gap-2 rounded-lg border border-[#9eb7aa] bg-[#f1f5f9] p-3 font-semibold"><input type="checkbox" checked={gameEntryType[g.id] === 'FEO'} onChange={(e) => setGameEntryType((current) => ({ ...current, [g.id]: e.target.checked ? 'FEO' : 'Regular' }))} />Enter this Game For Exhibition Only (FEO) · ${(g.feo_fee_cents / 100).toFixed(2)}</label>}
@@ -1089,6 +1127,10 @@ export default function Page() {
                   </F>
                 </Grid>
               </Section>
+              {setup.volunteer_section_enabled && (setup.volunteer_tasks?.length || 0) > 0 && <Section title="Volunteer availability (optional)">
+                <p className="mb-3 text-sm text-gray-600">Select every task you would be willing to help with. The host will confirm assignments separately.</p>
+                <div className="grid gap-2 sm:grid-cols-2">{setup.volunteer_tasks!.map((task) => <label key={task} className="flex items-center gap-3 rounded-xl border border-[#bfc8c1] bg-white p-3"><input type="checkbox" checked={form.volunteer_preferences.includes(task)} onChange={() => toggleVolunteerPreference(task)} /><span>{task}</span></label>)}</div>
+              </Section>}
               <Section title="SDDA entry declaration">
                 <div className="space-y-3 rounded-xl border border-[#bfc8c1] bg-white p-5 text-sm leading-6 text-gray-800">
                   <p>I certify that I am the owner or authorized agent of the actual owner of the dog entered in this SDDA sanctioned Sporting Detection Trial. I accept full responsibility for all statements made in this entry and for the dog’s participation in this trial. In consideration of the acceptance of this entry I agree to be bound by the rules and regulations of the Sporting Detection Dogs Association and any additional rules and regulations put forth regarding this specific event.</p>
@@ -1133,6 +1175,7 @@ export default function Page() {
                 {form.dog_registration_number || 'registration pending'}
                 <br />
                 {chosen.size + gameChosen.size} runs
+                {form.volunteer_preferences.length > 0 && <><br /><b>Volunteer availability:</b> {form.volunteer_preferences.join(', ')}</>}
               </div>
               {(chosen.size > 0 || gameChosen.size > 0) && <FeeBreakdown lines={feeBreakdown} totalCents={configuredEntryFeesCents} money={money} />}
               <div className="mt-4 space-y-2">
@@ -1238,12 +1281,15 @@ function F({ label, children }: { label: string; children: React.ReactNode }) {
   );
 }
 
-function CapacityNotice({ capacity, acceptedCount }: { capacity?: number | null; acceptedCount?: number }) {
+function CapacityNotice({ capacity, occupiedCount }: { capacity?: number | null; occupiedCount?: number }) {
   if (!capacity) return <p className="mt-2 text-xs font-semibold text-blue-700">Space available — no capacity limit entered</p>;
-  if (acceptedCount === undefined) return <p className="mt-2 text-xs font-semibold text-slate-600">Capacity: {capacity}</p>;
-  const remaining = Math.max(0, capacity - acceptedCount);
-  if (remaining === 0) return <p className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-bold text-amber-900">At capacity — this selection will be reviewed for the waitlist</p>;
-  return <p className="mt-2 text-xs font-semibold text-blue-700">{remaining} {remaining === 1 ? 'space' : 'spaces'} currently available</p>;
+  if (occupiedCount === undefined) return <p className="mt-2 text-xs font-semibold text-slate-600">Capacity: {capacity}</p>;
+  const remaining = Math.max(0, capacity - occupiedCount);
+  if (remaining === 0) return <p className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-bold text-amber-900">At capacity — a new selection will be placed on the waitlist</p>;
+  return <div className="mt-2 text-xs">
+    <p className="font-semibold text-blue-700">{remaining} {remaining === 1 ? 'space' : 'spaces'} currently available</p>
+    <p className="mt-1 text-slate-600">Submitting the entry reserves available space while the secretary reviews it.</p>
+  </div>;
 }
 
 function FormalAlertPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {

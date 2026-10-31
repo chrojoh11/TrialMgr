@@ -1,5 +1,22 @@
 # Applied SDDA migrations
 
+## 2026-10-31 — `20261031_0071_configurable_volunteer_options.sql`
+
+- Applied to SDDA Supabase project `hsxwwtvzfulxdqimkgcc`.
+- Secretaries can show or hide the optional volunteer section and select standard or custom tasks for each trial.
+- Entry responses are stored independently from the current task list, so hiding or changing future choices does not erase historical volunteer availability.
+- Public entry setup exposes only the enabled choices; entry writes continue through credential-scoped RPCs with no anonymous table access.
+- Verified TypeScript, targeted lint, live grants, default preservation, and Supabase security advisors.
+
+## 2026-10-31 — `20261031_0070_reserve_capacity_on_submission.sql`
+
+- Applied to SDDA Supabase project `hsxwwtvzfulxdqimkgcc`.
+- Received selections now reserve capacity in submission order; overflow selections are immediately waitlisted.
+- Acceptance confirms existing reservations without silently promoting waitlisted selections.
+- Public capacity counts include both received reservations and accepted selections.
+- Private reservation helpers have no `anon` or `authenticated` execute grant; only the intended public submission/setup RPCs remain exposed.
+- Verified TypeScript, targeted lint, 79 SDDA tests, 54 schema-contract tests, live function grants, and Supabase security advisors.
+
 ## `20261024_0063_checklist_policy_indexes.sql`
 
 - Applied: 2026-10-24 (America/Edmonton)

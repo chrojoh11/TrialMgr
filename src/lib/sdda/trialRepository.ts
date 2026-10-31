@@ -85,6 +85,8 @@ export interface SddaTrialWorkspace extends SddaTrialSummary {
   payment_instructions: string | null;
   cancellation_policy: string | null;
   additional_entry_terms: string | null;
+  volunteer_section_enabled: boolean;
+  volunteer_tasks: string[];
   workbook_source_url: string | null;
   workbook_filename: string | null;
   workbook_sha256: string | null;
@@ -158,6 +160,7 @@ export interface SddaRosterEntry {
   formal_alerts: string | null;
   reactivity: string | null;
   title_watch_note: string | null;
+  volunteer_preferences: string[];
   reported_advanced_gold_count: number | null;
   reported_excellent_gold_count: number | null;
   reported_elite_gold_count: number | null;
@@ -350,7 +353,7 @@ export async function getSddaTrialWorkspace(client: SupabaseClient, trialId: str
   const { data, error } = await client
     .from('sdda_trials')
     .select(
-      'id,name,host_club,venue,timezone,entry_open_at,general_entry_open_at,entry_close_at,status,created_at,trial_format,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,additional_entry_terms,workbook_source_url,workbook_filename,workbook_sha256,workbook_storage_path,workbook_pinned_at,workbook_proofed_at,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name,entries_open),sdda_trial_offerings(id,trial_day_id,level,component,stream,sdda_trial_number,judge_name,capacity,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,sdda_trial_number,judge_name,capacity,entry_fee_cents,feo_fee_cents,feo_allowed)'
+      'id,name,host_club,venue,timezone,entry_open_at,general_entry_open_at,entry_close_at,status,created_at,trial_format,scent_component_fee_cents,scent_three_component_fee_cents,elite_fee_cents,secretary_name,secretary_email,secretary_phone,payment_instructions,cancellation_policy,additional_entry_terms,volunteer_section_enabled,volunteer_tasks,workbook_source_url,workbook_filename,workbook_sha256,workbook_storage_path,workbook_pinned_at,workbook_proofed_at,sdda_trial_days(id,day_number,trial_date,sdda_trial_number,judge_name,entries_open),sdda_trial_offerings(id,trial_day_id,level,component,stream,sdda_trial_number,judge_name,capacity,feo_allowed),sdda_game_offerings(id,trial_day_id,game_type,sdda_trial_number,judge_name,capacity,entry_fee_cents,feo_fee_cents,feo_allowed)'
     )
     .eq('id', trialId)
     .single();
@@ -439,6 +442,20 @@ export async function saveSddaTrialEntrySchedule(
     requested_general_open_local: generalOpenAt,
     requested_close_local: closeAt,
     requested_timezone: timeZone,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function saveSddaTrialVolunteerOptions(
+  client: SupabaseClient,
+  trialId: string,
+  enabled: boolean,
+  tasks: string[]
+) {
+  const { error } = await client.rpc('sdda_update_trial_volunteer_options', {
+    target_trial_id: trialId,
+    requested_enabled: enabled,
+    requested_tasks: tasks,
   });
   if (error) throw new Error(error.message);
 }
@@ -603,10 +620,10 @@ export async function listSddaEntries(
   const { data: entries, error } = await client
     .from('sdda_entries')
     .select(
-      'id,dog_id,handler_name,handler_email,handler_phone,handler_address,participant_number,stream,formal_alerts,reactivity,title_watch_note,reported_advanced_gold_count,reported_excellent_gold_count,reported_elite_gold_count,reported_gold_acknowledged,reported_gold_declared_at,entry_status,confirmation_status,confirmation_code,submitted_at,source,created_at'
+      'id,dog_id,handler_name,handler_email,handler_phone,handler_address,participant_number,stream,formal_alerts,reactivity,title_watch_note,volunteer_preferences,reported_advanced_gold_count,reported_excellent_gold_count,reported_elite_gold_count,reported_gold_acknowledged,reported_gold_declared_at,entry_status,confirmation_status,confirmation_code,submitted_at,source,created_at'
     )
     .eq('trial_id', trialId)
-    .order('created_at');
+    .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   if (!entries?.length) return [];
 

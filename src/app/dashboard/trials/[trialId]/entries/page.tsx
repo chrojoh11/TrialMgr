@@ -566,6 +566,7 @@ export default function SddaEntriesPage() {
                         <strong>Formal alerts:</strong> {entry.formal_alerts}
                       </p>
                     )}
+                    {entry.volunteer_preferences?.length > 0 && <p className="mt-2 text-sm text-gray-700"><strong>Volunteer availability:</strong> {entry.volunteer_preferences.join(', ')}</p>}
                     <div className="flex flex-wrap gap-2">
                       {(entry.sdda_runs || []).map((run: any) => (
                         <span key={run.id} className="inline-flex items-center gap-1">
